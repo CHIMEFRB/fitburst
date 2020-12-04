@@ -1,0 +1,7 @@
+# Defaults
+default:
+  backend:
+    name: URL Prefix
+  components:
+    blueprints:
+      - fitburst.backend.rest
