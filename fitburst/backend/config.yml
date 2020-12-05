@@ -1,7 +1,25 @@
-# Defaults
-default:
-  backend:
-    name: URL Prefix
-  components:
-    blueprints:
-      - fitburst.backend.rest
+# Configuration values for CHIME data.
+chimefrb:
+    default:
+        constants:
+            dispersion: 4149.377593360996
+            index_dispersion: -2.0
+            index_scattering: -4.0
+            num_channels: 16384
+
+        reference_frequency: 
+            power_law: 400.1953125
+            scattering: 600.0
+
+        resolution:
+            frequency: 0.0244140625
+            time: 0.00098304
+            
+
+chimepsr:
+    default:
+        constants:
+            dispersion: 4149.377593360996
+            index_dispersion: -2.0
+            index_scattering: -4.0
+            num_channels: 1024
