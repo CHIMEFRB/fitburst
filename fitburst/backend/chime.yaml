@@ -1,11 +1,14 @@
 # Configuration values for CHIME data.
+general:
+    constants:
+        dispersion: 4149.377593360996   # in units of MHz**2 * s * cm**3 / pc
+        index_dispersion: -2.0
+        index_scattering: -4.0
+
+
 chimefrb:
     default:
-        constants:
-            dispersion: 4149.377593360996
-            index_dispersion: -2.0
-            index_scattering: -4.0
-            num_channels: 16384
+        num_channels: 16384
 
         reference_frequency: 
             power_law: 400.1953125
@@ -15,11 +18,7 @@ chimefrb:
             frequency: 0.0244140625
             time: 0.00098304
             
-
 chimepsr:
     default:
         constants:
-            dispersion: 4149.377593360996
-            index_dispersion: -2.0
-            index_scattering: -4.0
             num_channels: 1024
