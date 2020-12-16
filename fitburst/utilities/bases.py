@@ -44,3 +44,4 @@ class ReaderBaseClass(object):
 
         # compute indeces of min/max window values along time axis.
         pass
+
