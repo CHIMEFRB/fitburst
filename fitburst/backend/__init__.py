@@ -8,5 +8,6 @@ config_data = yaml.load(
             "chime.yaml"
         ), 
         "r"
-    )
+    ),
+    Loader=yaml.FullLoader
 )
