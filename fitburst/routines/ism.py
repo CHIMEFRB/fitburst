@@ -1,10 +1,12 @@
-from fitburst.backend import config_data
+from fitburst.backend import general
 import numpy as np
 
-index_dispersion = config_data["general"]["constants"]["index_dispersion"]
-index_scattering = config_data["general"]["constants"]["index_scattering"]
-
-def compute_time_dm_delay(dm: np.float, freq1: np.float, freq2: np.float = np.inf, dm_idx: np.float = index_dispersion) -> np.float:
+def compute_time_dm_delay(
+    dm: np.float, 
+    freq1: np.float, 
+    freq2: np.float = np.inf, 
+    dm_idx: np.float = general["constants"]["index_dispersion"]
+    ) -> np.float:
     """
     Computes the time delay due to frequency-dependent dispersion in the ISM.
 
@@ -28,13 +30,18 @@ def compute_time_dm_delay(dm: np.float, freq1: np.float, freq2: np.float = np.in
         time delay due to dispersion
     """
 
-    dm_constant = config_data["general"]["constants"]["dispersion"]
+    dm_constant = general["constants"]["dispersion"]
     delay = dm * dm_constant * (freq1 ** dm_idx - freq2 ** dm_idx)
     
     return delay
     
 
-def compute_time_dm_smear(dm: np.float, freq: np.float, bw: np.float, dm_idx: np.float = index_dispersion) -> np.float:
+def compute_time_dm_smear(
+    dm: np.float, 
+    freq: np.float, 
+    bw: np.float, 
+    dm_idx: np.float = general["constants"]["index_dispersion"]
+    ) -> np.float:
     """
     Computes the time delay due to frequency-dependent dispersion in the ISM.
 
@@ -58,12 +65,17 @@ def compute_time_dm_smear(dm: np.float, freq: np.float, bw: np.float, dm_idx: np
         timescale of dispersion smearing
     """
 
-    dm_constant = config_data["general"]["constants"]["dispersion"]
+    dm_constant = general["constants"]["dispersion"]
     smear = 2 * dm * dm_constant * bw * freq ** (dm_idx - 1)
 
     return smear
 
-def compute_time_scattering(freq: np.float, freq_ref: np.float, sc_time_ref: np.float, sc_idx: np.float = index_scattering) -> np.float:
+def compute_time_scattering(
+    freq: np.float, 
+    freq_ref: np.float, 
+    sc_time_ref: np.float, 
+    sc_idx: np.float = general["constants"]["index_scattering"]
+    ) -> np.float:
     """
     Computes the scattering timescale as a scaled value relative to scattering determined at 
     a reference frequency.
