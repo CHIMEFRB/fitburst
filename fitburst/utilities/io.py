@@ -1,11 +1,15 @@
 from chime_frb_api.backends.frb_master import FRBMaster
-from . import bases
+from cfod.chime_intensity import natural_keys, unpack_datafiles
 import numpy as np
 import datetime
 import requests
 import glob
 import pytz
 import sys
+
+# now import some fitburst-specific packages.
+from fitburst.backend import telescopes
+from . import bases
 
 class CHIMEFRBReader(bases.ReaderBaseClass):
     """
@@ -22,8 +26,19 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
 
         # define parameters to be updated by data-retrieval method.
         self.burst_parameters = {}
+        self.data_full = None
+        self.data_weights = None
+        self.data_windowed = None
         self.files = []
         self.frbmaster_request_status = None
+        self.freqs = None
+        self.downsample_factor = None
+        self.fpga_count_start = None
+        self.fpga_count_total = None
+        self.fpga_frame0_nano = None
+        self.rfi_freq_count = None
+        self.rfi_mask = None
+        self.times = None
 
         # as a default, grab data from FRBMaster.
         print("... grabbing metadata for eventID {0}".format(self.eventid))
@@ -33,7 +48,24 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
         """
         """
         
-        pass
+        unpacked_data_set = unpack_datafiles(files)
+        self.data_full = unpacked_data_set[0]
+        self.data_weights = unpacked_data_set[1]
+        self.fpga_count_start = unpacked_data_set[2]
+        self.fpga_count_total = unpacked_data_set[3]
+        self.downsample_factor = unpacked_data_set[4]
+        self.rfi_mask = unpacked_data_set[5]
+        self.fpga_frame0_nano = (unpacked_data_set[6])[0]
+
+        # derive time information from loaded data.
+        n_freqs, n_times = self.data_full.shape
+        times = np.arange(n_times, dtype=np.int64) + (self.downsample_factor // 2)
+        times *= (
+            telescopes["chimefrb"]["num_frames_per_sample"] * \
+            telescopes["chimefrb"]["num_factor_upchannel"]
+        )
+        times += self.fpga_count_start[0]
+        self.times = times * telescopes["chimefrb"]["fpga"]["time_per_sample"]
 
     def _retrieve_metadata_frbmaster(
             self,
@@ -46,17 +78,29 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
         """
 
         # perform a GET to retrieve FRBMaster data.
-        url_get = "https://frb.chimenet.ca/chimefrb/astro_events/fetch_event_header/{}/".format(eventid)
+        url_get = "https://frb.chimenet.ca/chimefrb/astro_events/fetch_event_header/{}/".format(
+            eventid
+        )
         response = requests.request("GET", url_get, auth=("frb", "flub raw burden"))
 
         # if event is not found in database, then exit.
         self.frbmaster_request_status = response.status_code
 
         if (self.frbmaster_request_status == 500):
-            raise(requests.exceptions.ConnectionError("unable to find event {0} in FRBMaster.".format(eventid)))
+            raise(
+                requests.exceptions.ConnectionError("unable to find event {0} in FRBMaster.".format(
+                    eventid
+                    )
+                )
+            )
 
         elif (self.frbmaster_request_status == 400):
-            raise(requests.exceptions.ConnectionError("unable to connect to FRBMaster.".format(eventid)))
+            raise(
+                requests.exceptions.ConnectionError("unable to connect to FRBMaster.".format(
+                    eventid
+                   )
+                )
+            )
 
         # now start by first grabbing bean and S/N data.
         data = response.json()
@@ -83,8 +127,9 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
         )
         
         # try getting data from frb-vsop.chime.
+        print("trying to grab CHIME/FRB data from fitburst/DM-pipeline resuts...", end="")
+
         try:
-            print("hey!")
             url_get = "http://frb-vsop.chime:8001"
             master = FRBMaster(base_url=url_get)
             event = master.events.get_event(eventid)
@@ -114,12 +159,9 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
                     #    )
                     #]
                     
-                    print("yes!")
-
                 elif (current_measurement["pipeline"]["name"] == "intensity-fitburst" and 
                     current_measurement["measurement_id"] == locked_id_fitburst):
 
-                    print("yo")
                     # determine which fitburst round it is and stash separately.
                     current_round = "round_1"
 
@@ -152,6 +194,7 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
                         self.burst_parameters["fitburst"][current_round]["timestamp_scattering"] = [
                             current_measurement["sub_burst_scattering_timescale"]
                         ]
+            print("success!")
 
         except Exception as exc:
             print("WARNING: unable to retrieve locked parameters from frb-vsop.chime:8001")
@@ -166,3 +209,4 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
         )
 
         self.files = glob.glob("{0}/*.msgpack".format(path_to_data))
+        self.files.sort(key=natural_keys)
