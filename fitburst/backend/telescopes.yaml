@@ -1,24 +1,21 @@
-# Configuration values for CHIME data.
-general:
-    constants:
-        dispersion: 4149.377593360996   # in units of MHz**2 * s * cm**3 / pc
-        index_dispersion: -2.0
-        index_scattering: -4.0
-
-
+# Configuration values for CHIME/FRB data.
+#
+# Notes:
+#     - all time entries have units of seconds
+#     - all freq entires have units of MHz
 chimefrb:
-    default:
-        num_channels: 16384
+    num_channels: 16384
+    num_factor_upchannel: 16
+    num_frames_per_sample: 24
+    
+    # define some values specific to FPGA data.
+    fpga:
+        freq0: 800.0
+        num_counts_per_sample: 384
+        num_counts_per_second: 390625
+        time_per_sample: 2.56e-6 
 
-        reference_frequency: 
-            power_law: 400.1953125
-            scattering: 600.0
-
-        resolution:
-            frequency: 0.0244140625
-            time: 0.00098304
-            
-chimepsr:
-    default:
-        constants:
-            num_channels: 1024
+    # define reference values ("pivots") used as defaults by CHIME/FRB.
+    pivot_freq: 
+        spectrim: 400.1953125
+        scattering: 600.0
