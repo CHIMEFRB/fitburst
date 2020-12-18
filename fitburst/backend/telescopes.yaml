@@ -4,13 +4,16 @@
 #     - all time entries have units of seconds
 #     - all freq entires have units of MHz
 chimefrb:
+    bandwidth: 400.0
     num_channels: 16384
     num_factor_upchannel: 16
     num_frames_per_sample: 24
     
     # define some values specific to FPGA data.
     fpga:
-        freq0: 800.0
+        freq_bottom: 400.0
+        freq_top: 800.0
+        num_channels: 1024
         num_counts_per_sample: 384
         num_counts_per_second: 390625
         time_per_sample: 2.56e-6 
