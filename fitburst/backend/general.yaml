@@ -1,0 +1,9 @@
+# Configuration values for CHIME/FRB data.
+#
+# Notes:
+#     - all time entries have units of seconds
+#     - all freq entires have units of MHz
+constants:
+    dispersion: 4149.377593360996   # in units of MHz**2 * s * cm**3 / pc
+    index_dispersion: -2.0
+    index_scattering: -4.0

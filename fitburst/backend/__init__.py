@@ -1,11 +1,22 @@
 #!/usr/bin/env python
 import yaml, os
 
-config_data = yaml.load(
+general = yaml.load(
     open(
         "{0}/{1}".format(
             os.path.dirname(__file__), 
-            "chime.yaml"
+            "general.yaml"
+        ), 
+        "r"
+    ),
+    Loader=yaml.FullLoader
+)
+
+telescopes = yaml.load(
+    open(
+        "{0}/{1}".format(
+            os.path.dirname(__file__), 
+            "telescopes.yaml"
         ), 
         "r"
     ),
