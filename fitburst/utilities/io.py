@@ -1,9 +1,10 @@
-from . import bases
 from chime_frb_api.backends.frb_master import FRBMaster
+from . import bases
 import numpy as np
 import datetime
 import requests
-import cfod
+import glob
+import pytz
 import sys
 
 class CHIMEFRBReader(bases.ReaderBaseClass):
@@ -17,23 +18,28 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
         # before anything else, ensure eventid makes sense.
         self.eventid = eventid
         assert(isinstance(self.eventid, int))
-        print("hello, event ID {0}".format(self.eventid))
+        print("CHIMEFRBReader executed:")
 
-        # define
+        # define parameters to be updated by data-retrieval method.
         self.burst_parameters = {}
         self.files = []
         self.frbmaster_request_status = None
 
         # as a default, grab data from FRBMaster.
+        print("... grabbing metadata for eventID {0}".format(self.eventid))
         self._retrieve_metadata_frbmaster(self.eventid)
 
-    def load_data(self, msgpack=True):
-        print("add code here!")
+    def load_data(self, files, msgpack=True):
+        """
+        """
+        
+        pass
 
     def _retrieve_metadata_frbmaster(
             self,
             eventid,
             beam_id=0,
+            mountpoint="/data/frb-archiver",
             use_locked=False
         ):
         """
@@ -67,19 +73,18 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
 
         # grab L1 data of basic properties, stash into parameter attribute.
         self.burst_parameters["L1"] = {}
-        self.burst_parameters["L1"]["dm"] = [beam_data["dm"]]
-        self.burst_parameters["L1"]["dm_range"] = [beam_data["dm_error"]]
-        self.burst_parameters["L1"]["time_range"] = [beam_data["time_error"]]
-        self.burst_parameters["L1"]["timestamp_fpga"] = [beam_data["timestamp_fpga"]]
-        print(type(beam_data["timestamp_utc"]))
-        self.burst_parameters["L1"]["timestamp_utc"] = [datetime.datetime.strptime(
-                beam_data["timestamp_utc"], 
-                "%Y%m%d%H%M%S.%f"
-            )
-        ]
+        self.burst_parameters["L1"]["dm"] = beam_data["dm"]
+        self.burst_parameters["L1"]["dm_range"] = beam_data["dm_error"]
+        self.burst_parameters["L1"]["time_range"] = beam_data["time_error"]
+        self.burst_parameters["L1"]["timestamp_fpga"] = beam_data["timestamp_fpga"]
+        self.burst_parameters["L1"]["timestamp_utc"] = datetime.datetime.strptime(
+            beam_data["timestamp_utc"], 
+            "%Y%m%d%H%M%S.%f"
+        )
         
         # try getting data from frb-vsop.chime.
         try:
+            print("hey!")
             url_get = "http://frb-vsop.chime:8001"
             master = FRBMaster(base_url=url_get)
             event = master.events.get_event(eventid)
@@ -94,21 +99,27 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
                 if (current_measurement["pipeline"]["name"] == "intensity-dm-pipeline" and
                     current_measurement["measurement_id"] == locked_id_dm):
 
-                    self.burst_parameters["dm-pipeline"]["snr"] = [current_measurement["snr"]]
-                    self.burst_parameters["dm-pipeline"]["beam_number"] = [current_measurement["beam_number"]]
-                    self.burst_parameters["dm-pipeline"]["dm"] = [current_measurement["dm_snr"]]
-                    self.burst_parameters["dm-pipeline"]["width"] = [current_measurement["width"]]
-                    print(type(current_measurement["datetime"]))
-                    self.burst_parameters["dm-pipeline"]["timestamp_utc"] = [datetime.datetime.strptime(
-                            current_measurement["datetime"],
-                            "%Y%m%d%H%M%S.%f"
-                        )
-                    ]
+                    self.burst_parameters["dm-pipeline"]["snr"] = \
+                        [current_measurement["snr"]]
+                    self.burst_parameters["dm-pipeline"]["beam_number"] = \
+                        [current_measurement["beam_number"]]
+                    self.burst_parameters["dm-pipeline"]["dm"] = \
+                        [current_measurement["dm_snr"]]
+                    self.burst_parameters["dm-pipeline"]["width"] = \
+                        [current_measurement["width"]]
+                    #self.burst_parameters["dm-pipeline"]["timestamp_utc"] = \
+                    #    [datetime.datetime.strptime(
+                    #        str(current_measurement["datetime"]),
+                    #        "%Y-%m-%d %H:%M:%S.%f %Z%z",
+                    #    )
+                    #]
                     
+                    print("yes!")
 
                 elif (current_measurement["pipeline"]["name"] == "intensity-fitburst" and 
                     current_measurement["measurement_id"] == locked_id_fitburst):
 
+                    print("yo")
                     # determine which fitburst round it is and stash separately.
                     current_round = "round_1"
 
@@ -123,12 +134,18 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
 
                     # now stash fitburst parameters.
                     self.burst_parameters["fitburst"][current_round] = {}
-                    self.burst_parameters["fitburst"][current_round]["dm"] = current_measurement["sub_burst_dm"]
-                    self.burst_parameters["fitburst"][current_round]["width"] = current_measurement["sub_burst_width"]
-                    self.burst_parameters["fitburst"][current_round]["amplitude"] = current_measurement["sub_burst_fluence"]
-                    self.burst_parameters["fitburst"][current_round]["timestamp_utc"] = current_measurement["sub_burst_timestamp"]
-                    self.burst_parameters["fitburst"][current_round]["spectral_index"] = current_measurement["sub_burst_spectral_index"]
-                    self.burst_parameters["fitburst"][current_round]["spectral_running"] = current_measurement["sub_burst_spectral_running"]
+                    self.burst_parameters["fitburst"][current_round]["dm"] = \
+                        current_measurement["sub_burst_dm"]
+                    self.burst_parameters["fitburst"][current_round]["width"] = \
+                        current_measurement["sub_burst_width"]
+                    self.burst_parameters["fitburst"][current_round]["amplitude"] = \
+                        current_measurement["sub_burst_fluence"]
+                    self.burst_parameters["fitburst"][current_round]["timestamp_utc"] = \
+                        current_measurement["sub_burst_timestamp"]
+                    self.burst_parameters["fitburst"][current_round]["spectral_index"] = \
+                        current_measurement["sub_burst_spectral_index"]
+                    self.burst_parameters["fitburst"][current_round]["spectral_running"] = \
+                        current_measurement["sub_burst_spectral_running"]
 
                     # if current round has scattering timescale, stash it as well.
                     if ("scattering_timescale" in current_measurement):
@@ -136,5 +153,16 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
                             current_measurement["sub_burst_scattering_timescale"]
                         ]
 
-        except:
-            print("WARNING: unable to retrieve parameters from frb-vsop.chime:8001")
+        except Exception as exc:
+            print("WARNING: unable to retrieve locked parameters from frb-vsop.chime:8001")
+
+        # now grab filenames.
+        date_string = self.burst_parameters["L1"]["timestamp_utc"].strftime("%Y/%m/%d")
+        path_to_data = "{0}/{1}/astro_{2}/intensity/raw/{3:04d}".format(
+            mountpoint, 
+            date_string,
+            eventid,
+            beam_no
+        )
+
+        self.files = glob.glob("{0}/*.msgpack".format(path_to_data))
