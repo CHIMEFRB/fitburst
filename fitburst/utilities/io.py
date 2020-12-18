@@ -67,6 +67,20 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
         times += self.fpga_count_start[0]
         self.times = times * telescopes["chimefrb"]["fpga"]["time_per_sample"]
 
+        # now derive frequency information.
+        freqs = np.arange(n_freqs, dtype=np.float64)
+        freqs *= -(
+             telescopes["chimefrb"]["bandwidth"] / \
+             telescopes["chimefrb"]["num_channels"]
+        )
+        freqs += (
+            telescopes["chimefrb"]["fpga"]["freq_top"] + \
+            telescopes["chimefrb"]["bandwidth"] / \
+            telescopes["chimefrb"]["fpga"]["num_channels"] / \
+            2
+        )
+        self.freqs = freqs[::-1]
+
     def _retrieve_metadata_frbmaster(
             self,
             eventid,
