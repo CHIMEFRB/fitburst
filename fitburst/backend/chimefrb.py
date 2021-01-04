@@ -9,7 +9,7 @@ import sys
 
 # now import some fitburst-specific packages.
 from fitburst.backend import telescopes
-from . import bases
+from fitburst.utilities import bases
 
 class CHIMEFRBReader(bases.ReaderBaseClass):
     """
