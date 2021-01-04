@@ -1,2 +1,2 @@
 #!/usr/bin/env python
-from . import io
+from . import bases
