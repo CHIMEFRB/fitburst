@@ -11,7 +11,7 @@ import sys
 from fitburst.utilities import bases
 from . import telescopes
 
-class CHIMEFRBReader(bases.ReaderBaseClass):
+class DataReader(bases.ReaderBaseClass):
     """
     A child class of I/O and processing for CHIME/FRB data, inheriting the basic 
     structure defined in ReaderBaseClass().
@@ -124,6 +124,8 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
         for beam_data in beam_list_dict:
             snrs += [beam_data["snr"]]
 
+        print("... there are {0} beams for this event".format(len(snrs)))
+
         # sort beam data in descending order of S/N.
         snr_ord_idx = np.argsort(snrs)[::-1]
         beam_data = beam_list_dict[snr_ord_idx[beam_id]]
@@ -141,7 +143,7 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
         )
         
         # try getting data from frb-vsop.chime.
-        print("trying to grab CHIME/FRB data from fitburst/DM-pipeline resuts...", end="")
+        print("... trying to grab CHIME/FRB data from fitburst/DM-pipeline results...", end="")
 
         try:
             url_get = "http://frb-vsop.chime:8001"
@@ -214,6 +216,7 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
             print("WARNING: unable to retrieve locked parameters from frb-vsop.chime:8001")
 
         # now grab filenames.
+        print("... now grabbing locations on the CHIME/FRB archivers...", end="")
         date_string = self.burst_parameters["L1"]["timestamp_utc"].strftime("%Y/%m/%d")
         path_to_data = "{0}/{1}/astro_{2}/intensity/raw/{3:04d}".format(
             mountpoint, 
@@ -224,3 +227,4 @@ class CHIMEFRBReader(bases.ReaderBaseClass):
 
         self.files = glob.glob("{0}/*.msgpack".format(path_to_data))
         self.files.sort(key=natural_keys)
+        print("success!")
