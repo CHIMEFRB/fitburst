@@ -8,8 +8,8 @@ import pytz
 import sys
 
 # now import some fitburst-specific packages.
-from fitburst.backend import telescopes
 from fitburst.utilities import bases
+from . import telescopes
 
 class CHIMEFRBReader(bases.ReaderBaseClass):
     """

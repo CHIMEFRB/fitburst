@@ -22,3 +22,6 @@ telescopes = yaml.load(
     ),
     Loader=yaml.FullLoader
 )
+
+# now import the project-specific routines.
+from . import chimefrb
