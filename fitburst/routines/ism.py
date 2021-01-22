@@ -22,7 +22,7 @@ def compute_time_dm_delay(
         observing frequency used as relative value
 
     dm_idx : np.float, optional
-        exponent index for frequency dependence of dispersion delay
+        exponent of frequency dependence in dispersion delay
 
     Returns
     -------
