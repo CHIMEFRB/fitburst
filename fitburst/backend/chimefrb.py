@@ -204,6 +204,8 @@ class DataReader(bases.ReaderBaseClass):
                         current_measurement["sub_burst_spectral_index"]
                     self.burst_parameters["fitburst"][current_round]["spectral_running"] = \
                         current_measurement["sub_burst_spectral_running"]
+                    self.burst_parameters["fitburst"][current_round]["reference_freq"] = \
+                        current_measurement["fitburst_reference_frequency"]
 
                     # if current round has scattering timescale, stash it as well.
                     if ("scattering_timescale" in current_measurement):
