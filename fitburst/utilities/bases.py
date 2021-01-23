@@ -51,7 +51,7 @@ class ReaderBaseClass(object):
 
         # initialize matrix that contains indices.
         # the following code structure makes use of Numpy broadcasting.
-        dedispersion_idx = np.zeros(self.data_full.shape[::-1], dtype=np.int)
+        self.dedispersion_idx = np.zeros(len(self.freqs), dtype=np.int)
 
         # now loop over dimensions and compute indices.
         delay = arrival_time + rt.ism.compute_time_dm_delay(
@@ -62,8 +62,9 @@ class ReaderBaseClass(object):
         )
         
         # fill initial matrix and transpose.
-        dedispersion_idx[:] = (delay - self.times[0]) / (self.times[1] - self.times[0])
-        self.dedispersion_idx = dedispersion_idx.T
+        self.dedispersion_idx[:] = np.around(
+            (delay - self.times[0]) / (self.times[1] - self.times[0]),
+        )
 
     def load_data(self):
         "Loads data from file into memory; to be defined by inherited classes."
@@ -141,6 +142,9 @@ class ReaderBaseClass(object):
             (skewness > skewness_mean + skewness_range[0] * skewness_std)
         )
 
+        # finally, downweight zapped channels.
+        self.data_full[np.logical_not(good_freq)] = 0.
+
         # print some info.
         print("INFO: flagged and removed {0} out of {1} channels!".format(
             len(self.freqs) - np.sum(good_freq),
@@ -148,15 +152,42 @@ class ReaderBaseClass(object):
             )
         )
 
-    def window_data(self, central_time, half_range_time):
+    def window_data(self, arrival_time: np.float, window: np.float = 0.08):
         """
-        Returns a subset of data that is "windowed" on the central time +/- half range.
-        TODO: add feature to window in frequency direction as well.
+        Returns a subset of data that is centered and "windowed" on the arrival time.
+        
+        Parameters
+        ----------
+        arrival_time : np.float
+            arrival time of the burst, in units of seconds.
+
+        window : np.float, optional
+            half-range extent of window, in units of seconds.
+
+        Returns
+        -------
+        data_windowed : np.ndarray
+            a matrix containing the dedispersed, windowed spectrum.
+
+        times_windowed : np.ndarray
+            an array of timestamps for the dedispersed spectrum.
         """
         
-        time_min = central_time - half_range_time
-        time_max = central_time + half_range_time
+        idx_arrival_time = np.fabs(self.times - arrival_time).argmin()
+        num_window_bins = np.around(window / (self.times[1] - self.times[0])).astype(np.int)
+        data_windowed = np.zeros((len(self.freqs), num_window_bins * 2), dtype=np.float)
 
         # compute indeces of min/max window values along time axis.
-        pass
+        for idx_freq in range(len(self.freqs)):
+            current_arrival_idx = self.dedispersion_idx[idx_freq]
+            data_windowed[idx_freq, :] = self.data_full[
+                idx_freq,
+                current_arrival_idx - num_window_bins: current_arrival_idx + num_window_bins
+            ]
+         
+        # before finishing, get array of windowed times as well.
+        times_windowed = self.times[
+            idx_arrival_time - num_window_bins: idx_arrival_time + num_window_bins
+        ]
 
+        return data_windowed, times_windowed
