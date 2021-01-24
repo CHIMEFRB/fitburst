@@ -67,7 +67,9 @@ class ReaderBaseClass(object):
         )
 
     def load_data(self):
-        "Loads data from file into memory; to be defined by inherited classes."
+        """
+        Loads data from file into memory; to be defined by inherited classes.
+        """
 
         pass
 
