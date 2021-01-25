@@ -44,6 +44,29 @@ class DataReader(bases.ReaderBaseClass):
         print("... grabbing metadata for eventID {0}".format(self.eventid))
         self._retrieve_metadata_frbmaster(self.eventid)
 
+    def get_parameters(self):
+        """
+        Returns a dictionary containing parameters as keys and their FRBMaster entries 
+        stored as values.
+        """
+
+        parameter_dict = {}
+
+        if ("fitburst" in self.burst_parameters):
+            for current_key in self.burst_parameters["fitburst"]["round_2"].keys():
+                parameter_dict[current_key] = self.burst_parameters["fitburst"]["round_2"][current_key]
+
+        elif ("dm-pipeline" in self.burst_parameters):
+            print("woohoo DM pipleine")
+
+        elif ("L1" in self.burst_parameters):
+            print("ok at least there is L1")
+
+        else:
+            sys.exit("ERROR: no parameters retrieved from FRBMaster!")
+
+        return parameter_dict
+
     def load_data(self, files, msgpack=True):
         """
         """
@@ -198,7 +221,7 @@ class DataReader(bases.ReaderBaseClass):
                         current_measurement["sub_burst_width"]
                     self.burst_parameters["fitburst"][current_round]["amplitude"] = \
                         current_measurement["sub_burst_fluence"]
-                    self.burst_parameters["fitburst"][current_round]["timestamp_utc"] = \
+                    self.burst_parameters["fitburst"][current_round]["arrival_time"] = \
                         current_measurement["sub_burst_timestamp"]
                     self.burst_parameters["fitburst"][current_round]["spectral_index"] = \
                         current_measurement["sub_burst_spectral_index"]
