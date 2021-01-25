@@ -70,10 +70,10 @@ class SpectrumModeler(object):
             for current_freq in range(len(freqs)):
                 # first, scale scattering timescale.
                 current_sc_time_scaled = rt.ism.compute_time_scattering(
-                    self.freqs[current_freq],
+                    freqs[current_freq],
                     self.reference_freq,
                     current_sc_time,
-                    sc_idx=current_sc_idx
+                    current_sc_idx
                 )
 
                 # second, compute raw profile form.
@@ -86,7 +86,7 @@ class SpectrumModeler(object):
 
                 # third, compute and scale profile by spectral energy distribution.
                 current_profile *= self.compute_spectrum(
-                    self.freqs[current_freq],
+                    freqs[current_freq],
                     current_freq_mean,
                     current_freq_width,
                     current_sp_idx,
