@@ -56,9 +56,10 @@ class ReaderBaseClass(object):
         # now loop over dimensions and compute indices.
         delay = arrival_time + rt.ism.compute_time_dm_delay(
             dm,
+            general["constants"]["dispersion"],
+            dm_idx,
             self.freqs,
             freq2=reference_freq,
-            dm_idx=dm_idx
         )
         
         # fill initial matrix and transpose.
