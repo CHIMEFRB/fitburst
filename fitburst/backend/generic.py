@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-import datetime
-import requests
-import glob
-import sys
 import os
 
 # now import some fitburst-specific packages.
 from fitburst.utilities import bases
-from . import telescopes
 
 
 class DataReader(bases.ReaderBaseClass):
@@ -18,7 +13,6 @@ class DataReader(bases.ReaderBaseClass):
     in a .npz file, inheriting the basic structure defined in 
     ReaderBaseClass().
     """
-
     def __init__(self, fname, data_location="./"):
         # initialise superclass
         super().__init__()
@@ -48,7 +42,6 @@ class DataReader(bases.ReaderBaseClass):
             burst_parameters: a dictionary containing rough estimates of some
                 critical burst parameters that will help the fitters converge
         """
-        
         unpacked_data_set = np.load(self.file_path)
 
         # ensure required subfiles are present
