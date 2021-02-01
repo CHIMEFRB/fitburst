@@ -24,4 +24,5 @@ telescopes = yaml.load(
 )
 
 # now import the project-specific routines.
+from . import generic
 from . import chimefrb
