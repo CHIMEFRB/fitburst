@@ -77,9 +77,9 @@ class DataReader(bases.ReaderBaseClass):
             )
 
         # create time sample labels from data shape and metadata
+        # leave the samples in relative seconds since the beginning of the
+        # spectra
         times = (np.arange(n_times, dtype=np.float64) * metadata["dt"])
-        times /= 86400.  # convert to days
-        times += metadata["mjd_bin0"]  # absolute offset in MJD
         self.times = times
 
         # create frequency channel labels from data shape and metadata
