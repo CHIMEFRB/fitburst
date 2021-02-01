@@ -64,3 +64,4 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - About: about.md
