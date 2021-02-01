@@ -13,7 +13,7 @@ class DataReader(bases.ReaderBaseClass):
     in a .npz file, inheriting the basic structure defined in 
     ReaderBaseClass().
     """
-    def __init__(self, fname, data_location="./"):
+    def __init__(self, fname, data_location="."):
         # initialise superclass
         super().__init__()
 
