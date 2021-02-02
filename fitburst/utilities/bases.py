@@ -5,17 +5,24 @@ import sys
 
 class ReaderBaseClass(object):
     """
-    A base class for objects that read and manipulate data provided by user.
+    A base class for objects that read and pre-process data provided by user.
     """
 
     def __init__(self):
+        """
+        Initializes key attributes to be set by all data readers.
+        """
 
-        # define class attributes here.
+        # define basic class attributes here.
+        self.burst_parameters = {}
         self.data_full = None
         self.data_weights = None
-        self.data_windowed = None
         self.dedispersion_idx = None
         self.freqs = None
+        self.num_freq = None
+        self.num_time = None
+        self.res_time = None
+        self.res_freq = None
         self.times = None
 
     def dedisperse(self, 
