@@ -19,26 +19,23 @@ class DataReader(bases.ReaderBaseClass):
 
     def __init__(self, eventid, data_location="/data/frb-archiver"):
 
-        # before anything else, ensure eventid makes sense.
+        # before anything else, initialize superclass.
+        super().__init__()
+
+        # now, ensure eventid makes sense before retrieving data.
         self.eventid = eventid
         assert(isinstance(self.eventid, int))
         print("CHIMEFRBReader executed:")
 
-        # define parameters to be updated by data-retrieval method.
-        self.burst_parameters = {}
-        self.data_full = None
-        self.data_weights = None
-        self.data_windowed = None
+        # define CHIME/FRB-specific parameters to be updated by data-retrieval method.
         self.files = []
         self.frbmaster_request_status = None
-        self.freqs = None
         self.downsample_factor = None
         self.fpga_count_start = None
         self.fpga_count_total = None
         self.fpga_frame0_nano = None
         self.rfi_freq_count = None
         self.rfi_mask = None
-        self.times = None
 
         # as a default, grab data from FRBMaster.
         print("... grabbing metadata for eventID {0}".format(self.eventid))
@@ -103,6 +100,10 @@ class DataReader(bases.ReaderBaseClass):
             2
         )
         self.freqs = freqs[::-1]
+
+        # define index values before exiting.
+        self.num_freqs = len(self.freqs)
+        self.num_times = len(self.times)
 
     def _retrieve_metadata_frbmaster(
             self,
