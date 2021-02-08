@@ -53,12 +53,12 @@ class ReaderBaseClass(object):
         -------
         self.dedispersion_delay : np.ndarray
             a matrix of indeces corresponding to incoherent dedispersion of the raw data,
-            with dimensions of (self.num_freqs x self.num_times).
+            with dimensions of (self.num_freq x self.num_time).
         """
 
         # initialize matrix that contains indices.
         # the following code structure makes use of Numpy broadcasting.
-        self.dedispersion_idx = np.zeros(len(self.freqs), dtype=np.int)
+        self.dedispersion_idx = np.zeros(self.num_freq, dtype=np.int)
 
         # now loop over dimensions and compute indices.
         delay = arrival_time + rt.ism.compute_time_dm_delay(
@@ -71,7 +71,7 @@ class ReaderBaseClass(object):
         
         # fill initial matrix and transpose.
         self.dedispersion_idx[:] = np.around(
-            (delay - self.times[0]) / (self.times[1] - self.times[0]),
+            (delay - self.times[0]) / (self.res_time),
         )
 
     def load_data(self):
@@ -82,8 +82,8 @@ class ReaderBaseClass(object):
             self.data_weights
             self.freqs
             self.times
-            self.num_freqs
-            self.num_times
+            self.num_freq
+            self.num_time
         """
 
         pass
@@ -164,8 +164,8 @@ class ReaderBaseClass(object):
 
         # print some info.
         print("INFO: flagged and removed {0} out of {1} channels!".format(
-            self.num_freqs - np.sum(good_freq),
-            self.num_freqs,
+            self.num_freq - np.sum(good_freq),
+            self.num_freq,
             )
         )
 
@@ -191,11 +191,11 @@ class ReaderBaseClass(object):
         """
         
         idx_arrival_time = np.fabs(self.times - arrival_time).argmin()
-        num_window_bins = np.around(window / (self.times[1] - self.times[0])).astype(np.int)
-        data_windowed = np.zeros((self.num_freqs, num_window_bins * 2), dtype=np.float)
+        num_window_bins = np.around(window / self.res_time).astype(np.int)
+        data_windowed = np.zeros((self.num_freq, num_window_bins * 2), dtype=np.float)
 
         # compute indeces of min/max window values along time axis.
-        for idx_freq in range(self.num_freqs):
+        for idx_freq in range(self.num_freq):
             current_arrival_idx = self.dedispersion_idx[idx_freq]
             data_windowed[idx_freq, :] = self.data_full[
                 idx_freq,
