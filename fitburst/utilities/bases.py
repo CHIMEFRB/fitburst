@@ -53,7 +53,7 @@ class ReaderBaseClass(object):
         -------
         self.dedispersion_delay : np.ndarray
             a matrix of indeces corresponding to incoherent dedispersion of the raw data,
-            with dimensions of len(self.freqs) x len(self.times).
+            with dimensions of (self.num_freqs x self.num_times).
         """
 
         # initialize matrix that contains indices.
@@ -77,6 +77,13 @@ class ReaderBaseClass(object):
     def load_data(self):
         """
         Loads data from file into memory; to be defined by inherited classes.
+        This method must define the following:
+            self.data_full
+            self.data_weights
+            self.freqs
+            self.times
+            self.num_freqs
+            self.num_times
         """
 
         pass
@@ -157,8 +164,8 @@ class ReaderBaseClass(object):
 
         # print some info.
         print("INFO: flagged and removed {0} out of {1} channels!".format(
-            len(self.freqs) - np.sum(good_freq),
-            len(self.freqs),
+            self.num_freqs - np.sum(good_freq),
+            self.num_freqs,
             )
         )
 
@@ -185,10 +192,10 @@ class ReaderBaseClass(object):
         
         idx_arrival_time = np.fabs(self.times - arrival_time).argmin()
         num_window_bins = np.around(window / (self.times[1] - self.times[0])).astype(np.int)
-        data_windowed = np.zeros((len(self.freqs), num_window_bins * 2), dtype=np.float)
+        data_windowed = np.zeros((self.num_freqs, num_window_bins * 2), dtype=np.float)
 
         # compute indeces of min/max window values along time axis.
-        for idx_freq in range(len(self.freqs)):
+        for idx_freq in range(self.num_freqs):
             current_arrival_idx = self.dedispersion_idx[idx_freq]
             data_windowed[idx_freq, :] = self.data_full[
                 idx_freq,
