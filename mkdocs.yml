@@ -72,4 +72,7 @@ nav:
   - About: about.md
   - Installation: installation.md
   - Usage: usage.md
-  - Developer Guide: developer_guidelines.md
+  - Developer Guide: 
+    - Coding Philosophy: developer_guide/philosophy.md
+    - Package Structure: developer_guide/package_structure.md
+    - Writing Data Readers: developer_guide/readers.md
