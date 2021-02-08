@@ -104,6 +104,8 @@ class DataReader(bases.ReaderBaseClass):
         # define index values before exiting.
         self.num_freq = len(self.freqs)
         self.num_time = len(self.times)
+        self.res_freq = self.freqs[1] - self.freqs[0]
+        self.res_time = self.times[1] - self.times[0]
 
     def _retrieve_metadata_frbmaster(
             self,
