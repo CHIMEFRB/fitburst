@@ -7,39 +7,31 @@ class SpectrumModeler(object):
     describe and are used to compute models of dynamic spectra.
     """
 
-    def __init__(self):
-        # define the basic model parameters first.
-        self.parameters_all = [
-            "amplitude",
-            "arrival_time",
-            "dm",
-            "freq_mean",
-            "freq_width",
-            "scattering_index",
-            "scattering_timescale",
-            "spectral_index",
-            "spectral_running",
-            "width"
-        ]
-
-        for current_parameter in self.parameters_all:
-            setattr(self, current_parameter, [None])
-
-        #self.amplitude = [None]
-        #self.arrival_time = [None]
-        #self.dm = [None]
-        #self.freq_mean = [None]
-        #self.freq_width = [None]
-        #self.scattering_index = [None]
-        #self.scattering_timescale = [None]
-        #self.spectral_index = [None]
-        #self.spectral_running = [None]
-        #self.width = [None]
+    def __init__(self, spectrum_model="powerlaw"):
 
         # now define model-configuration parameters that are not fittable.
         self.num_components = 1
         self.reference_freq = None
-        self.spectrum_model = "powerlaw"
+        self.spectrum_model = spectrum_model
+
+        # define the basic model parameters first.
+        self.parameters_all = [
+            "dm",
+            "scattering_timescale",
+            "amplitude",
+            "arrival_time",
+            "width"
+        ]
+
+        # add the appropriate spectral parameters to the list.
+        if (self.spectrum_model == "powerlaw"):
+            self.parameters_all += ["spectral_index", "spectral_running"]
+
+        elif (self.spectrum_model == "gaussian"):
+            self.parameters_all += ["freq_mean", "freq_width"]
+
+        for current_parameter in self.parameters_all:
+            setattr(self, current_parameter, [None])
 
     def compute_model(self, times: np.float, freqs: np.float):
         """
@@ -58,12 +50,8 @@ class SpectrumModeler(object):
             # extract parameter values for current component.
             current_amplitude = self.amplitude[current_component]
             current_arrival_time = self.arrival_time[current_component]
-            current_freq_mean = self.freq_mean[current_component]
-            current_freq_width = self.freq_width[current_component]
             current_sc_idx = self.scattering_index[current_component]
             current_sc_time = self.scattering_timescale[current_component]
-            current_sp_idx = self.spectral_index[current_component]
-            current_sp_run = self.spectral_running[current_component]
             current_width = self.width[current_component]
 
             # now loop over bandpass.
@@ -85,13 +73,19 @@ class SpectrumModeler(object):
                 )
 
                 # third, compute and scale profile by spectral energy distribution.
-                current_profile *= self.compute_spectrum(
-                    freqs[current_freq],
-                    current_freq_mean,
-                    current_freq_width,
-                    current_sp_idx,
-                    current_sp_run,
-                )
+                if (self.spectrum_model == "powerlaw"):
+                    current_sp_idx = self.spectral_index[current_component]
+                    current_sp_run = self.spectral_running[current_component]
+
+                    current_profile *= rt.spectrum.compute_spectrum_rpl(
+                        freqs[current_freq],
+                        self.reference_freq,
+                        current_sp_idx,
+                        current_sp_run,
+                    )
+
+                elif (self.spectrum_model == "gaussian"):
+                    pass
 
                 # finally, add to approrpiate slice of model-spectrum matrix.
                 model_spectrum[current_freq, :] += current_profile
@@ -147,12 +141,6 @@ class SpectrumModeler(object):
 
         return spectrum
 
-    def fix_parameter():
-        pass
-
-    def get_fit_parameters(self):
-        pass
-
     def update_parameters(self, model_parameters: dict):
         """
         Overloads parameter values stored in object with those supplied by the user.
@@ -172,8 +160,3 @@ class SpectrumModeler(object):
         # first, overload attributes with values for supplied parameters.
         for current_parameter in model_parameters.keys():
             setattr(self, current_parameter, model_parameters[current_parameter])
-
-        # now, adjust lengths of unset parameters based on input number of components.
-        for current_parameter in self.parameters_all:
-            if (current_parameter not in model_parameters):
-                setattr(self, current_parameter, [None] * self.num_components)
