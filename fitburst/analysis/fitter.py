@@ -1,4 +1,4 @@
-import scipy as sp
+from scipy.optimize import least_squares
 import numpy as np
 from . import model
 
@@ -21,7 +21,7 @@ class LSFitter(object):
         self.fit_parameters = self.model.parameters_all
 
     def compute_residuals(self, 
-        parameters: dict, 
+        parameter_list: list, 
         times_windowed: np.float, 
         freqs: np.float, 
         data_windowed: np.float
@@ -29,16 +29,31 @@ class LSFitter(object):
         """
         Computes the chi-squared statistic used for least-squares fitting.
         """
-
-        self.model.update_parameters(parameters)
+        
+        parameter_dict = self.load_fit_parameters_list(parameter_list)
+        self.model.update_parameters(parameter_dict)
         model = self.model.compute_model(times_windowed, freqs)        
         resid = (data_windowed - model)**2
         resid = resid.flatten()
 
         return resid
 
-    def fit(self):
-        pass
+    def fit(self, times_windowed, freqs, data_windowed):
+        """
+        Executing least-squares fitting of the model spectrum to data.
+        """
+
+        # convert loaded parameter dictionary/entries into a list for scipy object.
+        parameter_list = self.get_fit_parameters_list()
+
+        # do fit!
+        lsfit = least_squares(
+            self.compute_residuals, 
+            parameter_list,
+            args = (times_windowed, freqs, data_windowed)
+        )
+
+        print(lsfit)
 
     def fix_parameter(self, parameter_list: list):
         """
@@ -61,17 +76,31 @@ class LSFitter(object):
 
         parameter_list = []
 
+        # loop over all parameters, only extract values for fit parameters.
         for current_parameter in self.model.parameters_all:
             if (current_parameter in self.fit_parameters):
                 parameter_list += getattr(self.model, current_parameter)
 
         return parameter_list
 
-    def load_fit_parameter_list(self, parameter_list: list):
+    def load_fit_parameters_list(self, parameter_list: list):
         """
         Returns a dictionary where keys are fit-parameter names and values 
         are lists (with length self.model.num_components) contain the per-burst 
         values of the given parameter/key.
         """
 
-        pass
+        parameter_dict = {}
+
+        # loop over all parameters, only preserve values for fit parameters.
+        current_idx = 0
+
+        for current_parameter in self.model.parameters_all:
+            if (current_parameter in self.fit_parameters):
+                parameter_dict[current_parameter] = parameter_list[
+                    current_idx:(current_idx + self.model.num_components)
+                ]
+
+                current_idx += 1
+
+        return parameter_dict
