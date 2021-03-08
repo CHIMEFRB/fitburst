@@ -1,15 +1,13 @@
-from chime_frb_api.backends.frb_master import FRBMaster
-from cfod.chime_intensity import natural_keys, unpack_datafiles
 import numpy as np
 import datetime
 import requests
 import glob
-import pytz
 import sys
 
 # now import some fitburst-specific packages.
 from fitburst.utilities import bases
 from . import telescopes
+
 
 class DataReader(bases.ReaderBaseClass):
     """
@@ -38,6 +36,17 @@ class DataReader(bases.ReaderBaseClass):
         self.rfi_mask = None
 
         # as a default, grab data from FRBMaster.
+        # only try to load CHIME/FRB specific packages here, otherwise they are
+        # required when loading any fitburst sub-packages (which is too strict)
+        try:
+            from chime_frb_api.backends.frb_master import FRBMaster
+            from cfod.chime_intensity import natural_keys, unpack_datafiles
+        except ImportError as imperr:
+            print("Unable to import from chime_frb_api and/or cfod")
+            print(
+                "To read CHIME/FRB data, please ensure the above packages are installed"
+            )
+            print(imperr)
         print("... grabbing metadata for eventID {0}".format(self.eventid))
         self._retrieve_metadata_frbmaster(self.eventid)
 
