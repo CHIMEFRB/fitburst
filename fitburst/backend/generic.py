@@ -65,7 +65,7 @@ class DataReader(bases.ReaderBaseClass):
             )
 
         # create the weights array, where True = masked
-        self.data_weights = np.zeros_like(self.num_freq, dtype=bool)
+        self.data_weights = np.zeros(self.num_freq, dtype=bool)
         rfi_mask = metadata["bad_chans"]
         self.data_weights[rfi_mask] = True
 
@@ -80,6 +80,6 @@ class DataReader(bases.ReaderBaseClass):
         freqs = np.arange(self.num_freq, dtype=np.float64) * metadata["chan_bw"]
         freqs += metadata["freq_chan0"]
         # currently have the leading-edge frequency for each channel, add chan_bw / 2
-        freqs += abs(metadata["chan_bw"]) / 2.0
+        freqs += metadata["chan_bw"] / 2.0
         self.freqs = freqs
         self.res_freq = metadata["chan_bw"]
