@@ -48,7 +48,15 @@ class DataReader(bases.ReaderBaseClass):
 
         metadata = unpacked_data_set["metadata"].item()
         # unpack and derive necessary information
-        self.burst_parameters = unpacked_data_set["burst_parameters"].item()
+        burst_parameters = unpacked_data_set["burst_parameters"].item()
+        # fitburst expects each of these parameters to have values in a list (allows
+        # for the possibility of describing multiple components)
+        for k, v in burst_parameters.items():
+            if not isinstance(v, list):
+                self.burst_parameters[k] = [v]
+            else:
+                self.burst_parameters[k] = v
+
         self.data_full = unpacked_data_set["spectrum"]
 
         # derive time information from loaded data.
