@@ -23,15 +23,7 @@ class DataReader(bases.ReaderBaseClass):
         if not os.path.isfile(self.file_path):
             raise IOError(f"Data file not found: {self.file_path}")
 
-        # define parameters to be updated by data-retrieval method.
-        self.burst_parameters = {}
-        self.data_full = None
-        self.data_weights = None
-        self.data_windowed = None
-        self.freqs = None
-        self.rfi_freq_count = None
-        self.rfi_mask = None
-        self.times = None
+        # We only need the base class-defined attributes and can update them in-place
 
     def load_data(self):
         """
@@ -43,7 +35,7 @@ class DataReader(bases.ReaderBaseClass):
             burst_parameters: a dictionary containing rough estimates of some
                 critical burst parameters that will help the fitters converge
         """
-        unpacked_data_set = np.load(self.file_path)
+        unpacked_data_set = np.load(self.file_path, allow_pickle=True)
 
         # ensure required subfiles are present
         expected_subfile_names = ["spectrum", "metadata", "burst_parameters"]
@@ -54,35 +46,40 @@ class DataReader(bases.ReaderBaseClass):
                 f"{expected_subfile_names}"
             )
 
+        metadata = unpacked_data_set["metadata"].item()
         # unpack and derive necessary information
-        metadata = unpacked_data_set["metadata"]
-        self.burst_parameters = unpacked_data_set["burst_parameters"]
+        self.burst_parameters = unpacked_data_set["burst_parameters"].item()
         self.data_full = unpacked_data_set["spectrum"]
-        self.data_weights = np.ones_like(self.data_full)
-        self.rfi_mask = unpacked_data_set["metadata"]["bad_chans"]
-        self.rfi_freq_count = len(self.rfi_mask)
 
         # derive time information from loaded data.
-        n_freqs, n_times = self.data_full.shape
-        if n_freqs != metadata["nchan"]:
+        self.num_freq, self.num_time = self.data_full.shape
+        if self.num_freq != metadata["nchan"]:
             raise AssertionError(
                 "Data shape does not match recorded number of channels"
-                f"({n_freqs} != {metadata['nchan']})"
+                f"({self.num_freq} != {metadata['nchan']})"
             )
-        if n_times != metadata["ntime"]:
+        if self.num_time != metadata["ntime"]:
             raise AssertionError(
                 "Data shape does not match recorded number of time samples"
-                f"({n_times} != {metadata['ntime']})"
+                f"({self.num_time} != {metadata['ntime']})"
             )
+
+        # create the weights array, where True = masked
+        self.data_weights = np.zeros_like(self.num_freq, dtype=bool)
+        rfi_mask = metadata["bad_chans"]
+        self.data_weights[rfi_mask] = True
 
         # create time sample labels from data shape and metadata
         # leave the samples in relative seconds since the beginning of the
         # spectra
-        times = np.arange(n_times, dtype=np.float64) * metadata["dt"]
+        times = np.arange(self.num_time, dtype=np.float64) * metadata["dt"]
         self.times = times
+        self.res_time = metadata["dt"]
 
-        # create frequency channel labels from data shape and metadata
-        freqs = np.arange(n_freqs, dtype=np.float64) * metadata["chan_bw"]
+        # create frequency channel centre labels from data shape and metadata
+        freqs = np.arange(self.num_freq, dtype=np.float64) * metadata["chan_bw"]
         freqs += metadata["freq_chan0"]
-
-        self.freqs = freqs  # preserve frequency ordering (lo-hi or hi-lo)
+        # currently have the leading-edge frequency for each channel, add chan_bw / 2
+        freqs += abs(metadata["chan_bw"]) / 2.0
+        self.freqs = freqs
+        self.res_freq = metadata["chan_bw"]
