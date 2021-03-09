@@ -9,10 +9,11 @@ from fitburst.utilities import bases
 
 class DataReader(bases.ReaderBaseClass):
     """
-    A child class of I/O and processing for generic data stored 
-    in a .npz file, inheriting the basic structure defined in 
+    A child class of I/O and processing for generic data stored
+    in a .npz file, inheriting the basic structure defined in
     ReaderBaseClass().
     """
+
     def __init__(self, fname, data_location="."):
         # initialise superclass
         super().__init__()
@@ -47,12 +48,10 @@ class DataReader(bases.ReaderBaseClass):
         # ensure required subfiles are present
         expected_subfile_names = ["spectrum", "metadata", "burst_parameters"]
         retrieved_subfile_names = unpacked_data_set.files
-        if not all(
-                [f in retrieved_subfile_names for f in expected_subfile_names]
-        ):
+        if not all([f in retrieved_subfile_names for f in expected_subfile_names]):
             raise AssertionError(
-                f"Data file does not contain one of more of the following "
-                f"keys: {expected_subfile_names}"
+                f"Data file does not contain one of more of the following keys: "
+                f"{expected_subfile_names}"
             )
 
         # unpack and derive necessary information
