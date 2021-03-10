@@ -33,7 +33,7 @@ class SpectrumModeler(object):
         for current_parameter in self.parameters_all:
             setattr(self, current_parameter, [None])
 
-    def compute_model(self, times: np.float, freqs: np.float):
+    def compute_model(self, times: np.float, freqs: np.float, ignore_scattering: bool = True):
         """
         Computes the model dynamic spectrum based on model parameters (set as class 
         attributes) and input values of times and frequencies.
@@ -54,6 +54,11 @@ class SpectrumModeler(object):
             current_sc_time = self.scattering_timescale[current_component]
             current_width = self.width[current_component]
 
+            print("Current parameter: ", current_amplitude, current_arrival_time, 
+                current_sc_idx, current_sc_time, current_width, self.spectral_index[0],
+                self.spectral_running[0]
+            )
+
             # now loop over bandpass.
             for current_freq in range(len(freqs)):
                 # first, scale scattering timescale.
@@ -69,7 +74,8 @@ class SpectrumModeler(object):
                     times,
                     current_arrival_time,
                     current_sc_time_scaled,
-                    current_width
+                    current_width,
+                    ignore_scattering = ignore_scattering
                 )
 
                 # third, compute and scale profile by spectral energy distribution.
@@ -90,6 +96,9 @@ class SpectrumModeler(object):
                 # finally, add to approrpiate slice of model-spectrum matrix.
                 model_spectrum[current_freq, :] += current_profile
 
+            # finally, apply overall signal amplitude for current burst component.
+            model_spectrum *= current_amplitude
+
         return model_spectrum
 
     def compute_profile(self, 
@@ -97,6 +106,7 @@ class SpectrumModeler(object):
         arrival_time: np.float, 
         sc_time: np.float,
         width: np.float, 
+        ignore_scattering: bool = False
         ):
         """
         Returns the Gaussian or pulse-broadened temporal profile, depending on input 
@@ -106,7 +116,7 @@ class SpectrumModeler(object):
         profile = np.zeros(len(times), dtype=np.float)
 
         # compute either Gaussian or pulse-broadening function, depending on inputs.
-        if (sc_time < 0.05 * width):
+        if (ignore_scattering or sc_time < 0.05 * width):
             profile = rt.profile.compute_profile_gaussian(times, arrival_time, width)
 
         else:
