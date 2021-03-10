@@ -17,6 +17,7 @@ class ReaderBaseClass(object):
         self.burst_parameters = {}
         self.data_full = None
         self.data_weights = None
+        self.good_freq = None
         self.dedispersion_idx = None
         self.freqs = None
         self.num_freq = None
@@ -162,9 +163,11 @@ class ReaderBaseClass(object):
         # finally, downweight zapped channels.
         self.data_full[np.logical_not(good_freq)] = 0.
 
-        # print some info.
+        # stash good frequencies and print some info.
+        self.good_freq = good_freq
+
         print("INFO: flagged and removed {0} out of {1} channels!".format(
-            self.num_freq - np.sum(good_freq),
+            self.num_freq - np.sum(self.good_freq),
             self.num_freq,
             )
         )
