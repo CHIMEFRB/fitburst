@@ -48,7 +48,15 @@ class DataReader(bases.ReaderBaseClass):
 
         metadata = unpacked_data_set["metadata"].item()
         # unpack and derive necessary information
-        self.burst_parameters = unpacked_data_set["burst_parameters"].item()
+        burst_parameters = unpacked_data_set["burst_parameters"].item()
+        # fitburst expects each of these parameters to have values in a list (allows
+        # for the possibility of describing multiple components)
+        for k, v in burst_parameters.items():
+            if not isinstance(v, list):
+                self.burst_parameters[k] = [v]
+            else:
+                self.burst_parameters[k] = v
+
         self.data_full = unpacked_data_set["spectrum"]
 
         # derive time information from loaded data.
@@ -65,7 +73,7 @@ class DataReader(bases.ReaderBaseClass):
             )
 
         # create the weights array, where True = masked
-        self.data_weights = np.zeros_like(self.num_freq, dtype=bool)
+        self.data_weights = np.zeros(self.num_freq, dtype=bool)
         rfi_mask = metadata["bad_chans"]
         self.data_weights[rfi_mask] = True
 
@@ -80,6 +88,6 @@ class DataReader(bases.ReaderBaseClass):
         freqs = np.arange(self.num_freq, dtype=np.float64) * metadata["chan_bw"]
         freqs += metadata["freq_chan0"]
         # currently have the leading-edge frequency for each channel, add chan_bw / 2
-        freqs += abs(metadata["chan_bw"]) / 2.0
+        freqs += metadata["chan_bw"] / 2.0
         self.freqs = freqs
         self.res_freq = metadata["chan_bw"]
