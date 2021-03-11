@@ -24,17 +24,24 @@ class LSFitter(object):
         parameter_list: list, 
         times_windowed: np.float, 
         freqs: np.float, 
-        data_windowed: np.float
+        data_windowed: np.float,
         ):
         """
         Computes the chi-squared statistic used for least-squares fitting.
         """
-        
+
+        # define base model with given parameters.        
         parameter_dict = self.load_fit_parameters_list(parameter_list)
         self.model.update_parameters(parameter_dict)
-        model = self.model.compute_model(times_windowed, freqs)        
-        resid = (data_windowed - model)**2
-        resid = resid.flatten()
+        model = self.model.compute_model(times_windowed, freqs)
+
+        # now compute resids and return.
+        resid = data_windowed - model
+        resid *= self.weights[:, None]
+        resid = resid.flat[:]
+        
+        # print delta-chisq value.
+        print("delta_chisq:", np.sum(data_windowed**2) - np.sum(resid**2))
 
         return resid
 
@@ -45,12 +52,15 @@ class LSFitter(object):
 
         # convert loaded parameter dictionary/entries into a list for scipy object.
         parameter_list = self.get_fit_parameters_list()
+        
+        # before running fit, determine per-channel weights.
+        self._set_weights(data_windowed)
 
         # do fit!
         lsfit = least_squares(
             self.compute_residuals, 
             parameter_list,
-            args = (times_windowed, freqs, data_windowed)
+            args = (times_windowed, freqs, data_windowed),
         )
 
         print(lsfit)
@@ -71,7 +81,7 @@ class LSFitter(object):
 
     def get_fit_parameters_list(self):
         """
-        Returns a list of values corresponding to 
+        Returns a list of values corresponding to fit parameters.
         """
 
         parameter_list = []
@@ -104,3 +114,21 @@ class LSFitter(object):
                 current_idx += 1
 
         return parameter_dict
+
+    def _set_weights(self, input_spectrum):
+        """
+        Sets an attribute containing weights to be applied during least-squares fitting.
+        """
+
+        # compute RMS deviation for each channel.
+        variance = np.sum(input_spectrum**2, axis=1)
+        std = np.sqrt(variance)
+        good_freq = std != 0.
+        bad_freq = np.logical_not(good_freq)        
+
+        # now compute statistical weights for "good" channels.
+        self.weights = np.empty_like(std)
+        self.weights[good_freq] = 1. / std[good_freq]
+        self.weights[bad_freq] = 0.
+        self.good_freq = good_freq
+
