@@ -1,12 +1,7 @@
 import numpy as np
 
-def compute_time_dm_delay(
-    dm: np.float, 
-    dm_const: np.float,
-    dm_idx: np.float,
-    freq1: np.float, 
-    freq2: np.float = np.inf, 
-    ) -> np.float:
+def compute_time_dm_delay(dm: np.float, dm_const: np.float, dm_idx: np.float,
+    freq1: np.float, freq2: np.float = np.inf) -> np.float:
     """
     Computes the time delay due to frequency-dependent dispersion in the ISM.
 
@@ -38,13 +33,8 @@ def compute_time_dm_delay(
     return delay
     
 
-def compute_time_dm_smear(
-    dm: np.float, 
-    dm_const: np.float,
-    dm_idx: np.float,
-    freq: np.float, 
-    bw: np.float, 
-    ) -> np.float:
+def compute_time_dm_smear(dm: np.float, dm_const: np.float, dm_idx: np.float,
+    freq: np.float, bw: np.float) -> np.float:
     """
     Computes the time delay due to frequency-dependent dispersion in the ISM.
 
@@ -75,12 +65,8 @@ def compute_time_dm_smear(
 
     return smear
 
-def compute_time_scattering(
-    freq: np.float, 
-    freq_ref: np.float, 
-    sc_time_ref: np.float, 
-    sc_idx: np.float
-    ) -> np.float:
+def compute_time_scattering(freq: np.float, freq_ref: np.float, sc_time_ref: np.float, 
+    sc_idx: np.float) -> np.float:
     """
     Computes the scattering timescale as a scaled value relative to scattering determined at 
     a reference frequency.
