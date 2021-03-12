@@ -20,12 +20,8 @@ class LSFitter(object):
         # initialize fit-parameter list.
         self.fit_parameters = self.model.parameters_all
 
-    def compute_residuals(self, 
-        parameter_list: list, 
-        times_windowed: np.float, 
-        freqs: np.float, 
-        data_windowed: np.float,
-        ):
+    def compute_residuals(self, parameter_list: list, times: np.float, 
+        freqs: np.float, data_windowed: np.float):
         """
         Computes the chi-squared statistic used for least-squares fitting.
         """
@@ -33,7 +29,7 @@ class LSFitter(object):
         # define base model with given parameters.        
         parameter_dict = self.load_fit_parameters_list(parameter_list)
         self.model.update_parameters(parameter_dict)
-        model = self.model.compute_model(times_windowed, freqs)
+        model = self.model.compute_model(times, freqs)
 
         # now compute resids and return.
         resid = data_windowed - model
@@ -45,7 +41,7 @@ class LSFitter(object):
 
         return resid
 
-    def fit(self, times_windowed, freqs, data_windowed):
+    def fit(self, times, freqs, data_windowed):
         """
         Executing least-squares fitting of the model spectrum to data.
         """
@@ -57,13 +53,13 @@ class LSFitter(object):
         self._set_weights(data_windowed)
 
         # do fit!
-        lsfit = least_squares(
+        results = least_squares(
             self.compute_residuals, 
             parameter_list,
-            args = (times_windowed, freqs, data_windowed),
+            args = (times, freqs, data_windowed),
         )
 
-        print(lsfit)
+        return results
 
     def fix_parameter(self, parameter_list: list):
         """
