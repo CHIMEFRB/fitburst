@@ -4,6 +4,7 @@ from fitburst.analysis.fitter import LSFitter
 import fitburst.backend.chimefrb as chimefrb
 import fitburst.analysis.model as mod
 import chime_frb_constants as const
+import fitburst.routines as rt
 import numpy as np
 import sys
 
@@ -29,7 +30,7 @@ data.dedisperse(
     reference_freq=params["reference_freq"]
 )
 
-data_windowed, times_windowed = data.window_data(params["arrival_time"][0])
+data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=0.02)
 
 # now create initial model.
 print("INFO: initializing model")
@@ -44,27 +45,23 @@ model.scattering_index = [-4.0]
 # now set up fitter and create initial model.
 fitter = LSFitter(model)
 fitter.fix_parameter(["dm_index", "scattering_timescale"])
-results = fitter.fit(data.times, data.freqs, data_windowed)
-
-# compute uncertainties.
-jacT = results.jac.T.copy()
-hessian = np.sum(jacT[:, None, :] * jacT[None, :, :], -1)
-covariance = np.linalg.inv(hessian)
-errs = np.diag(np.sqrt(covariance))
-print(results.x)
-print(errs)
+fitter.fit(data.times, data.freqs, data_windowed)
 
 # now obtain and plot windowed data.
+data_windowed_downsampled = rt.manipulate.downsample_2d(data_windowed, 64)
+freqs_downsampled = rt.manipulate.downsample_1d(data.freqs, 64)
+
 plt.subplot(131)
-plt.pcolormesh(times_windowed, data.freqs, data_windowed, cmap="inferno", vmin=0., vmax=0.3*np.max(data_windowed))
+plt.pcolormesh(times_windowed, freqs_downsampled, data_windowed_downsampled, cmap="inferno", vmin=0., vmax=0.3*np.max(data_windowed))
 
 # also plot model.
-bestfit_parameters = fitter.load_fit_parameters_list(results.x.tolist())
+bestfit_parameters = fitter.load_fit_parameters_list(fitter.bestfit_results["parameters"].tolist())
 model.update_parameters(bestfit_parameters)
 current_model = model.compute_model(data.times, data.freqs)
+current_model_downsampled = rt.manipulate.downsample_2d(current_model, 64)
 
 plt.subplot(132)
-plt.pcolormesh(times_windowed, data.freqs, current_model, cmap="inferno", vmin=0., vmax=np.max(current_model))
+plt.pcolormesh(times_windowed, freqs_downsampled, current_model_downsampled, cmap="inferno", vmin=0., vmax=np.max(current_model))
 
 plt.subplot(133)
 resids = (data_windowed - current_model) * fitter.weights[:, None]
