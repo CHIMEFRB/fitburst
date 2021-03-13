@@ -43,7 +43,8 @@ class LSFitter(object):
 
     def fit(self, times, freqs, data_windowed):
         """
-        Executing least-squares fitting of the model spectrum to data.
+        Executes least-squares fitting of the model spectrum to data, and stores 
+        results to child class.
         """
 
         # convert loaded parameter dictionary/entries into a list for scipy object.
@@ -53,13 +54,25 @@ class LSFitter(object):
         self._set_weights(data_windowed)
 
         # do fit!
-        results = least_squares(
-            self.compute_residuals, 
-            parameter_list,
-            args = (times, freqs, data_windowed),
-        )
+        try:
+            results = least_squares(
+                self.compute_residuals, 
+                parameter_list,
+                args = (times, freqs, data_windowed),
+            )
 
-        return results
+            # store resulting object to class.
+            self.bestfit_results = {}
+            self.bestfit_results["solver"] = results
+            self.bestfit_results["parameters"] = results.x
+
+            # now compute uncertainty data and store those.
+            uncertainties, covariance = self._compute_uncertainties(results.jac.T.copy())
+            self.bestfit_results["covariance"] = covariance
+            self.bestfit_results["uncertainties"] = uncertainties
+
+        except:
+            print("ERROR: solver encountered a failure! Debug!")
 
     def fix_parameter(self, parameter_list: list):
         """
@@ -110,6 +123,21 @@ class LSFitter(object):
                 current_idx += 1
 
         return parameter_dict
+
+    def _compute_uncertainties(self, jacobian):
+        """
+        Computes statistical uncertainties from output of least-squares solver.
+        """
+
+        # compute hessian and covariances (inverse-hessian) matrices 
+        # from input jacobian at best-fit location in phase space.
+        hessian = np.sum(jacobian[:, None, :] * jacobian[None, :, :], -1)
+        covariance = np.linalg.inv(hessian)
+
+        # finally, compute uncertainties from diagonal elements.
+        uncertainties = np.diag(np.sqrt(covariance))
+
+        return uncertainties, covariance
 
     def _set_weights(self, input_spectrum):
         """
