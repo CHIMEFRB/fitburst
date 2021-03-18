@@ -13,10 +13,42 @@ import matplotlib.gridspec as gridspec
 import fitburst.routines.manipulate as manip
 
 def plot_summary(times: np.ndarray, freqs: np.ndarray, spectrum_orig: np.ndarray, 
-    mask_freq: np.ndarray, model: np.array = None, num_subbands: int = 256, 
-    residuals: np.array = None):
+    mask_freq: np.ndarray, model: np.ndarray = None, num_subbands: int = 256, 
+    output_name: str = "summary.png", residuals: np.array = None) -> None:
     """
-    TBD.
+    Creates a three-panel plot of data and best-fit model/residuals.
+
+    Parameters
+    ----------
+    times : np.ndarray
+        an array of timestamps
+
+    freqs : np.ndarray 
+        an array of observing frequencies
+
+    spectrum_orig : np.ndarray
+        a (num_freq x num_time) matrix containing the dynamic spectrum, where num_freq = len(freqs) 
+        and num_time = len(times)
+
+    mask_freq : np.ndarray 
+        an array of boolean values indicating if frequency is usable (True) or masked (False)
+
+    model : np.ndarray, optional
+        a (num_freq x num_time) matrix containing the best-fit model of the dynamic spectrum
+
+    output_name : str, optional
+        the desired name of the PNG file containing the summary plots
+
+    num_subbands : int, optional
+        the number of desired subbands after downsampling input spectrum
+
+    residuals : np.ndarray, optional
+        a (num_freq x num_time) matrix containing the best-fit residuals
+
+    Returns
+    -------
+    None
+        a PNG plot is created and recorded to disk, but the function returns nothing
     """
 
     # get dimensions and ensure consistency with inputs.
@@ -141,4 +173,4 @@ def plot_summary(times: np.ndarray, freqs: np.ndarray, spectrum_orig: np.ndarray
     panel2d_model.set_xlabel("Time [ms]")
     panel2d_residual.set_xlabel("Time [ms]")
     
-    plt.savefig("test.png", dpi=150, bbox_inches="tight")      
+    plt.savefig(output_name, dpi=150, bbox_inches="tight")      
