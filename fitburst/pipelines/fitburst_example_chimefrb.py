@@ -4,6 +4,7 @@ from fitburst.analysis.fitter import LSFitter
 import fitburst.backend.chimefrb as chimefrb
 import fitburst.analysis.model as mod
 import chime_frb_constants as const
+import fitburst.utilities as ut
 import fitburst.routines as rt
 import numpy as np
 import sys
@@ -30,7 +31,7 @@ data.dedisperse(
     reference_freq=params["reference_freq"]
 )
 
-data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=0.02)
+data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=0.08)
 
 # now create initial model.
 print("INFO: initializing model")
@@ -48,23 +49,12 @@ fitter.fix_parameter(["dm_index", "scattering_timescale"])
 fitter.fit(data.times, data.freqs, data_windowed)
 
 # now obtain and plot windowed data.
-data_windowed_downsampled = rt.manipulate.downsample_2d(data_windowed, 64)
-freqs_downsampled = rt.manipulate.downsample_1d(data.freqs, 64)
-
-plt.subplot(131)
-plt.pcolormesh(times_windowed, freqs_downsampled, data_windowed_downsampled, cmap="inferno", vmin=0., vmax=0.3*np.max(data_windowed))
-
-# also plot model.
-bestfit_parameters = fitter.load_fit_parameters_list(fitter.bestfit_results["parameters"].tolist())
+bestfit_parameters = fitter.load_fit_parameters_list(fitter.bestfit_results["parameters"])
 model.update_parameters(bestfit_parameters)
-current_model = model.compute_model(data.times, data.freqs)
-current_model_downsampled = rt.manipulate.downsample_2d(current_model, 64)
+bestfit_model = model.compute_model(data.times, data.freqs)
+bestfit_residuals = data_windowed - bestfit_model
 
-plt.subplot(132)
-plt.pcolormesh(times_windowed, freqs_downsampled, current_model_downsampled, cmap="inferno", vmin=0., vmax=np.max(current_model))
-
-plt.subplot(133)
-resids = (data_windowed - current_model) * fitter.weights[:, None]
-plt.pcolormesh(times_windowed, data.freqs, resids, cmap="inferno", vmin=np.min(resids), vmax=np.max(resids))
-
-plt.savefig("test.png", dpi=500, fmt="png")
+ut.plotting.plot_summary(
+    data.times, data.freqs, data_windowed, fitter.good_freq, model = bestfit_model, 
+    residuals = bestfit_residuals
+)
