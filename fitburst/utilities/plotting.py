@@ -12,11 +12,11 @@ import matplotlib.gridspec as gridspec
 # now import fitburst-specific things.
 import fitburst.routines.manipulate as manip
 
-def plot_summary(times: np.ndarray, freqs: np.ndarray, spectrum_orig: np.ndarray, 
+def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: np.ndarray, 
     mask_freq: np.ndarray, model: np.ndarray = None, num_subbands: int = 256, 
-    output_name: str = "summary.png", residuals: np.array = None) -> None:
+    num_std: int = 1, output_name: str = "summary.png", residuals: np.array = None) -> None:
     """
-    Creates a three-panel plot of data and best-fit model/residuals.
+    Creates a three-panel ("triptych") plot of data and best-fit model/residuals.
 
     Parameters
     ----------
@@ -41,6 +41,9 @@ def plot_summary(times: np.ndarray, freqs: np.ndarray, spectrum_orig: np.ndarray
 
     num_subbands : int, optional
         the number of desired subbands after downsampling input spectrum
+
+    num_std : int, optional
+        the number of standard deviations in residuals to use in weighting color maps
 
     residuals : np.ndarray, optional
         a (num_freq x num_time) matrix containing the best-fit residuals
@@ -96,13 +99,17 @@ def plot_summary(times: np.ndarray, freqs: np.ndarray, spectrum_orig: np.ndarray
     idx_bad_freq = np.where(np.logical_not(mask_freq_downsampled))[0]
     vmin = np.min(spectrum_downsampled)
     vmax = np.max(spectrum_downsampled)
+    vmin_residual = None
+    vmax_residual = None
     print("vmin, vmax = {0:.2f}, {1:.2f}".format(vmin, vmax))
 
     if residuals is not None:
         residual_median = np.median(residuals[idx_good_freq, :])
         residual_std = np.std(residuals[idx_good_freq, :])
         vmin = residual_median - residual_std
-        vmax = residual_median + residual_std
+        vmax = residual_median + residual_std * num_std
+        vmin_residual = residual_median - residual_std * num_std
+        vmax_residual = residual_median + residual_std * num_std
 
     print("vmin, vmax = {0:.2f}, {1:.2f}".format(vmin, vmax))
 
@@ -135,7 +142,7 @@ def plot_summary(times: np.ndarray, freqs: np.ndarray, spectrum_orig: np.ndarray
     if residuals is not None:
         panel2d_residual.imshow(
             residuals_downsampled[::-1], aspect="auto", cmap="bwr", interpolation="nearest",
-            extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
+            extent=[min_time, max_time, min_freq, max_freq], vmin=vmin_residual, vmax=vmax_residual
         )
 
         panel1d_residual.plot(
