@@ -17,9 +17,10 @@ class ReaderBaseClass(object):
         self.burst_parameters = {}
         self.data_full = None
         self.data_weights = None
-        self.good_freq = None
         self.dedispersion_idx = None
         self.freqs = None
+        self.good_freq = None
+        self.is_dedispersed = False
         self.num_freq = None
         self.num_time = None
         self.res_time = None
