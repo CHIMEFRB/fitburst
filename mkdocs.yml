@@ -72,7 +72,7 @@ nav:
   - About: about.md
   - Installation: installation.md
   - Usage: 
-    - Format of Input Data: usage/reading_data.md
+    - Format of Input Data: usage/formatting_data_generic.md
   - Developer Guide: 
     - Coding Philosophy: developer_guide/philosophy.md
     - Package Structure: developer_guide/package_structure.md
