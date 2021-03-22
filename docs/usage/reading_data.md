@@ -29,14 +29,14 @@ The following data in the `metadata` dictionary are used for configuration of in
 
 ``` python
 metadata = {
-    "bad_chans"      : # a Python list of frequency channels to zero-weight
-    "freqs_bin0"     : # a floating-point scalar indicating the value of frequency bin at index 0
+    "bad_chans"      : # a Python list of indices corresponding to frequency channels to zero-weight
+    "freqs_bin0"     : # a floating-point scalar indicating the value of frequency bin at index 0, in MHz
     "is_dedispersed" : # a boolean indicating if spectrum is already dedispersed (True) or not (False)
     "num_freq"       : # an integer scalar indicating the number of frequency bins/channels
     "num_time"       : # an integer scalar indicating the number of time bins
-    "times_bin0"     : # a floating-point scalar indicating the value of time bin at index 0
-    "res_freq"       : # a floating-point scalar indicating the frequency resolution
-    "res_time"       : # a floating-point scalar indicating the time resolution
+    "times_bin0"     : # a floating-point scalar indicating the value of time bin at index 0, in seconds
+    "res_freq"       : # a floating-point scalar indicating the frequency resolution, in MHz
+    "res_time"       : # a floating-point scalar indicating the time resolution, in seconds
 }
 ```
 
@@ -47,14 +47,14 @@ All dictionary keys contain Python lists of floating-point values. The number of
 
 ``` python
 burst_parameters = {
-    "arrival_time"         : # a list containing the arrival times 
-    "burst_width"          : # a list containing the temporal widths 
-    "dm"                   : # a list containing the dispersion measures (DM)
+    "arrival_time"         : # a list containing the arrival times, in seconds
+    "burst_width"          : # a list containing the temporal widths, in seconds
+    "dm"                   : # a list containing the dispersion measures (DM), in parsec per cubic centimeter
     "dm_index"             : # a list containing the exponents of frequency dependence in DM delay
-    "ref_freq"             : # a list containing the reference frequencies for arrival-time and power-law parameter estimates (held fixed)
+    "ref_freq"             : # a list containing the reference frequencies for arrival-time and power-law parameter estimates, in MHz (held fixed)
     "scattering_index"     : # a list containing the exponents of frequency dependence in scatter-broadening
-    "scattering_timescale" : # a list containing the scattering timescales
-    "spectral_index"       : # a list containing the power-law spectral indeces
+    "scattering_timescale" : # a list containing the scattering timescales, in seconds
+    "spectral_index"       : # a list containing the power-law spectral indices
     "spectral_running"     : # a list containing the power-law spectral running
 }
 ```
