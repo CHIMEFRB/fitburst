@@ -93,16 +93,8 @@ class SpectrumModeler(object):
                 # if data is already dedipsersed and nominal DM is specified,
                 # compute "relative" DM delay.
                 elif self.is_dedispersed and self.dm0 is not None: 
-                    current_delay_1 = rt.ism.compute_time_dm_delay(
-                        self.dm0,
-                        general["constants"]["dispersion"],
-                        self.dm_index[0],
-                        freqs[current_freq],
-                        freq2=current_reference_freq,
-                    )
-                    
-                    current_delay_2 = rt.ism.compute_time_dm_delay(
-                        self.dm0 + self.dm[0],
+                    relative_delay = rt.ism.compute_time_dm_delay(
+                        self.dm[0],
                         general["constants"]["dispersion"],
                         self.dm_index[0],
                         freqs[current_freq],
@@ -111,7 +103,7 @@ class SpectrumModeler(object):
                     
                     # now compute current-times array corrected for relative delay.
                     current_times = times.copy() - current_arrival_time
-                    current_times -= (current_delay_2 - current_delay_1)
+                    current_times -= relative_delay
 
                 else:
                     sys.exit("ERROR: type of dedispersion plan is ambiguous!")                    
