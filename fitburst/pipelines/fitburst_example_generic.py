@@ -36,5 +36,15 @@ data.dedisperse(
 # get windowed data.
 data_windowed, times_windowed = data.window_data(current_parameters["arrival_time"][0], window=0.04)
 
-plt.pcolormesh(times_windowed, data.freqs, data_windowed)
+# now create model.
+print("INFO: initializing model")
+model = mod.SpectrumModeler()
+model.dm0 = initial_parameters["dm"][0]
+model.is_dedispersed = data.is_dedispersed
+model.set_dimensions(data_windowed.shape)
+model.update_parameters(current_parameters)
+current_model = model.compute_model(times_windowed, data.freqs)
+
+# plot.
+plt.pcolormesh(times_windowed, data.freqs, current_model)
 plt.savefig("test.png", fmt="png")
