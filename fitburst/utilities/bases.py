@@ -31,7 +31,8 @@ class ReaderBaseClass(object):
         dm: np.float, 
         arrival_time: np.float,
         reference_freq: np.float = np.inf,
-        dm_idx: np.float = general["constants"]["index_dispersion"]
+        dm_idx: np.float = general["constants"]["index_dispersion"],
+        dm_offset: np.float = None
         ):
         """
         Computes a matrix of time-bin indices corresponding to delays from interstellar 
@@ -51,6 +52,10 @@ class ReaderBaseClass(object):
         dm_idx : np.float, optional
             exponent of frequency dependence in dispersion delay
 
+        dm_offset : np.float, optional
+            offset in dispersion measure, in units of pc/cc; this option is only used 
+            if the 'is_dedispersed' attribute is set to True.
+
         Returns
         -------
         self.dedispersion_delay : np.ndarray
@@ -58,23 +63,55 @@ class ReaderBaseClass(object):
             with dimensions of (self.num_freq x self.num_time).
         """
 
-        # initialize matrix that contains indices.
-        # the following code structure makes use of Numpy broadcasting.
+        # initialize array that contains indices.
         self.dedispersion_idx = np.zeros(self.num_freq, dtype=np.int)
 
-        # now loop over dimensions and compute indices.
-        delay = arrival_time + rt.ism.compute_time_dm_delay(
-            dm,
-            general["constants"]["dispersion"],
-            dm_idx,
-            self.freqs,
-            freq2=reference_freq,
-        )
+        # now compute indicies for a dispersed signal, which will be used 
+        # in the 'window_data' method for obtain a dedispersed spectrum.
+        # NOTE: the dedispersion algorithm is different for dispersed and 
+        # already-dedispersed spectra, and the following conditionals address this.
         
-        # fill initial matrix and transpose.
-        self.dedispersion_idx[:] = np.around(
-            (delay - self.times[0]) / (self.res_time),
-        )
+        if not self.is_dedispersed:
+
+            # now loop over dimensions and compute indices.
+            delay = arrival_time + rt.ism.compute_time_dm_delay(
+                dm,
+                general["constants"]["dispersion"],
+                dm_idx,
+                self.freqs,
+                freq2=reference_freq,
+            )
+        
+            # fill initial matrix and transpose.
+            self.dedispersion_idx[:] = np.around(
+                (delay - self.times[0]) / (self.res_time),
+            )
+
+        elif self.is_dedispersed and dm_offset is not None:
+
+            # now compute delays for initial and adjusted DM.
+            delay_1 = rt.ism.compute_time_dm_delay(
+                dm,
+                general["constants"]["dispersion"],
+                dm_idx,
+                self.freqs,
+                freq2=reference_freq,
+            )
+
+            delay_2 = rt.ism.compute_time_dm_delay(
+                dm + dm_offset,
+                general["constants"]["dispersion"],
+                dm_idx,
+                self.freqs,
+                freq2=reference_freq,
+            )
+    
+            # compute discretized delays and finally the difference.
+            idx_arrival_time = np.fabs(self.times - arrival_time).argmin()
+            dedispersion_idx_1 = np.around((delay_1 - self.times[0]) / (self.res_time))
+            dedispersion_idx_2 = np.around((delay_2 - self.times[0]) / (self.res_time))
+            self.dedispersion_idx[:] = idx_arrival_time + (dedispersion_idx_2 - dedispersion_idx_1)
+
 
     def load_data(self):
         """
