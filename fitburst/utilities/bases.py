@@ -113,6 +113,14 @@ class ReaderBaseClass(object):
             self.dedispersion_idx[:] = idx_arrival_time + (dedispersion_idx_2 - dedispersion_idx_1)
 
 
+    def downsample(self, factor_freq: int = 1, factor_time: int = 1):
+        """
+        Downsamples the input spectrum by specified factors across the frequency 
+        and time axes. The relevant model attributes are updated to downsampled values.
+        """
+
+        pass
+
     def load_data(self):
         """
         Loads data from file into memory; to be defined by inherited classes.
