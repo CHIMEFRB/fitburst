@@ -119,7 +119,41 @@ class ReaderBaseClass(object):
         and time axes. The relevant model attributes are updated to downsampled values.
         """
 
-        pass
+        current_data_full = self.data_full.copy()
+        current_freqs = self.freqs.copy()
+        current_times = self.times.copy()
+
+        # first, downsample in frequency:
+        new_data_full = rt.manipulate.downsample_2d(current_data_full, factor_freq)
+
+        # next, downsample in time.
+        new_data_full = rt.manipulate.downsample_2d(new_data_full, factor_time, axis="time") 
+
+        # finally, downsample the time and frequency arrays.
+        new_freqs = rt.manipulate.downsample_1d(current_freqs, factor_freq)
+        new_times = rt.manipulate.downsample_1d(current_times, factor_time)
+
+        # now, replace attributes with downsampled values.
+        del self.data_full
+        del self.freqs
+        del self.times
+        self.data_full = new_data_full
+        self.freqs = new_freqs
+        self.times = new_times
+        self.num_freq = self.data_full.shape[0]
+        self.num_time = self.data_full.shape[1]
+        self.res_freq *= factor_freq
+        self.res_time *= factor_time
+
+        # if the good-frequency array is defined, compute the downsampled version as well.
+        if self.good_freq is not None:
+            current_good_freq = self.good_freq.copy()
+            new_good_freq = rt.manipulate.downsample_1d(current_good_freq, factor_freq, boolean=True)
+        
+            # replace attribute.
+            del self.good_freq
+            self.good_freq = new_good_freq
+
 
     def load_data(self):
         """
