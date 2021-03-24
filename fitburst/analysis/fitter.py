@@ -20,6 +20,9 @@ class LSFitter(object):
         # initialize fit-parameter list.
         self.fit_parameters = self.model.parameters_all
 
+        # set parameters for fitter configuration.
+        self.weighted_fit = True
+
     def compute_residuals(self, parameter_list: list, times: np.float, 
         freqs: np.float, data_windowed: np.float):
         """
@@ -152,7 +155,13 @@ class LSFitter(object):
 
         # now compute statistical weights for "good" channels.
         self.weights = np.empty_like(std)
-        self.weights[good_freq] = 1. / std[good_freq]
+
+        if self.weighted_fit:
+            self.weights[good_freq] = 1. / std[good_freq]
+
+        else:
+            self.weights[good_freq] = 1.
+
         self.weights[bad_freq] = 0.
         self.good_freq = good_freq
 

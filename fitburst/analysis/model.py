@@ -1,6 +1,7 @@
 from fitburst.backend import general
 import fitburst.routines as rt
 import numpy as np
+import sys
 
 class SpectrumModeler(object):
     """
@@ -12,10 +13,10 @@ class SpectrumModeler(object):
 
         # first define model-configuration parameters that are not fittable.
         self.dedispersion_idx = None
+        self.dm0 = None
         self.num_components = 1
         self.num_freq = None
         self.num_time = None
-        self.reference_freq = None
         self.spectrum_model = spectrum_model
 
         # define the basic model parameters first.
@@ -38,7 +39,7 @@ class SpectrumModeler(object):
         for current_parameter in self.parameters_all:
             setattr(self, current_parameter, [None])
 
-    def compute_model(self, times: np.float, freqs: np.float, ignore_scattering: bool = True):
+    def compute_model(self, times: np.float, freqs: np.float):
         """
         Computes the model dynamic spectrum based on model parameters (set as class 
         attributes) and input values of times and frequencies.
@@ -54,9 +55,11 @@ class SpectrumModeler(object):
 
         # loop over all components.
         for current_component in range(self.num_components):
+
             # extract parameter values for current component.
             current_amplitude = self.amplitude[current_component]
             current_arrival_time = self.arrival_time[current_component]
+            current_reference_freq = self.reference_freq[current_component]
             current_sc_idx = self.scattering_index[current_component]
             current_sc_time = self.scattering_timescale[current_component]
             current_width = self.width[current_component]
@@ -69,26 +72,46 @@ class SpectrumModeler(object):
             # now loop over bandpass.
             for current_freq in range(self.num_freq):
 
-                # first, compute dispersion-corrected timeseries.
-                current_arrival_idx = self.dedispersion_idx[current_freq]
-                current_delay = current_arrival_time + rt.ism.compute_time_dm_delay(
-                    self.dm[0],
-                    general["constants"]["dispersion"],
-                    self.dm_index[0],
-                    freqs[current_freq],
-                    freq2=self.reference_freq,
-                )
+                # compute dispersion-corrected timeseries.
+                # first, check if model is for dispersed data.
+                if not self.is_dedispersed and self.dedispersion_idx is not None:
+                    current_arrival_idx = self.dedispersion_idx[current_freq]
+                    current_delay = current_arrival_time + rt.ism.compute_time_dm_delay(
+                        self.dm[0],
+                        general["constants"]["dispersion"],
+                        self.dm_index[0],
+                        freqs[current_freq],
+                        freq2=current_reference_freq,
+                    )
 
-                # NOTE: the .copy() below is important!
-                current_times = times[
-                    current_arrival_idx - num_window_bins: current_arrival_idx + num_window_bins
-                ].copy()
-                current_times -= current_delay
+                    # NOTE: the .copy() below is important!
+                    current_times = times[
+                        current_arrival_idx - num_window_bins: current_arrival_idx + num_window_bins
+                    ].copy()
+                    current_times -= current_delay
+
+                # if data is already dedipsersed and nominal DM is specified,
+                # compute "relative" DM delay.
+                elif self.is_dedispersed and self.dm0 is not None: 
+                    relative_delay = rt.ism.compute_time_dm_delay(
+                        self.dm[0],
+                        general["constants"]["dispersion"],
+                        self.dm_index[0],
+                        freqs[current_freq],
+                        freq2=current_reference_freq,
+                    )
+                    
+                    # now compute current-times array corrected for relative delay.
+                    current_times = times.copy() - current_arrival_time
+                    current_times -= relative_delay
+
+                else:
+                    sys.exit("ERROR: type of dedispersion plan is ambiguous!")                    
 
                 # first, scale scattering timescale.
                 current_sc_time_scaled = rt.ism.compute_time_scattering(
                     freqs[current_freq],
-                    self.reference_freq,
+                    current_reference_freq,
                     current_sc_time,
                     current_sc_idx
                 )
@@ -99,7 +122,6 @@ class SpectrumModeler(object):
                     0.0, # since 'current_times' is already corrected for DM.
                     current_sc_time_scaled,
                     current_width,
-                    ignore_scattering = ignore_scattering
                 )
 
                 # third, compute and scale profile by spectral energy distribution.
@@ -109,7 +131,7 @@ class SpectrumModeler(object):
 
                     current_profile *= rt.spectrum.compute_spectrum_rpl(
                         freqs[current_freq],
-                        self.reference_freq,
+                        current_reference_freq,
                         current_sp_idx,
                         current_sp_run,
                     )
@@ -126,8 +148,7 @@ class SpectrumModeler(object):
         return model_spectrum
 
     def compute_profile(self, times: np.float, arrival_time: np.float, sc_time: np.float,
-        width: np.float, ignore_scattering: bool = False
-        ):
+        width: np.float):
         """
         Returns the Gaussian or pulse-broadened temporal profile, depending on input 
         values of width and scattering timescale..
@@ -136,7 +157,7 @@ class SpectrumModeler(object):
         profile = np.zeros(len(times), dtype=np.float)
 
         # compute either Gaussian or pulse-broadening function, depending on inputs.
-        if (ignore_scattering or sc_time < 0.05 * width):
+        if sc_time < 0.05 * width:
             profile = rt.profile.compute_profile_gaussian(times, arrival_time, width)
 
         else:
@@ -156,7 +177,7 @@ class SpectrumModeler(object):
         if (self.spectrum_model == "powerlaw"):
             spectrum = rt.spectrum.compute_spectrum_rpl(
                 freqs,
-                self.reference_freq,
+                current_reference_freq,
                 sp_idx,
                 sp_run
             )
