@@ -76,6 +76,14 @@ class ReaderBaseClass(object):
             (delay - self.times[0]) / (self.res_time),
         )
 
+    def downsample(self, factor_freq: int = 1, factor_time: int = 1):
+        """
+        Downsamples the input spectrum by specified factors across the frequency 
+        and time axes. The relevant model attributes are updated to downsampled values.
+        """
+
+        pass
+
     def load_data(self):
         """
         Loads data from file into memory; to be defined by inherited classes.
