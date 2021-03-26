@@ -112,7 +112,6 @@ class ReaderBaseClass(object):
             dedispersion_idx_2 = np.around((delay_2 - self.times[0]) / (self.res_time))
             self.dedispersion_idx[:] = idx_arrival_time + (dedispersion_idx_2 - dedispersion_idx_1)
 
-
     def downsample(self, factor_freq: int = 1, factor_time: int = 1):
         """
         Downsamples the input spectrum by specified factors across the frequency 
@@ -152,7 +151,6 @@ class ReaderBaseClass(object):
             # replace attribute.
             del self.good_freq
             self.good_freq = new_good_freq
-
 
     def load_data(self):
         """
