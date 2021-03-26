@@ -152,6 +152,18 @@ class ReaderBaseClass(object):
             del self.good_freq
             self.good_freq = new_good_freq
 
+            # ensure that previously-labeled bad frequencies remain that way if downsampled.
+            self.data_full[np.logical_not(self.good_freq)] = 0.
+
+        # if the good-frequency array is defined, compute the downsampled version as well.
+        if self.data_weights is not None:
+            current_data_weights = self.data_weights.copy()
+            new_data_weights = rt.manipulate.downsample_2d(current_data_weights, factor_freq, factor_time)
+        
+            # replace attribute.
+            del self.data_weights
+            self.data_weights = new_data_weights
+
     def load_data(self):
         """
         Loads data from file into memory; to be defined by inherited classes.
