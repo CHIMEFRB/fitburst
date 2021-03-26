@@ -28,8 +28,7 @@ def downsample_2d(spectrum_orig: np.ndarray, factor_freq: int, factor_time: int)
     shape_new = (num_freq // factor_freq, factor_freq, num_time // factor_time, factor_time)
 
     # now reshape and average to downsample.
-    spectrum_reshaped = np.reshape(spectrum_orig.copy(), shape_new)
-    spectrum_downsampled = np.sum(spectrum_reshaped, axis=(1, 3)) / (factor_freq * factor_time)
+    spectrum_downsampled = spectrum_orig.reshape(shape_new).mean(-1).mean(1)
 
     return spectrum_downsampled
 
