@@ -13,7 +13,7 @@ import matplotlib.gridspec as gridspec
 import fitburst.routines.manipulate as manip
 
 def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: np.ndarray, 
-    mask_freq: np.ndarray, model: np.ndarray = None, num_subbands: int = 256, 
+    mask_freq: np.ndarray, factor_time: int = 1, model: np.ndarray = None, num_subbands: int = 256, 
     num_std: int = 1, output_name: str = "summary.png", residuals: np.array = None) -> None:
     """
     Creates a three-panel ("triptych") plot of data and best-fit model/residuals.
@@ -32,6 +32,9 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
 
     mask_freq : np.ndarray 
         an array of boolean values indicating if frequency is usable (True) or masked (False)
+
+    factor_time : int, optional
+        a integer number by which to downsample spectrum in time
 
     model : np.ndarray, optional
         a (num_freq x num_time) matrix containing the best-fit model of the dynamic spectrum
@@ -59,17 +62,17 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     assert num_freq == len(freqs)
 
     # derive original resolutions.
-    factor_downsample = num_freq // num_subbands
+    factor_freq = num_freq // num_subbands
     res_freq_orig = freqs[1] - freqs[0]
-    res_freq = res_freq_orig / factor_downsample
+    res_freq = res_freq_orig / factor_freq
     res_time = times[1] - times[0]
 
     # downsample data to desired number of subbands.
-    spectrum_downsampled = manip.downsample_2d(spectrum_orig, factor_downsample)
-    model_downsampled = manip.downsample_2d(model, factor_downsample)
-    residuals_downsampled = manip.downsample_2d(residuals, factor_downsample)
-    freqs_downsampled = manip.downsample_1d(freqs, factor_downsample)
-    mask_freq_downsampled = manip.downsample_1d(mask_freq, factor_downsample, boolean=True)
+    spectrum_downsampled = manip.downsample_2d(spectrum_orig, factor_freq, factor_time)
+    model_downsampled = manip.downsample_2d(model, factor_freq, factor_time)
+    residuals_downsampled = manip.downsample_2d(residuals, factor_freq, factor_time)
+    freqs_downsampled = manip.downsample_1d(freqs, factor_freq)
+    mask_freq_downsampled = manip.downsample_1d(mask_freq, factor_freq, boolean=True)
     spectrum_downsampled *= mask_freq_downsampled[:, None]
     model_downsampled *= mask_freq_downsampled[:, None]
     residuals_downsampled *= mask_freq_downsampled[:, None]

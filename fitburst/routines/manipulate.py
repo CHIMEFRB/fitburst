@@ -17,7 +17,7 @@ def downsample_1d(array_orig: np.ndarray, factor: int, boolean: bool = False):
 
     return array_downsampled
 
-def downsample_2d(spectrum_orig: np.ndarray, factor: int, axis: str = "freq"):
+def downsample_2d(spectrum_orig: np.ndarray, factor_freq: int, factor_time: int):
     """
     Downsamples a two-dimensional dynamic spectrum and its time/frequency arrays 
     by specified factors.
@@ -25,14 +25,10 @@ def downsample_2d(spectrum_orig: np.ndarray, factor: int, axis: str = "freq"):
 
     # compute original and new matrix shapes.
     num_freq, num_time = spectrum_orig.shape
-    shape_new = (num_freq // factor, factor, num_time)
-
-    if axis == "time":
-        shape_new = (num_freq, factor, num_time // factor)
+    shape_new = (num_freq // factor_freq, factor_freq, num_time // factor_time, factor_time)
 
     # now reshape and average to downsample.
-    spectrum_reshaped = np.reshape(spectrum_orig.copy(), shape_new)
-    spectrum_downsampled = np.sum(spectrum_reshaped, axis=1) / factor
+    spectrum_downsampled = spectrum_orig.reshape(shape_new).mean(-1).mean(1)
 
     return spectrum_downsampled
 

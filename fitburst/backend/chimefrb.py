@@ -121,7 +121,7 @@ class DataReader(bases.ReaderBaseClass):
         self.res_time = self.times[1] - self.times[0]
 
     def _retrieve_metadata_frbmaster(
-        self, eventid, beam_id=0, mountpoint="/data/frb-archiver", use_locked=False
+        self, eventid, beam_id=0, mountpoint="/data/chime", use_locked=False
     ):
         """"""
 
@@ -261,7 +261,7 @@ class DataReader(bases.ReaderBaseClass):
                     ] = current_measurement["sub_burst_spectral_running"]
                     self.burst_parameters["fitburst"][current_round][
                         "reference_freq"
-                    ] = current_measurement["fitburst_reference_frequency"]
+                    ] = [current_measurement["fitburst_reference_frequency"]]
 
                     # if current round has scattering timescale, stash it as well.
                     if "scattering_timescale" in current_measurement:
@@ -278,7 +278,7 @@ class DataReader(bases.ReaderBaseClass):
         # now grab filenames.
         print("... now grabbing locations on the CHIME/FRB archivers...", end="")
         date_string = self.burst_parameters["L1"]["timestamp_utc"].strftime("%Y/%m/%d")
-        path_to_data = "{0}/{1}/astro_{2}/intensity/raw/{3:04d}".format(
+        path_to_data = "{0}/intensity/raw/{1}/astro_{2}/{3:04d}".format(
             mountpoint, date_string, eventid, beam_no
         )
 

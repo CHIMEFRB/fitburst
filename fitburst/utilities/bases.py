@@ -112,6 +112,57 @@ class ReaderBaseClass(object):
             dedispersion_idx_2 = np.around((delay_2 - self.times[0]) / (self.res_time))
             self.dedispersion_idx[:] = idx_arrival_time + (dedispersion_idx_2 - dedispersion_idx_1)
 
+    def downsample(self, factor_freq: int = 1, factor_time: int = 1):
+        """
+        Downsamples the input spectrum by specified factors across the frequency 
+        and time axes. The relevant model attributes are updated to downsampled values.
+        """
+
+        current_data_full = self.data_full.copy()
+        current_freqs = self.freqs.copy()
+        current_times = self.times.copy()
+
+        # first, downsample in frequency:
+        new_data_full = rt.manipulate.downsample_2d(current_data_full, factor_freq, factor_time)
+
+        # finally, downsample the time and frequency arrays.
+        new_freqs = rt.manipulate.downsample_1d(current_freqs, factor_freq)
+        new_times = rt.manipulate.downsample_1d(current_times, factor_time)
+
+        # now, replace attributes with downsampled values.
+        del self.data_full
+        del self.freqs
+        del self.num_time
+        del self.num_freq
+        del self.times
+        self.data_full = new_data_full
+        self.freqs = new_freqs
+        self.times = new_times
+        self.num_freq = len(new_freqs)
+        self.num_time = len(new_times)
+        self.res_freq *= factor_freq
+        self.res_time *= factor_time
+
+        # if the good-frequency array is defined, compute the downsampled version as well.
+        if self.good_freq is not None:
+            current_good_freq = self.good_freq.copy()
+            new_good_freq = rt.manipulate.downsample_1d(current_good_freq, factor_freq, boolean=True)
+        
+            # replace attribute.
+            del self.good_freq
+            self.good_freq = new_good_freq
+
+            # ensure that previously-labeled bad frequencies remain that way if downsampled.
+            self.data_full[np.logical_not(self.good_freq)] = 0.
+
+        # if the good-frequency array is defined, compute the downsampled version as well.
+        if self.data_weights is not None:
+            current_data_weights = self.data_weights.copy()
+            new_data_weights = rt.manipulate.downsample_2d(current_data_weights, factor_freq, factor_time)
+        
+            # replace attribute.
+            del self.data_weights
+            self.data_weights = new_data_weights
 
     def load_data(self):
         """
