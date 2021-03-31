@@ -119,11 +119,16 @@ class LSFitter(object):
 
         for current_parameter in self.model.parameters_all:
             if (current_parameter in self.fit_parameters):
-                parameter_dict[current_parameter] = parameter_list[
-                    current_idx:(current_idx + self.model.num_components)
-                ]
+                # if global parameter, load list of length == 1 into dictionary.
+                if current_parameter == "dm" or current_parameter == "scattering_timescale":
+                    parameter_dict[current_parameter] = [parameter_list[current_idx]]
+                    current_idx += 1
 
-                current_idx += 1
+                else:
+                    parameter_dict[current_parameter] = parameter_list[
+                        current_idx : (current_idx + self.model.num_components)
+                    ]
+                    current_idx += self.model.num_components
 
         return parameter_dict
 

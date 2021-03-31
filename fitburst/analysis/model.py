@@ -59,12 +59,14 @@ class SpectrumModeler(object):
             # extract parameter values for current component.
             current_amplitude = self.amplitude[current_component]
             current_arrival_time = self.arrival_time[current_component]
-            current_reference_freq = self.reference_freq[current_component]
-            current_sc_idx = self.scattering_index[current_component]
-            current_sc_time = self.scattering_timescale[current_component]
+            current_dm = self.dm[0]
+            current_dm_index = self.dm_index[0]
+            current_reference_freq = self.reference_freq[0]
+            current_sc_idx = self.scattering_index[0]
+            current_sc_time = self.scattering_timescale[0]
             current_width = self.width[current_component]
 
-            print("Current parameters: ", self.dm[0], current_amplitude, current_arrival_time, 
+            print("Current parameters: ", current_dm, current_amplitude, current_arrival_time, 
                 current_sc_idx, current_sc_time, current_width, self.spectral_index[0],
                 self.spectral_running[0]
             )
@@ -77,9 +79,9 @@ class SpectrumModeler(object):
                 if not self.is_dedispersed and self.dedispersion_idx is not None:
                     current_arrival_idx = self.dedispersion_idx[current_freq]
                     current_delay = current_arrival_time + rt.ism.compute_time_dm_delay(
-                        self.dm[0],
+                        current_dm,
                         general["constants"]["dispersion"],
-                        self.dm_index[0],
+                        current_dm_index,
                         freqs[current_freq],
                         freq2=current_reference_freq,
                     )
@@ -94,9 +96,9 @@ class SpectrumModeler(object):
                 # compute "relative" DM delay.
                 elif self.is_dedispersed and self.dm0 is not None: 
                     relative_delay = rt.ism.compute_time_dm_delay(
-                        self.dm[0],
+                        current_dm,
                         general["constants"]["dispersion"],
-                        self.dm_index[0],
+                        current_dm_index,
                         freqs[current_freq],
                         freq2=current_reference_freq,
                     )
@@ -140,10 +142,10 @@ class SpectrumModeler(object):
                     pass
 
                 # finally, add to approrpiate slice of model-spectrum matrix.
-                model_spectrum[current_freq, :] += current_profile
+                model_spectrum[current_freq, :] += current_amplitude * current_profile
 
             # finally, apply overall signal amplitude for current burst component.
-            model_spectrum *= current_amplitude
+            #model_spectrum *= current_amplitude
 
         return model_spectrum
 
@@ -229,3 +231,7 @@ class SpectrumModeler(object):
         # first, overload attributes with values for supplied parameters.
         for current_parameter in model_parameters.keys():
             setattr(self, current_parameter, model_parameters[current_parameter])
+
+            # if number of components is 2 or greater, update num_components attribute.
+            if len(model_parameters[current_parameter]) > 1:
+                setattr(self, "num_components", len(model_parameters[current_parameter]))
