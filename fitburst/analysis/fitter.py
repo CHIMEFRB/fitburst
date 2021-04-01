@@ -64,18 +64,26 @@ class LSFitter(object):
                 args = (times, freqs, data_windowed),
             )
 
+            print("INFO: fit successful!")
+
             # store resulting object to class.
             self.bestfit_results = {}
             self.bestfit_results["solver"] = results
             self.bestfit_results["parameters"] = results.x
 
-            # now compute uncertainty data and store those.
+        except Exception as exc:
+            print("ERROR: solver encountered a failure! Debug!")
+            print(exc)
+
+        # now try computing uncertainties from numerical Jacobian.
+        try:
             uncertainties, covariance = self._compute_uncertainties(results.jac.T.copy())
             self.bestfit_results["covariance"] = covariance
             self.bestfit_results["uncertainties"] = uncertainties
+            print("INFO: derived uncertainties from Jacobian data")
 
         except:
-            print("ERROR: solver encountered a failure! Debug!")
+            print("ERROR: could not compute uncertainties!")
 
     def fix_parameter(self, parameter_list: list):
         """
@@ -91,25 +99,58 @@ class LSFitter(object):
 
         print("INFO: new list of fit parameters:", ", ".join(self.fit_parameters))
 
-    def get_fit_parameters_list(self):
+    def get_fit_parameters_list(self, global_parameters: list = ["dm", "scattering_timescale"]):
         """
-        Returns a list of values corresponding to fit parameters.
+        Determines a list of values corresponding to fit parameters.
+
+        Parameters
+        ----------
+        global_parameters : list, optional
+            one or more fit parameters that are tied to all modeled burst components. 
+
+        Returns
+        -------
+        parameter_list : list
+            a list of floating-point values for fit parameters, which is used by SciPy solver 
+            as an argument to the residual-computation function.
+
         """
 
         parameter_list = []
 
         # loop over all parameters, only extract values for fit parameters.
         for current_parameter in self.model.parameters_all:
-            if (current_parameter in self.fit_parameters):
-                parameter_list += getattr(self.model, current_parameter)
+            if current_parameter in self.fit_parameters:
+                current_sublist = getattr(self.model, current_parameter)
+
+                if current_parameter in global_parameters:
+                    parameter_list += [current_sublist[0]]
+
+                else:
+                    parameter_list += current_sublist
 
         return parameter_list
 
-    def load_fit_parameters_list(self, parameter_list: list):
+    def load_fit_parameters_list(self, parameter_list: list, 
+        global_parameters: list = ["dm", "scattering_timescale"]):
         """
-        Returns a dictionary where keys are fit-parameter names and values 
+        Determines a dictionary where keys are fit-parameter names and values 
         are lists (with length self.model.num_components) contain the per-burst 
         values of the given parameter/key.
+
+        Parameters
+        ----------
+        parameter_list : list
+            a list of floating-point values for fit parameters, which is used by SciPy solver 
+            as an argument to the residual-computation function.
+
+        global_parameters : list, optional
+            one or more fit parameters that are tied to all modeled burst components. 
+
+        Returns
+        -------
+        parameter_dict : dict
+            a dictionary containing fit parameters as keys and their values as dictionary values.
         """
 
         parameter_dict = {}
@@ -120,15 +161,17 @@ class LSFitter(object):
         for current_parameter in self.model.parameters_all:
             if (current_parameter in self.fit_parameters):
                 # if global parameter, load list of length == 1 into dictionary.
-                if current_parameter == "dm" or current_parameter == "scattering_timescale":
-                    parameter_dict[current_parameter] = [parameter_list[current_idx]]
+                if current_parameter in global_parameters:
+                    parameter_dict[current_parameter] = [parameter_list[current_idx]] 
                     current_idx += 1
 
                 else:
                     parameter_dict[current_parameter] = parameter_list[
                         current_idx : (current_idx + self.model.num_components)
                     ]
+
                     current_idx += self.model.num_components
+
 
         return parameter_dict
 
