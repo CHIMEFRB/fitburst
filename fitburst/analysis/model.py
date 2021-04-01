@@ -61,14 +61,12 @@ class SpectrumModeler(object):
             current_dm = self.dm[0]
             current_dm_index = self.dm_index[0]
             current_ref_freq = self.ref_freq[current_component]
-            current_sc_idx = self.scattering_index[current_component]
-            current_sc_time = self.scattering_timescale[current_component]
+            current_sc_idx = self.scattering_index[0]
+            current_sc_time = self.scattering_timescale[0]
             current_width = self.burst_width[current_component]
 
             print("Current parameters: ", current_dm, current_amplitude, current_arrival_time, 
-                current_sc_idx, current_sc_time, current_width, self.spectral_index[0],
-                self.spectral_running[0]
-            )
+                current_sc_idx, current_sc_time, current_width, end=", ")
 
             # now loop over bandpass.
             for current_freq in range(self.num_freq):
@@ -141,10 +139,10 @@ class SpectrumModeler(object):
                     pass
 
                 # finally, add to approrpiate slice of model-spectrum matrix.
-                model_spectrum[current_freq, :] += current_amplitude * current_profile
+                model_spectrum[current_freq, :] += (10**current_amplitude) * current_profile
 
-            # finally, apply overall signal amplitude for current burst component.
-            model_spectrum *= (10**current_amplitude)
+            # print spectral index/running for current component.
+            print(current_sp_idx, current_sp_run)
 
         return model_spectrum
 
