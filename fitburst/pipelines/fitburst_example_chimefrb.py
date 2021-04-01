@@ -30,7 +30,7 @@ params = data.burst_parameters["fitburst"]["round_2"]
 data.dedisperse(
     params["dm"][0],
     params["arrival_time"][0],
-    reference_freq=params["reference_freq"][0]
+    reference_freq=params["ref_freq"][0]
 )
 
 data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=0.08)
