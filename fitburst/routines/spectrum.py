@@ -51,7 +51,7 @@ def compute_spectrum_rpl(freqs: np.ndarray, freq_ref: np.float, sp_idx: np.float
         the one-dimensional spectrum for input frequencies
 
     """
-
+    
     log_freq = np.log(freqs / freq_ref)
     exponent = sp_idx * log_freq + sp_run * log_freq**2
     spectrum = np.exp(exponent)

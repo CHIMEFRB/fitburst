@@ -88,6 +88,7 @@ class DataReader(bases.ReaderBaseClass):
         self.res_freq = metadata["res_freq"]
         freqs = np.arange(self.num_freq, dtype=np.float64) * self.res_freq
         freqs += metadata["freqs_bin0"]
+   
 
         # currently have the leading-edge frequency for each channel, add chan_bw / 2
         freqs += self.res_freq / 2.0

@@ -40,7 +40,7 @@ class LSFitter(object):
         resid = resid.flat[:]
         
         # print delta-chisq value.
-        print("delta_chisq:", np.sum(data_windowed**2) - np.sum(resid**2))
+        #print("delta_chisq:", np.sum(data_windowed**2) - np.sum(resid**2))
 
         return resid
 
@@ -61,7 +61,7 @@ class LSFitter(object):
             results = least_squares(
                 self.compute_residuals, 
                 parameter_list,
-                args = (times, freqs, data_windowed),
+                args = (times, freqs, data_windowed)
             )
 
             print("INFO: fit successful!")

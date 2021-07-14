@@ -285,7 +285,6 @@ class ReaderBaseClass(object):
         idx_arrival_time = np.fabs(self.times - arrival_time).argmin()
         num_window_bins = np.around(window / self.res_time).astype(np.int)
         data_windowed = np.zeros((self.num_freq, num_window_bins * 2), dtype=np.float)
-
         # compute indeces of min/max window values along time axis.
         for idx_freq in range(self.num_freq):
             current_arrival_idx = self.dedispersion_idx[idx_freq]
