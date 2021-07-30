@@ -156,7 +156,7 @@ class SpectrumModeler(object):
         profile = np.zeros(len(times), dtype=np.float)
 
         # compute either Gaussian or pulse-broadening function, depending on inputs.
-        if sc_time < 0.05 * width:
+        if sc_time < 0.15 * width:
             profile = rt.profile.compute_profile_gaussian(times, arrival_time, width)
 
         else:
