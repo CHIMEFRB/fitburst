@@ -60,7 +60,7 @@ class SpectrumModeler(object):
             current_arrival_time = self.arrival_time[current_component]
             current_dm = self.dm[0]
             current_dm_index = self.dm_index[0]
-            current_ref_freq = self.ref_freq[current_component]
+            current_ref_freq = self.reference_freq[current_component]
             current_sc_idx = self.scattering_index[0]
             current_sc_time = self.scattering_timescale[0]
             current_width = self.burst_width[current_component]
@@ -92,13 +92,13 @@ class SpectrumModeler(object):
                 # if data is already dedipsersed and nominal DM is specified,
                 # compute "relative" DM delay.
                 elif self.is_dedispersed: 
-                    relative_delay = 0#rt.ism.compute_time_dm_delay(
-                        #current_dm,
-                        #general["constants"]["dispersion"],
-                        #current_dm_index,
-                        #freqs[current_freq],
-                        #freq2=current_ref_freq,
-                    #)
+                    relative_delay = rt.ism.compute_time_dm_delay(
+                        current_dm,
+                        general["constants"]["dispersion"],
+                        current_dm_index,
+                        freqs[current_freq],
+                        freq2=current_ref_freq,
+                    )
                     
                     # now compute current-times array corrected for relative delay.
                     current_times = times.copy() - current_arrival_time
@@ -156,7 +156,7 @@ class SpectrumModeler(object):
         profile = np.zeros(len(times), dtype=np.float)
 
         # compute either Gaussian or pulse-broadening function, depending on inputs.
-        if sc_time < 0.15 * width:
+        if sc_time < np.fabs(0.15 * width):
             profile = rt.profile.compute_profile_gaussian(times, arrival_time, width)
 
         else:
