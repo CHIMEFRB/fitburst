@@ -60,7 +60,7 @@ class SpectrumModeler(object):
             current_arrival_time = self.arrival_time[current_component]
             current_dm = self.dm[0]
             current_dm_index = self.dm_index[0]
-            current_ref_freq = self.reference_freq[current_component]
+            current_ref_freq = self.ref_freq[current_component]
             current_sc_idx = self.scattering_index[0]
             current_sc_time = self.scattering_timescale[0]
             current_width = self.burst_width[current_component]
