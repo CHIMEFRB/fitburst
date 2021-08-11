@@ -64,9 +64,10 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     assert num_freq == len(freqs)
 
     # derive original resolutions.
-    res_freq_orig = max(freqs) - min(freqs)
+    res_freq_orig = freqs[1] - freqs[0]
     res_freq = res_freq_orig / factor_freq
     res_time = times[1] - times[0]
+
     # downsample data to desired number of subbands.
     spectrum_downsampled = manip.downsample_2d(spectrum_orig, factor_freq, factor_time)
     model_downsampled = manip.downsample_2d(model, factor_freq, factor_time)
