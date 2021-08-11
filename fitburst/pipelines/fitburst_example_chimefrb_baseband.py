@@ -75,7 +75,7 @@ current_model = model.compute_model(times_windowed, data.freqs)
 
 # now set up fitter and execute.
 fitter = LSFitter(model)
-fitter.fix_parameter(["dm_index", "scattering_timescale"])
+fitter.fix_parameter(["dm", "dm_index", "scattering_timescale"])
 fitter.weighted_fit = True
 fitter.fit(times_windowed, data.freqs, data_windowed)
 
@@ -97,12 +97,17 @@ ut.plotting.plot_summary_triptych(
 )
 
 # now re-dedisperse data and plot for comparison.
+dm_offset = 0.
+
+if "dm" in bestfit_parameters:
+    dm_offset = bestfit_parameters["dm"][0]
+
 print("INFO: computing dedispersion-index matrix")
 data.dedisperse(
     initial_parameters["dm"][0],
     current_parameters["arrival_time"][0],
     reference_freq=initial_parameters["ref_freq"][0],
-    dm_offset=bestfit_parameters["dm"][0]
+    dm_offset=dm_offset
 )
 data_windowed_new, times_windowed_new = data.window_data(current_parameters["arrival_time"][0], window=0.002)
 
