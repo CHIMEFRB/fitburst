@@ -8,9 +8,10 @@ def downsample_1d(array_orig: np.ndarray, factor: int, boolean: bool = False):
     """
 
     # reshape original array and marginalize.
-    num_elements = len(array_orig)
-    array_reshaped = np.reshape(array_orig, (num_elements // factor, factor))
-    array_downsampled = np.sum(array_reshaped, axis=1) / factor
+    
+    array_downsampled = array_orig[..., : array_orig.shape[-1] // factor * factor]
+
+    array_downsampled = np.nansum(array_downsampled.reshape(list(array_downsampled.shape[:-1]) + [array_downsampled.shape[-1] // factor, factor]), axis=-1) / np.sqrt(factor)
 
     if boolean:
         array_downsampled = array_downsampled.astype(bool)
@@ -24,11 +25,8 @@ def downsample_2d(spectrum_orig: np.ndarray, factor_freq: int, factor_time: int)
     """
 
     # compute original and new matrix shapes.
-    num_freq, num_time = spectrum_orig.shape
-    shape_new = (num_freq // factor_freq, factor_freq, num_time // factor_time, factor_time)
-
-    # now reshape and average to downsample.
-    spectrum_downsampled = spectrum_orig.reshape(shape_new).mean(-1).mean(1)
+    spectrum_downsampled = downsample_1d(spectrum_orig, factor_time)
+    spectrum_downsampled = downsample_1d(spectrum_orig.T, factor_freq).T
 
     return spectrum_downsampled
 

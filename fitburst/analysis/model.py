@@ -13,7 +13,6 @@ class SpectrumModeler(object):
 
         # first define model-configuration parameters that are not fittable.
         self.dedispersion_idx = None
-        self.dm0 = None
         self.num_components = 1
         self.num_freq = None
         self.num_time = None
@@ -24,9 +23,10 @@ class SpectrumModeler(object):
             "dm",
             "dm_index",
             "scattering_timescale",
+            "scattering_index",
             "amplitude",
             "arrival_time",
-            "width"
+            "burst_width"
         ]
 
         # add the appropriate spectral parameters to the list.
@@ -52,7 +52,6 @@ class SpectrumModeler(object):
         # initialize model matrix and size of temporal window.
         model_spectrum = np.zeros((self.num_freq, self.num_time), dtype=np.float)
         num_window_bins = self.num_time // 2
-
         # loop over all components.
         for current_component in range(self.num_components):
 
@@ -61,15 +60,13 @@ class SpectrumModeler(object):
             current_arrival_time = self.arrival_time[current_component]
             current_dm = self.dm[0]
             current_dm_index = self.dm_index[0]
-            current_reference_freq = self.reference_freq[0]
+            current_ref_freq = self.ref_freq[current_component]
             current_sc_idx = self.scattering_index[0]
             current_sc_time = self.scattering_timescale[0]
-            current_width = self.width[current_component]
+            current_width = self.burst_width[current_component]
 
-            print("Current parameters: ", current_dm, current_amplitude, current_arrival_time, 
-                current_sc_idx, current_sc_time, current_width, self.spectral_index[0],
-                self.spectral_running[0]
-            )
+            #print("Current parameters: ", current_dm, current_amplitude, current_arrival_time, 
+                #current_sc_idx, current_sc_time, current_width, end=", ")
 
             # now loop over bandpass.
             for current_freq in range(self.num_freq):
@@ -83,7 +80,7 @@ class SpectrumModeler(object):
                         general["constants"]["dispersion"],
                         current_dm_index,
                         freqs[current_freq],
-                        freq2=current_reference_freq,
+                        freq2=current_ref_freq,
                     )
 
                     # NOTE: the .copy() below is important!
@@ -94,13 +91,13 @@ class SpectrumModeler(object):
 
                 # if data is already dedipsersed and nominal DM is specified,
                 # compute "relative" DM delay.
-                elif self.is_dedispersed and self.dm0 is not None: 
+                elif self.is_dedispersed: 
                     relative_delay = rt.ism.compute_time_dm_delay(
                         current_dm,
                         general["constants"]["dispersion"],
                         current_dm_index,
                         freqs[current_freq],
-                        freq2=current_reference_freq,
+                        freq2=current_ref_freq,
                     )
                     
                     # now compute current-times array corrected for relative delay.
@@ -113,7 +110,7 @@ class SpectrumModeler(object):
                 # first, scale scattering timescale.
                 current_sc_time_scaled = rt.ism.compute_time_scattering(
                     freqs[current_freq],
-                    current_reference_freq,
+                    current_ref_freq,
                     current_sc_time,
                     current_sc_idx
                 )
@@ -133,7 +130,7 @@ class SpectrumModeler(object):
 
                     current_profile *= rt.spectrum.compute_spectrum_rpl(
                         freqs[current_freq],
-                        current_reference_freq,
+                        current_ref_freq,
                         current_sp_idx,
                         current_sp_run,
                     )
@@ -142,10 +139,10 @@ class SpectrumModeler(object):
                     pass
 
                 # finally, add to approrpiate slice of model-spectrum matrix.
-                model_spectrum[current_freq, :] += current_amplitude * current_profile
+                model_spectrum[current_freq, :] += (10**current_amplitude) * current_profile
 
-            # finally, apply overall signal amplitude for current burst component.
-            #model_spectrum *= current_amplitude
+            # print spectral index/running for current component.
+            #print(current_sp_idx, current_sp_run)
 
         return model_spectrum
 
@@ -159,7 +156,7 @@ class SpectrumModeler(object):
         profile = np.zeros(len(times), dtype=np.float)
 
         # compute either Gaussian or pulse-broadening function, depending on inputs.
-        if sc_time < 0.05 * width:
+        if sc_time < np.fabs(0.15 * width):
             profile = rt.profile.compute_profile_gaussian(times, arrival_time, width)
 
         else:
@@ -179,7 +176,7 @@ class SpectrumModeler(object):
         if (self.spectrum_model == "powerlaw"):
             spectrum = rt.spectrum.compute_spectrum_rpl(
                 freqs,
-                current_reference_freq,
+                current_ref_freq,
                 sp_idx,
                 sp_run
             )
@@ -210,7 +207,7 @@ class SpectrumModeler(object):
 
         self.dedispersion_idx = dedispersion_idx
 
-        print("INFO: array of dedispersion indeces loaded successfully")
+        print("INFO: array of dedispersion indices loaded successfully")
 
     def update_parameters(self, model_parameters: dict):
         """

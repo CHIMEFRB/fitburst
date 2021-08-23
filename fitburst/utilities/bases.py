@@ -180,7 +180,7 @@ class ReaderBaseClass(object):
 
     def preprocess_data(
         self, 
-        variance_range: list = [0.95, 1.05], 
+        variance_range: list = [0.2, 0.8], 
         variance_weight: np.float = 1.,
         skewness_range: list = [-3., 3.],
         ):
@@ -218,6 +218,7 @@ class ReaderBaseClass(object):
 
         # normalize data and remove baseline.
         mean_spectrum = np.sum(self.data_full * self.data_weights, -1)
+        good_freq[np.where(mean_spectrum == 0.)] = False
         mean_spectrum[good_freq] /= mask_freq[good_freq]
         self.data_full[good_freq] /= mean_spectrum[good_freq][:, None]
         self.data_full[good_freq] -= 1
@@ -226,6 +227,7 @@ class ReaderBaseClass(object):
         # compute variance and skewness of data.
         variance = np.sum(self.data_full**2, -1) 
         variance[good_freq] /= mask_freq[good_freq]
+        variance[good_freq] /= np.max(variance[good_freq])
         skewness = np.sum(self.data_full**3, -1) 
         skewness[good_freq] /= mask_freq[good_freq]
         skewness_mean = np.mean(skewness[good_freq])
@@ -285,7 +287,6 @@ class ReaderBaseClass(object):
         idx_arrival_time = np.fabs(self.times - arrival_time).argmin()
         num_window_bins = np.around(window / self.res_time).astype(np.int)
         data_windowed = np.zeros((self.num_freq, num_window_bins * 2), dtype=np.float)
-
         # compute indeces of min/max window values along time axis.
         for idx_freq in range(self.num_freq):
             current_arrival_idx = self.dedispersion_idx[idx_freq]

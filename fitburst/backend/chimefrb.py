@@ -53,6 +53,10 @@ class DataReader(bases.ReaderBaseClass):
                     "round_2"
                 ][current_key]
 
+            # adjust certain FRBMaster entries if burst has multiple components.
+            num_components = len(parameter_dict["arrival_time"])
+            parameter_dict["ref_freq"] = parameter_dict["ref_freq"] * num_components
+
         elif "dm-pipeline" in self.burst_parameters:
             print("woohoo DM pipleine")
 
@@ -245,11 +249,11 @@ class DataReader(bases.ReaderBaseClass):
                         "dm"
                     ] = current_measurement["sub_burst_dm"]
                     self.burst_parameters["fitburst"][current_round][
-                        "width"
+                        "burst_width"
                     ] = current_measurement["sub_burst_width"]
                     self.burst_parameters["fitburst"][current_round][
                         "amplitude"
-                    ] = current_measurement["sub_burst_fluence"]
+                    ] = np.log10(current_measurement["sub_burst_fluence"]).tolist()
                     self.burst_parameters["fitburst"][current_round][
                         "arrival_time"
                     ] = current_measurement["sub_burst_timestamp"]
@@ -260,7 +264,7 @@ class DataReader(bases.ReaderBaseClass):
                         "spectral_running"
                     ] = current_measurement["sub_burst_spectral_running"]
                     self.burst_parameters["fitburst"][current_round][
-                        "reference_freq"
+                        "ref_freq"
                     ] = [current_measurement["fitburst_reference_frequency"]]
 
                     # if current round has scattering timescale, stash it as well.

@@ -13,8 +13,8 @@ import matplotlib.gridspec as gridspec
 import fitburst.routines.manipulate as manip
 
 def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: np.ndarray, 
-    mask_freq: np.ndarray, factor_time: int = 1, model: np.ndarray = None, num_subbands: int = 256, 
-    num_std: int = 1, output_name: str = "summary.png", residuals: np.array = None) -> None:
+    mask_freq: np.ndarray, factor_time: int = 1, model: np.ndarray = None, factor_freq: int = 1, 
+    num_std: int = 4, output_name: str = "summary.png", residuals: np.array = None, show: bool = True) -> None:
     """
     Creates a three-panel ("triptych") plot of data and best-fit model/residuals.
 
@@ -42,8 +42,8 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     output_name : str, optional
         the desired name of the PNG file containing the summary plots
 
-    num_subbands : int, optional
-        the number of desired subbands after downsampling input spectrum
+    factor_freq : int, optional
+        a integer number by which to downsample spectrum in frequency
 
     num_std : int, optional
         the number of standard deviations in residuals to use in weighting color maps
@@ -51,6 +51,8 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     residuals : np.ndarray, optional
         a (num_freq x num_time) matrix containing the best-fit residuals
 
+    show : bool, optional
+        plots the summary plot
     Returns
     -------
     None
@@ -62,7 +64,6 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     assert num_freq == len(freqs)
 
     # derive original resolutions.
-    factor_freq = num_freq // num_subbands
     res_freq_orig = freqs[1] - freqs[0]
     res_freq = res_freq_orig / factor_freq
     res_time = times[1] - times[0]
@@ -76,16 +77,19 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     spectrum_downsampled *= mask_freq_downsampled[:, None]
     model_downsampled *= mask_freq_downsampled[:, None]
     residuals_downsampled *= mask_freq_downsampled[:, None]
-
+    
+    idx_good_freq = np.where(mask_freq_downsampled)[0]
+    idx_bad_freq = np.where(np.logical_not(mask_freq_downsampled))[0]
+    
     # compute bounds of plotting region.
     min_time = 0.0
-    min_freq = freqs[0] - res_freq_orig / 2
+    min_freq = min(freqs[idx_good_freq]) - res_freq_orig / 2
     max_time = num_time * res_time * 1e3 # last term converts to ms
-    max_freq = freqs[-1] + res_freq_orig / 2
+    max_freq = max(freqs[idx_good_freq]) + res_freq_orig / 2
     times_plot = np.linspace(min_time + res_time / 2., max_time - res_time / 2., num=num_time)
-
+    print(min_freq, max_freq)
     # now set up figure and gridspec axes.
-    fig = plt.figure(figsize=(3.25,3.25))
+    fig = plt.figure(figsize=(15,12))#(3.25,3.25))
     gs = gridspec.GridSpec(2, 3, width_ratios=[1, 1, 1], height_ratios=[1, 3], 
          hspace=0.0, wspace=0.1
     )
@@ -96,60 +100,55 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     panel1d_data = plt.subplot(gs[0], sharex=panel2d_data)
     panel1d_model = plt.subplot(gs[1], sharex=panel2d_model)
     panel1d_residual = plt.subplot(gs[2], sharex=panel2d_residual)
-
-    # determine scales for color maps.
-    idx_good_freq = np.where(mask_freq_downsampled)[0]
-    idx_bad_freq = np.where(np.logical_not(mask_freq_downsampled))[0]
-    vmin = np.min(spectrum_downsampled)
-    vmax = np.max(spectrum_downsampled)
-    vmin_residual = None
-    vmax_residual = None
-    print("vmin, vmax = {0:.2f}, {1:.2f}".format(vmin, vmax))
-
-    if residuals is not None:
-        residual_median = np.median(residuals[idx_good_freq, :])
-        residual_std = np.std(residuals[idx_good_freq, :])
-        vmin = residual_median - residual_std
-        vmax = residual_median + residual_std * num_std
-        vmin_residual = residual_median - residual_std * num_std
-        vmax_residual = residual_median + residual_std * num_std
-
-    print("vmin, vmax = {0:.2f}, {1:.2f}".format(vmin, vmax))
-
+    
+    residuals = spectrum_downsampled[idx_good_freq] - model_downsampled[idx_good_freq]
+    residual_median = np.nanmedian(residuals)
+    residual_std = np.nanstd(residuals)
+    vmin = residual_median - residual_std * num_std
+    vmax = residual_median + residual_std * num_std
+    vmin_residual = residual_median - residual_std * num_std
+    vmax_residual = residual_median + residual_std * num_std
+    print('Data', "vmin, vmax = {0:.2f}, {1:.2f}".format(vmin, vmax))
     # plot dynamic-spectrum data and band-averaged timeseries.
     panel2d_data.imshow(
-        spectrum_downsampled[::-1], aspect="auto", interpolation="nearest", 
+        spectrum_downsampled[idx_good_freq], origin = 'lower', aspect="auto", interpolation="nearest", 
         extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
     )
 
-    timeseries = np.mean(spectrum_downsampled[idx_good_freq, :], axis=0)
+    timeseries =  np.nanmean(spectrum_downsampled[idx_good_freq], axis=0) * np.sqrt(
+        np.count_nonzero(~np.isnan(np.nansum(spectrum_downsampled[idx_good_freq], axis=-1)))
+    )
     panel1d_data.plot(times_plot, timeseries)
 
     # extract y-axis limits from data panel for model and residual panels.
     y_min, y_max = panel1d_data.get_ylim()
     panel1d_model.set_ylim(y_min, y_max)
     panel1d_residual.set_ylim(y_min, y_max)
-
+    print('Model', "vmin, vmax = {0:.2f}, {1:.2f}".format(vmin, vmax))
     # plot model panel.
     if model is not None:
         panel2d_model.imshow(
-            model_downsampled[::-1], aspect="auto", interpolation="nearest",
+            model_downsampled[idx_good_freq], origin = 'lower', aspect="auto", interpolation="nearest",
             extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
         )
 
         panel1d_model.plot(
-            times_plot, np.mean(model_downsampled[idx_good_freq, :], axis=0)
+            times_plot, np.nanmean(model_downsampled[idx_good_freq], axis=0) * np.sqrt(
+        np.count_nonzero(~np.isnan(np.nansum(model_downsampled[idx_good_freq], axis=-1)))
+    )
         )
 
     # plot residual panel.
     if residuals is not None:
         panel2d_residual.imshow(
-            residuals_downsampled[::-1], aspect="auto", cmap="bwr", interpolation="nearest",
-            extent=[min_time, max_time, min_freq, max_freq], vmin=vmin_residual, vmax=vmax_residual
+            residuals_downsampled[idx_good_freq], origin = 'lower', aspect="auto", cmap="bwr", interpolation="nearest",
+            extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
         )
 
         panel1d_residual.plot(
-            times_plot, np.mean(residuals_downsampled[idx_good_freq, :], axis=0)
+            times_plot,  np.nanmean(residuals_downsampled[idx_good_freq], axis=0) * np.sqrt(
+        np.count_nonzero(~np.isnan(np.nansum(residuals_downsampled[idx_good_freq], axis=-1)))
+    )
         )
 
     # remove the appropriate 2D labels and tickmarks.
@@ -184,3 +183,22 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     panel2d_residual.set_xlabel("Time [ms]")
     
     plt.savefig(output_name, dpi=150, bbox_inches="tight")      
+    
+    if show:
+        plt.show()
+    
+    plt.clf()
+    plt.figure(figsize = (7,5))
+    plt.plot(
+            times_plot, timeseries, color = 'k', alpha = 0.3, lw=4
+        )
+    plt.plot(
+            times_plot,  np.nanmean(model_downsampled[idx_good_freq], axis=0) * np.sqrt(
+        np.count_nonzero(~np.isnan(np.nansum(model_downsampled[idx_good_freq], axis=-1)))
+    ), c = 'r'
+        )
+    plt.xlabel('Time [ms]')
+    #plt.savefig(output_name, dpi=150, bbox_inches="tight")      
+    
+    if show:
+        plt.show()
