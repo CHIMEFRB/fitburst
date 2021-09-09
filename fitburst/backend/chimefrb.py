@@ -48,9 +48,14 @@ class DataReader(bases.ReaderBaseClass):
         parameter_dict = {}
 
         if "fitburst" in self.burst_parameters:
-            for current_key in self.burst_parameters["fitburst"]["round_2"].keys():
+            current_round = "round_2"
+
+            if "scattering_timescale" in self.burst_parameters["fitburst"]["round_3"]:
+                current_round = "round_3"
+
+            for current_key in self.burst_parameters["fitburst"][current_round].keys():
                 parameter_dict[current_key] = self.burst_parameters["fitburst"][
-                    "round_2"
+                    current_round
                 ][current_key]
 
             # adjust certain FRBMaster entries if burst has multiple components.
@@ -62,6 +67,23 @@ class DataReader(bases.ReaderBaseClass):
 
         elif "L1" in self.burst_parameters:
             print("ok at least there is L1")
+
+            # L1 only estimates parameters for one component, so just create a dictionary 
+            # corresponding to one burst component. Use guesses for values not estimated by L1.
+            parameter_dict["amplitude"] = [-3.0]
+            parameter_dict["arrival_time"] = [
+                self.burst_parameters["L1"]["timestamp_fpga"] * 
+                telescopes["chimefrb"]["fpga"]["time_per_sample"] 
+            ]
+            parameter_dict["burst_width"] = [0.05]
+            parameter_dict["dm"] = [self.burst_parameters["L1"]["dm"]]
+            parameter_dict["dm_index"] = [-2.0]
+            parameter_dict["ref_freq"] = [telescopes["chimefrb"]["pivot_freq"]["spectrum"]]
+            parameter_dict["scattering_index"] = [-4.0]
+            parameter_dict["scattering_timescale"] = [0.0]
+            parameter_dict["spectral_index"] = [-1.0]
+            parameter_dict["spectral_running"] = [0.0]
+            
 
         else:
             sys.exit("ERROR: no parameters retrieved from FRBMaster!")
@@ -194,13 +216,14 @@ class DataReader(bases.ReaderBaseClass):
             url_get = "http://frb-vsop.chime:8001"
             master = FRBMaster(base_url=url_get)
             event = master.events.get_event(eventid)
+            print(event["measured_parameters"].keys())
             locked_id_fitburst = event["locked"]["intensity-fitburst"]
             locked_id_dm = event["locked"]["intensity-dm-pipeline"]
             self.burst_parameters["dm-pipeline"] = {}
             self.burst_parameters["fitburst"] = {}
 
-            for current_measurement in event["measured_parameters"]:
 
+            for current_measurement in event["measured_parameters"]:
                 # if there are locked DM-pipeline results, grab and stash those.
                 if (
                     current_measurement["pipeline"]["name"] == "intensity-dm-pipeline"
@@ -268,10 +291,10 @@ class DataReader(bases.ReaderBaseClass):
                     ] = [current_measurement["fitburst_reference_frequency"]]
 
                     # if current round has scattering timescale, stash it as well.
-                    if "scattering_timescale" in current_measurement:
+                    if "sub_burst_scattering_timescale" in current_measurement:
                         self.burst_parameters["fitburst"][current_round][
-                            "timestamp_scattering"
-                        ] = [current_measurement["sub_burst_scattering_timescale"]]
+                            "scattering_timescale"
+                        ] = current_measurement["sub_burst_scattering_timescale"]
             print("success!")
 
         except Exception as exc:
