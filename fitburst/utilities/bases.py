@@ -29,11 +29,11 @@ class ReaderBaseClass(object):
 
     def dedisperse(self, 
         dm: np.float, 
-        arrival_time: np.float,
-        reference_freq: np.float = np.inf,
-        dm_idx: np.float = general["constants"]["index_dispersion"],
-        dm_offset: np.float = None
-        ):
+        arrival_time: float,
+        reference_freq: float = np.inf,
+        dm_idx: float = general["constants"]["index_dispersion"],
+        dm_offset: float = None
+        ) -> None:
         """
         Computes a matrix of time-bin indices corresponding to delays from interstellar 
         dispersion of the dynamic spectrum. 
@@ -83,7 +83,7 @@ class ReaderBaseClass(object):
             )
         
             # fill initial matrix and transpose.
-            self.dedispersion_idx[:] = np.around(
+            self.dedispersion_idx[:] = np.ceil(
                 (delay - self.times[0]) / (self.res_time),
             )
 
@@ -112,7 +112,7 @@ class ReaderBaseClass(object):
             dedispersion_idx_2 = np.around((delay_2 - self.times[0]) / (self.res_time))
             self.dedispersion_idx[:] = idx_arrival_time + (dedispersion_idx_2 - dedispersion_idx_1)
 
-    def downsample(self, factor_freq: int = 1, factor_time: int = 1):
+    def downsample(self, factor_freq: int = 1, factor_time: int = 1) -> None:
         """
         Downsamples the input spectrum by specified factors across the frequency 
         and time axes. The relevant model attributes are updated to downsampled values.
@@ -164,7 +164,7 @@ class ReaderBaseClass(object):
             del self.data_weights
             self.data_weights = new_data_weights
 
-    def load_data(self):
+    def load_data(self) -> None:
         """
         Loads data from file into memory; to be defined by inherited classes.
         This method must define the following:
@@ -180,28 +180,30 @@ class ReaderBaseClass(object):
 
     def preprocess_data(
         self, 
-        variance_range: list = [0.2, 0.8], 
-        variance_weight: np.float = 1.,
+        normalize_variance: bool = True,
         skewness_range: list = [-3., 3.],
-        ):
+        variance_range: list = [0.2, 0.8], 
+        variance_weight: float = 1.,
+        ) -> None:
         """
         Applies pre-fit routines for cleaning raw dynamic spectrum (e.g., RFI-masking, 
         baseline subtraction, normalization, etc.).
 
         Parameters
         ----------
+        normalize_variance: bool, optional
+
+        skewness_range : list, optional
+            a two-element list containing the range of allowed values of skewness; 
+            values outside of this range are flagged as RFI and removed from the data cube.
+
         variance_range : list, optional
             a two-element list containing the range of allowed variances; values outside 
             of this range are flagged as RFI and removed from the data cube.
 
         variance_weigt : np.float, optional
             a scaling factor applied to variance prior to exision.
-
         
-        skewness_range : list, optional
-            a two-element list containing the range of allowed values of skewness; 
-            values outside of this range are flagged as RFI and removed from the data cube.
-
         Returns
         -------
         self.good_freqs : np.ndarray
@@ -227,11 +229,14 @@ class ReaderBaseClass(object):
         # compute variance and skewness of data.
         variance = np.sum(self.data_full**2, -1) 
         variance[good_freq] /= mask_freq[good_freq]
-        variance[good_freq] /= np.max(variance[good_freq])
         skewness = np.sum(self.data_full**3, -1) 
         skewness[good_freq] /= mask_freq[good_freq]
         skewness_mean = np.mean(skewness[good_freq])
         skewness_std = np.std(skewness[good_freq])
+
+        # if desired, normalize variance relative to maximum value.
+        if normalize_variance:
+            variance[good_freq] /= np.max(variance[good_freq])
 
         # now update good-frequencies list based on variance/skewness thresholds.
         good_freq = np.logical_and(
@@ -263,7 +268,7 @@ class ReaderBaseClass(object):
             )
         )
 
-    def window_data(self, arrival_time: np.float, window: np.float = 0.08):
+    def window_data(self, arrival_time: float, window: float = 0.08) -> tuple:
         """
         Returns a subset of data that is centered and "windowed" on the arrival time.
         
