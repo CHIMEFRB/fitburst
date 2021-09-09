@@ -18,15 +18,15 @@ class SpectrumModeler(object):
         self.num_time = None
         self.spectrum_model = spectrum_model
 
-        # define the basic model parameters first.
+        # define all fittable model parameters first.
         self.parameters_all = [
+            "amplitude",
+            "arrival_time",
+            "burst_width",
             "dm",
             "dm_index",
             "scattering_timescale",
             "scattering_index",
-            "amplitude",
-            "arrival_time",
-            "burst_width"
         ]
 
         # add the appropriate spectral parameters to the list.
@@ -39,7 +39,7 @@ class SpectrumModeler(object):
         for current_parameter in self.parameters_all:
             setattr(self, current_parameter, [None])
 
-    def compute_model(self, times: np.float, freqs: np.float):
+    def compute_model(self, times: float, freqs: float) -> float:
         """
         Computes the model dynamic spectrum based on model parameters (set as class 
         attributes) and input values of times and frequencies.
@@ -65,8 +65,8 @@ class SpectrumModeler(object):
             current_sc_time = self.scattering_timescale[0]
             current_width = self.burst_width[current_component]
 
-            #print("Current parameters: ", current_dm, current_amplitude, current_arrival_time, 
-                #current_sc_idx, current_sc_time, current_width, end=", ")
+            print("Current parameters: ", current_dm, current_amplitude, current_arrival_time, 
+                current_sc_idx, current_sc_time, current_width, end=", ")
 
             # now loop over bandpass.
             for current_freq in range(self.num_freq):
@@ -142,12 +142,12 @@ class SpectrumModeler(object):
                 model_spectrum[current_freq, :] += (10**current_amplitude) * current_profile
 
             # print spectral index/running for current component.
-            #print(current_sp_idx, current_sp_run)
+            print(current_sp_idx, current_sp_run)
 
         return model_spectrum
 
-    def compute_profile(self, times: np.float, arrival_time: np.float, sc_time: np.float,
-        width: np.float):
+    def compute_profile(self, times: float, arrival_time: float, sc_time: float,
+        width: float) -> float:
         """
         Returns the Gaussian or pulse-broadened temporal profile, depending on input 
         values of width and scattering timescale..
@@ -160,12 +160,19 @@ class SpectrumModeler(object):
             profile = rt.profile.compute_profile_gaussian(times, arrival_time, width)
 
         else:
-            profile = rt.profile.compute_profile_pbf(times, arrival_time, width, sc_time)
+            # the following times array manipulates the times array so that we avoid a 
+            # floating-point overlow in the exp((-times - toa) / sc_time) term in the 
+            # PBF call. TODO: use a better, more transparent method for avoiding this.
+            times_copy = times.copy()
+            times_copy[times_copy < -5 * width] = -5 * width
+ 
+            # now call the function.
+            profile = rt.profile.compute_profile_pbf(times_copy, arrival_time, width, sc_time)
 
         return profile
 
-    def compute_spectrum(self, freqs: np.float, freq_mean: np.float, freq_width: np.float,
-        sp_idx: np.float, sp_run: np.float):
+    def compute_spectrum(self, freqs: float, freq_mean: float, freq_width: float,
+        sp_idx: float, sp_run: float) -> float:
         """
         Returns the Gaussian or power-law spectral energy distribution, depending on the 
         desired spectral model (set by self.spectrum_model). 
@@ -186,7 +193,24 @@ class SpectrumModeler(object):
 
         return spectrum
 
-    def set_dimensions(self, num_freq, num_time):
+    def get_parameters_dict(self) -> dict:
+        """
+
+        """
+
+        parameter_dict = {}
+
+        # loop over all fittable parameters and grab their values.
+        for current_parameter in self.parameters_all:
+            parameter_dict[current_parameter] = getattr(self, current_parameter)
+
+        # before exiting, grab the values of the reference frequency, which 
+        # isn't fittable and is therefore not in the 'parameters_all' list.
+        parameter_dict["ref_freq"] = getattr(self, "ref_freq")
+
+        return parameter_dict
+
+    def set_dimensions(self, num_freq: int, num_time: int) -> None:
         """
         Sets the dimensions of the model spectrum. If data are windowed in frequency 
         and/or time during preprocessing, then the inputs must match the dimensions of 
@@ -200,7 +224,7 @@ class SpectrumModeler(object):
             self.num_freq, self.num_time)
         )
 
-    def set_dedispersion_idx(self, dedispersion_idx):
+    def set_dedispersion_idx(self, dedispersion_idx: int) -> None:
         """
         Creates or overloads an array of time bins where the dispersed pulse is observed.
         """
@@ -209,7 +233,7 @@ class SpectrumModeler(object):
 
         print("INFO: array of dedispersion indices loaded successfully")
 
-    def update_parameters(self, model_parameters: dict):
+    def update_parameters(self, model_parameters: dict) -> None:
         """
         Overloads parameter values stored in object with those supplied by the user.
 
