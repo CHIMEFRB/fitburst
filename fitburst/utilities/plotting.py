@@ -80,14 +80,14 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     
     idx_good_freq = np.where(mask_freq_downsampled)[0]
     idx_bad_freq = np.where(np.logical_not(mask_freq_downsampled))[0]
-    
+
     # compute bounds of plotting region.
     min_time = 0.0
-    min_freq = min(freqs[idx_good_freq]) - res_freq_orig / 2
+    min_freq = min(freqs_downsampled[idx_good_freq]) - res_freq_orig / 2
     max_time = num_time * res_time * 1e3 # last term converts to ms
-    max_freq = max(freqs[idx_good_freq]) + res_freq_orig / 2
+    max_freq = max(freqs_downsampled[idx_good_freq]) + res_freq_orig / 2
     times_plot = np.linspace(min_time + res_time / 2., max_time - res_time / 2., num=num_time)
-    print(min_freq, max_freq)
+
     # now set up figure and gridspec axes.
     fig = plt.figure(figsize=(15,12))#(3.25,3.25))
     gs = gridspec.GridSpec(2, 3, width_ratios=[1, 1, 1], height_ratios=[1, 3], 
@@ -202,3 +202,5 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     
     if show:
         plt.show()
+
+    plt.clf()

@@ -20,5 +20,5 @@ chimefrb:
 
     # define reference values ("pivots") used as defaults by CHIME/FRB.
     pivot_freq: 
-        spectrim: 400.1953125
+        spectrum: 400.1953125
         scattering: 600.0
