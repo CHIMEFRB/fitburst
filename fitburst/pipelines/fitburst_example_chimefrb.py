@@ -42,6 +42,11 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--latest", action="store_true", dest="use_latest_solution",
+    help="If set, use existing solution if present."
+)
+
+parser.add_argument(
     "--offset_dm", action="store", dest="offset_dm", default=0.0, type=float,
     help="Offset applied to initial dispersion measure, in pc/cc."
 )
@@ -49,6 +54,11 @@ parser.add_argument(
 parser.add_argument(
     "--offset_time", action="store", dest="offset_time", default=0.0, type=float,
     help="Offset applied to initial arrival time, in seconds."
+)
+
+parser.add_argument(
+    "--pipeline", action="store", dest="pipeline", default="L1", type=str,
+    help="Name of CHIME/FRB pipeline whose results will be used as initial guesses."
 )
 
 parser.add_argument(
@@ -68,28 +78,27 @@ window_orig = args.window
 num_iterations = args.num_iterations
 offset_dm = args.offset_dm
 offset_time = args.offset_time
+pipeline = args.pipeline
+use_latest_solution = args.use_latest_solution
 width = args.width
 
 ### loop over all CHIME/FRB events supplied at command line.
 for current_event_id in eventIDs:
 
+    # grab initial parameters to check if pipeline-specific parameters exist.
     data = chimefrb.DataReader(current_event_id)
-    initial_parameters = data.get_parameters()
-    initial_parameters["dm"][0] += offset_dm
-    initial_parameters["arrival_time"][0] += offset_time
+    initial_parameters = data.get_parameters(pipeline=pipeline)
+        
+    # if returned parameter dictionary is empty, move on to next event.
+    if bool(initial_parameters):
+        log.info(f"successfully grabbed parameter data from CHIME/FRB {pipeline} pipeline")
+        
+    else:
+        log.error(f"couldn't grab CHIME/FRB {pipeline} pipeline data for event {current_event_id}")
+        continue
+
     window = window_orig
 
-    # if a JSON file containing results already exists, then read that in.
-    if os.path.isfile(f"results_fitburst_{current_event_id}.json"):
-        print(f"INFO: loading data from results file for event {current_event_id}")
-        results = json.load(open(f"results_fitburst_{current_event_id}.json", "r"))
-        initial_parameters = results["model_parameters"]
-        print("INFO: window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
-
-    else: 
-        initial_parameters["burst_width"] = [window / 10.]
-
-    
     # load data into memory and pre-process.
     try:
         data.load_data(data.files)
@@ -99,6 +108,28 @@ for current_event_id in eventIDs:
         log.error(f"couldn't read raw msgpack data for event {current_event_id}")
         continue
 
+    # now that frame0-nano value is available after loading of data, grab parameters 
+    # to obtain timestamp info.
+    initial_parameters = data.get_parameters(pipeline=pipeline)
+    initial_parameters["dm"][0] += offset_dm
+    initial_parameters["arrival_time"][0] += offset_time
+
+    # if a JSON file containing results already exists, then read that in.
+    if use_latest_solution and os.path.isfile(f"results_fitburst_{current_event_id}.json"):
+        print(f"INFO: loading data from results file for event {current_event_id}")
+        results = json.load(open(f"results_fitburst_{current_event_id}.json", "r"))
+        initial_parameters = results["model_parameters"]
+        print("INFO: window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
+
+    else: 
+        pass
+        #initial_parameters["burst_width"] = [window / 10.]
+
+    # if guesses are provided at command, overload them into the initial-guess dictionary.
+    if width is not None:
+        initial_parameters["burst_width"] = width
+   
+    # now, clean and normalize data.
     data.preprocess_data(
         normalize_variance = False,
         variance_range = [0.95, 1.05],
@@ -163,27 +194,28 @@ for current_event_id in eventIDs:
         fitter.fit(data.times, data.freqs, data_windowed)
     
         # before executing the fitting loop, overload model class with best-fit parameters.
-        model.update_parameters(fitter.fit_statistics["bestfit_parameters"])
+        if fitter.success:
+            model.update_parameters(fitter.fit_statistics["bestfit_parameters"])
 
     ### now compute best-fit model of spectrum and plot.
-    bestfit_model = model.compute_model(data.times, data.freqs) * data.good_freq[:, None]
-    bestfit_residuals = data_windowed - bestfit_model
-    print("Allo:", np.min(data.freqs), np.max(data.freqs))
+    if fitter.success:
+        bestfit_model = model.compute_model(data.times, data.freqs) * data.good_freq[:, None]
+        bestfit_residuals = data_windowed - bestfit_model
 
-    ut.plotting.plot_summary_triptych(
-        data.times, data.freqs, data_windowed, data.good_freq, model = bestfit_model, 
-        residuals = bestfit_residuals, output_name = f"summary.{current_event_id}.png",
-        factor_freq = 64
-    )
-
-    # finally, stash results into a JSON file.
-
-    with open(f"results_fitburst_{current_event_id}.json", "w") as out:
-        json.dump(
-            {
-                "model_parameters": model.get_parameters_dict(), 
-                "fit_statistics": fitter.fit_statistics,
-            },
-            out, 
-            indent=4
+        ut.plotting.plot_summary_triptych(
+            data.times, data.freqs, data_windowed, data.good_freq, model = bestfit_model, 
+            residuals = bestfit_residuals, output_name = f"summary.{current_event_id}.png",
+            factor_freq = 64
         )
+
+        # finally, stash results into a JSON file.
+
+        with open(f"results_fitburst_{current_event_id}.json", "w") as out:
+            json.dump(
+                {
+                    "model_parameters": model.get_parameters_dict(), 
+                    "fit_statistics": fitter.fit_statistics,
+                },
+                out, 
+                indent=4
+            )
