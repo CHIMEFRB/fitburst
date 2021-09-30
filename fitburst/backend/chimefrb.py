@@ -2,6 +2,7 @@ import numpy as np
 import datetime
 import requests
 import glob
+import pytz
 import sys
 
 # now import some fitburst-specific packages.
@@ -39,7 +40,7 @@ class DataReader(bases.ReaderBaseClass):
         print("... grabbing metadata for eventID {0}".format(self.eventid))
         self._retrieve_metadata_frbmaster(self.eventid)
 
-    def get_parameters(self):
+    def get_parameters(self, pipeline: str = "L1") -> dict:
         """
         Returns a dictionary containing parameters as keys and their FRBMaster entries
         stored as values.
@@ -47,7 +48,7 @@ class DataReader(bases.ReaderBaseClass):
 
         parameter_dict = {}
 
-        if "fitburst" in self.burst_parameters:
+        if bool(self.burst_parameters["fitburst"]) and pipeline == "fitburst":
             current_round = "round_2"
 
             if "scattering_timescale" in self.burst_parameters["fitburst"]["round_3"]:
@@ -62,10 +63,25 @@ class DataReader(bases.ReaderBaseClass):
             num_components = len(parameter_dict["arrival_time"])
             parameter_dict["ref_freq"] = parameter_dict["ref_freq"] * num_components
 
-        elif "dm-pipeline" in self.burst_parameters:
+        elif bool(self.burst_parameters["dm-pipeline"]) and pipeline == "dm":
             print("woohoo DM pipleine")
+            parameter_dict["amplitude"] = [-3.0]
+            parameter_dict["burst_width"] = self.burst_parameters["dm-pipeline"]["width"]
+            parameter_dict["dm"] = self.burst_parameters["dm-pipeline"]["dm"]
+            parameter_dict["dm_index"] = [-2.0]
+            parameter_dict["ref_freq"] = [telescopes["chimefrb"]["pivot_freq"]["spectrum"]]
+            parameter_dict["scattering_index"] = [-4.0]
+            parameter_dict["scattering_timescale"] = [0.0]
+            parameter_dict["spectral_index"] = [-1.0]
+            parameter_dict["spectral_running"] = [0.0]
 
-        elif "L1" in self.burst_parameters:
+            if self.fpga_frame0_nano is not None:
+                parameter_dict["arrival_time"] = [
+                    pytz.utc.localize(self.burst_parameters["dm-pipeline"]["timestamp_utc"][0]).timestamp() - \
+                    (self.fpga_frame0_nano * 1e-9)
+                ]
+
+        elif bool(self.burst_parameters["L1"]) and pipeline == "L1":
             print("ok at least there is L1")
 
             # L1 only estimates parameters for one component, so just create a dictionary 
@@ -86,7 +102,7 @@ class DataReader(bases.ReaderBaseClass):
             
 
         else:
-            sys.exit("ERROR: no parameters retrieved from FRBMaster!")
+            print("ERROR: no parameters retrieved from FRBMaster!")
 
         return parameter_dict
 
@@ -154,6 +170,7 @@ class DataReader(bases.ReaderBaseClass):
         try:
             from cfod.chime_intensity import natural_keys
             from chime_frb_api.backends.frb_master import FRBMaster
+
         except ImportError as err:
             print("Unable to import from cfod and/or chime_frb_api")
             print("Please ensure thoses packagea are installed.")
@@ -214,17 +231,23 @@ class DataReader(bases.ReaderBaseClass):
 
         try:
             url_get = "http://frb-vsop.chime:8001"
-            master = FRBMaster(base_url=url_get)
+            master = FRBMaster()
             event = master.events.get_event(eventid)
-            print(event["measured_parameters"].keys())
-            locked_id_fitburst = event["locked"]["intensity-fitburst"]
-            locked_id_dm = event["locked"]["intensity-dm-pipeline"]
+            locked_id_dm = None
+            locked_id_fitburst = None
             self.burst_parameters["dm-pipeline"] = {}
             self.burst_parameters["fitburst"] = {}
+
+            if "intensity-fitburst" in event["locked"].keys():
+                locked_id_fitburst = event["locked"]["intensity-fitburst"]
+
+            if "intensity-dm-pipeline" in event["locked"].keys():
+                locked_id_dm = event["locked"]["intensity-dm-pipeline"]
 
 
             for current_measurement in event["measured_parameters"]:
                 # if there are locked DM-pipeline results, grab and stash those.
+
                 if (
                     current_measurement["pipeline"]["name"] == "intensity-dm-pipeline"
                     and current_measurement["measurement_id"] == locked_id_dm
@@ -242,12 +265,12 @@ class DataReader(bases.ReaderBaseClass):
                     self.burst_parameters["dm-pipeline"]["width"] = [
                         current_measurement["width"]
                     ]
-                    # self.burst_parameters["dm-pipeline"]["timestamp_utc"] = \
-                    #    [datetime.datetime.strptime(
-                    #        str(current_measurement["datetime"]),
-                    #        "%Y-%m-%d %H:%M:%S.%f %Z%z",
-                    #    )
-                    # ]
+                    self.burst_parameters["dm-pipeline"]["timestamp_utc"] = \
+                        [datetime.datetime.strptime(
+                            str(current_measurement["datetime"])[:26],
+                            "%Y-%m-%d %H:%M:%S.%f",
+                        )
+                    ]
 
                 elif (
                     current_measurement["pipeline"]["name"] == "intensity-fitburst"
@@ -299,7 +322,9 @@ class DataReader(bases.ReaderBaseClass):
 
         except Exception as exc:
             print(
-                "WARNING: unable to retrieve locked parameters from frb-vsop.chime:8001"
+                "WARNING: unable to retrieve locked parameters from frb-vsop.chime:8001\n",
+                "Exception: ",
+                exc
             )
 
         # now grab filenames.
