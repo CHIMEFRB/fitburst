@@ -202,3 +202,5 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     
     if show:
         plt.show()
+
+    plt.clf()
