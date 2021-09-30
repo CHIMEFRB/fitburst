@@ -23,6 +23,7 @@ class LSFitter(object):
 
         # set parameters for fitter configuration.
         self.weighted_fit = True
+        self.success = None
 
     def compute_residuals(self, parameter_list: list, times: float, 
         freqs: float, spectrum_observed: float) -> float:
@@ -101,7 +102,13 @@ class LSFitter(object):
                 args = (times, freqs, spectrum_observed)
             )
 
-            print("INFO: fit successful!")
+            self.success = results.success
+
+            if self.success:
+                print("INFO: fit successful!")
+
+            else:
+                print("INFO: fit didn't work!")
 
             # now try computing uncertainties and fit statistics.
             self._compute_fit_statistics(spectrum_observed, results)
@@ -257,13 +264,20 @@ class LSFitter(object):
         self.fit_statistics["snr"] = np.sqrt(chisq_initial - chisq_final)
 
         # now compute covarance matrix and parameter uncertainties.       
-        hessian = fit_result.jac.T.dot(fit_result.jac)
-        covariance = np.linalg.inv(hessian) * chisq_final_reduced
-        uncertainties = np.sqrt(np.diag(covariance)).tolist()
- 
         self.fit_statistics["bestfit_parameters"] = self.load_fit_parameters_list(fit_result.x.tolist())
-        self.fit_statistics["bestfit_uncertainties"] = self.load_fit_parameters_list(uncertainties)
-        self.fit_statistics["bestfit_covariance"] = None # return the full matrix at some point?
+        self.fit_statistics["bestfit_uncertainties"] = None
+        self.fit_statistics["bestfit_covariance"] = None
+
+        try:
+            hessian = fit_result.jac.T.dot(fit_result.jac)
+            covariance = np.linalg.inv(hessian) * chisq_final_reduced
+            uncertainties = np.sqrt(np.diag(covariance)).tolist()
+ 
+            self.fit_statistics["bestfit_uncertainties"] = self.load_fit_parameters_list(uncertainties)
+            self.fit_statistics["bestfit_covariance"] = None # return the full matrix at some point?
+
+        except Exception as exc:
+            print(exc)
 
     def _set_weights(self, spectrum_observed: float) -> None:
         """
