@@ -7,6 +7,7 @@ import chime_frb_constants as const
 import fitburst.utilities as ut
 import fitburst.routines as rt
 import numpy as np
+import copy
 import json
 import sys
 import os
@@ -37,12 +38,27 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--amplitude", action="store", dest="amplitude", default=None, nargs="+", type=float,
+    help="Initial guess for burst amplitude, in dex."
+)
+
+parser.add_argument(
+    "--fit", action="store", dest="parameters_to_fit", default=[], nargs="+", type=str,
+    help="A list of model parameters to fit during least-squares estimation."
+)
+
+parser.add_argument(
+    "--fix", action="store", dest="parameters_to_fix", default=[], nargs="+", type=str,
+    help="A list of model parameters to hold fixed to initial values."
+)
+
+parser.add_argument(
     "--iterations", action="store", dest="num_iterations", default=1, type=int,
     help="Integer number of fit iterations."
 )
 
 parser.add_argument(
-    "--latest", action="store_true", dest="use_latest_solution",
+    "--latest", action="store", default=None, dest="latest_solution_location", type=str,
     help="If set, use existing solution if present."
 )
 
@@ -62,8 +78,23 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--window", action="store", dest="window", default=0.08, type=float,
-    help="Half of size of data window, in seconds."
+    "--save", action="store_true", dest="save_results",
+    help="If set, save best-fit results to a JSON file."
+)
+
+parser.add_argument(
+    "--scattering_timescale", action="store", dest="scattering_timescale", default=None, nargs="+", type=float,
+    help="Initial guess for scattering index."
+)
+
+parser.add_argument(
+    "--spectral_index", action="store", dest="spectral_index", default=None, nargs="+", type=float,
+    help="Initial guess for spectral index."
+)
+
+parser.add_argument(
+    "--spectral_running", action="store", dest="spectral_running", default=None, nargs="+", type=float,
+    help="Initial guess for spectral running."
 )
 
 parser.add_argument(
@@ -71,22 +102,43 @@ parser.add_argument(
     help="Initial guess for burst width, in seconds."
 )
 
+parser.add_argument(
+    "--window", action="store", dest="window", default=0.08, type=float,
+    help="Half of size of data window, in seconds."
+)
+
 ### grab CLI inputs from argparse.
 args = parser.parse_args()
 eventIDs = args.eventIDs
-window_orig = args.window
+amplitude = args.amplitude
+latest_solution_location = args.latest_solution_location
 num_iterations = args.num_iterations
 offset_dm = args.offset_dm
 offset_time = args.offset_time
+parameters_to_fit = args.parameters_to_fit
+parameters_to_fix = args.parameters_to_fix
 pipeline = args.pipeline
-use_latest_solution = args.use_latest_solution
+save_results = args.save_results
+scattering_timescale = args.scattering_timescale
+spectral_index = args.spectral_index
+spectral_running = args.spectral_running
 width = args.width
+window_orig = args.window
+
+
+### before looping over events, suss out model parameters to fit and/or hold fixed.
+parameters_to_fix += ["dm_index", "scattering_index", "scattering_timescale"]
+
+for current_fit_parameter in parameters_to_fit:
+    if current_fit_parameter in parameters_to_fix:
+        parameters_to_fix.remove(current_fit_parameter)
 
 ### loop over all CHIME/FRB events supplied at command line.
 for current_event_id in eventIDs:
 
     # grab initial parameters to check if pipeline-specific parameters exist.
     data = chimefrb.DataReader(current_event_id)
+    print(data.burst_parameters)
     initial_parameters = data.get_parameters(pipeline=pipeline)
         
     # if returned parameter dictionary is empty, move on to next event.
@@ -111,21 +163,53 @@ for current_event_id in eventIDs:
     # now that frame0-nano value is available after loading of data, grab parameters 
     # to obtain timestamp info.
     initial_parameters = data.get_parameters(pipeline=pipeline)
-    initial_parameters["dm"][0] += offset_dm
-    initial_parameters["arrival_time"][0] += offset_time
-
     # if a JSON file containing results already exists, then read that in.
-    if use_latest_solution and os.path.isfile(f"results_fitburst_{current_event_id}.json"):
-        print(f"INFO: loading data from results file for event {current_event_id}")
-        results = json.load(open(f"results_fitburst_{current_event_id}.json", "r"))
+    latest_solution_file = f"{latest_solution_location}/results_fitburst_{current_event_id}.json"
+
+    if (
+        latest_solution_location is not None and os.path.isfile(latest_solution_file)
+    ):
+        log.info(f"loading data from results file for event {current_event_id}")
+        results = json.load(open(latest_solution_file, "r"))
         initial_parameters = results["model_parameters"]
-        print("INFO: window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
+        log.info("window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
+
+        # if scattering timescale is a fit parameter, initially set to width.
+        if (
+            initial_parameters["scattering_timescale"][0] == 0. and 
+            "scattering_timescale" not in parameters_to_fix
+        ):
+            initial_parameters["scattering_timescale"] = copy.deepcopy(
+                (np.array(initial_parameters["burst_width"]) * 3.).tolist()
+            )
+            initial_parameters["burst_width"] = (np.array(initial_parameters["burst_width"]) / 3.).tolist()
+
+    elif (
+        latest_solution_location is not None and os.path.isfile(latest_solution_file)
+    ):
+        log.info(f"results already obtained and saved for {current_event_id}; ignoring fit and moving on...")
+        continue
 
     else: 
         pass
         #initial_parameters["burst_width"] = [window / 10.]
 
     # if guesses are provided at command, overload them into the initial-guess dictionary.
+    initial_parameters["dm"][0] += offset_dm
+    initial_parameters["arrival_time"][0] += offset_time
+
+    if amplitude is not None:
+        initial_parameters["amplitude"] = amplitude
+   
+    if scattering_timescale is not None:
+        initial_parameters["scattering_timescale"] = scattering_timescale
+
+    if spectral_index is not None:
+        initial_parameters["spectral_index"] = spectral_index
+
+    if spectral_running is not None:
+        initial_parameters["spectral_running"] = spectral_running
+
     if width is not None:
         initial_parameters["burst_width"] = width
    
@@ -182,14 +266,7 @@ for current_event_id in eventIDs:
     for current_iteration in range(num_iterations):
         print(f"INFO: fitting model, loop #{current_iteration + 1}")
         fitter = LSFitter(model)
-        fitter.fix_parameter(
-            [
-                #"dm", 
-                "dm_index", 
-                "scattering_index", 
-                "scattering_timescale"
-            ]
-        )
+        fitter.fix_parameter(parameters_to_fix)
         fitter.weighted_fit = True
         fitter.fit(data.times, data.freqs, data_windowed)
     
@@ -209,13 +286,14 @@ for current_event_id in eventIDs:
         )
 
         # finally, stash results into a JSON file.
+        if save_results:
 
-        with open(f"results_fitburst_{current_event_id}.json", "w") as out:
-            json.dump(
-                {
-                    "model_parameters": model.get_parameters_dict(), 
-                    "fit_statistics": fitter.fit_statistics,
-                },
-                out, 
-                indent=4
-            )
+            with open(f"results_fitburst_{current_event_id}.json", "w") as out:
+                json.dump(
+                    {
+                        "model_parameters": model.get_parameters_dict(), 
+                        "fit_statistics": fitter.fit_statistics,
+                    },
+                    out, 
+                    indent=4
+                )
