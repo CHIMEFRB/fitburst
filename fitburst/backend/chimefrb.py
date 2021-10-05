@@ -44,10 +44,23 @@ class DataReader(bases.ReaderBaseClass):
         """
         Returns a dictionary containing parameters as keys and their FRBMaster entries
         stored as values.
+
+        Parameters
+        ----------
+        pipeline: str, optional
+            The name of CHIME/FRB pipeline for which to grab locked parameters.
+            Current options are: L1, dm, fitburst.
+
+        Returns
+        -------
+        parameter_dict : dict
+            A python dicitonary containing parameters of dynamic spectra, with available 
+            pipeline values replacin fitburst default values.
         """
 
         parameter_dict = {}
 
+        ### if fitburst results exist and are desired, grab those.
         if bool(self.burst_parameters["fitburst"]) and pipeline == "fitburst":
             current_round = "round_2"
 
@@ -62,7 +75,8 @@ class DataReader(bases.ReaderBaseClass):
             # adjust certain FRBMaster entries if burst has multiple components.
             num_components = len(parameter_dict["arrival_time"])
             parameter_dict["ref_freq"] = parameter_dict["ref_freq"] * num_components
-
+ 
+        ### if instead the DM-pipeline results exist and are desired, grab those.
         elif bool(self.burst_parameters["dm-pipeline"]) and pipeline == "dm":
             print("woohoo DM pipleine")
             parameter_dict["amplitude"] = [-3.0]
@@ -81,6 +95,7 @@ class DataReader(bases.ReaderBaseClass):
                     (self.fpga_frame0_nano * 1e-9)
                 ]
 
+        ### if the default mode is chosen, just grab the parameters determined by L1.
         elif bool(self.burst_parameters["L1"]) and pipeline == "L1":
             print("ok at least there is L1")
 
@@ -104,9 +119,10 @@ class DataReader(bases.ReaderBaseClass):
         else:
             print("ERROR: no parameters retrieved from FRBMaster!")
 
+        ### return parameter dictionary.
         return parameter_dict
 
-    def load_data(self, files):
+    def load_data(self, files: list) -> None:
         """
         Load data from CHIME/FRB msgpack data files.
 
@@ -119,6 +135,7 @@ class DataReader(bases.ReaderBaseClass):
 
         try:
             from cfod.chime_intensity import unpack_datafiles
+
         except ImportError as err:
             print("Unable to import from cfod")
             print("Please ensure this package is installed.")
@@ -163,9 +180,30 @@ class DataReader(bases.ReaderBaseClass):
         self.res_time = self.times[1] - self.times[0]
 
     def _retrieve_metadata_frbmaster(
-        self, eventid, beam_id=0, mountpoint="/data/chime", use_locked=False
-    ):
-        """"""
+        self, eventid: str, beam_id:int = 0, mountpoint: str = "/data/chime"
+    ) -> None:
+        """
+        This internal methods executes CHIME/FRB-specific actions for retrieving the necessary 
+        metadata from the FRBMaster database, and requires direct network access to raw intensity 
+        data (i.e., should be run at the CHIME or CANFAR sites).
+
+        Parameters
+        ----------
+        eventid : str
+            The CHIME/FRB ID for the event of interest.
+
+        beam_id : int, optional
+            The index of a list of recorded beams, corresponding to the desired data set.
+            (This list is ordered in decreasing S/N; beam_id = 0 corresponds to the highest-S/N beam.) 
+
+        mountpoint : str, optional
+            The local root directory where raw intensity data are stored.
+
+        Returns
+        -------
+        None : None
+            This method sets a large of number of attributes that comprise the DataReader object.
+        """
 
         try:
             from cfod.chime_intensity import natural_keys
@@ -229,18 +267,17 @@ class DataReader(bases.ReaderBaseClass):
             end="",
         )
 
+        # establish connection to FRBMaster.
+        url_get = "http://frb-vsop.chime:8001"
+        master = FRBMaster()
+        event = master.events.get_event(eventid)
+        locked_id_dm = None
+        locked_id_fitburst = None
+        self.burst_parameters["dm-pipeline"] = {}
+        self.burst_parameters["fitburst"] = {}
+
+
         try:
-            url_get = "http://frb-vsop.chime:8001"
-            master = FRBMaster()
-            event = master.events.get_event(eventid)
-            locked_id_dm = None
-            locked_id_fitburst = None
-            self.burst_parameters["dm-pipeline"] = {}
-            self.burst_parameters["fitburst"] = {}
-
-            if "intensity-fitburst" in event["locked"].keys():
-                locked_id_fitburst = event["locked"]["intensity-fitburst"]
-
             if "intensity-dm-pipeline" in event["locked"].keys():
                 locked_id_dm = event["locked"]["intensity-dm-pipeline"]
 
@@ -272,7 +309,20 @@ class DataReader(bases.ReaderBaseClass):
                         )
                     ]
 
-                elif (
+        except Exception as exc:
+            print(
+                "WARNING: unable to retrieve locked parameters for DM pipeline from FRBMaster\n",
+                "Exception: ",
+                exc
+            )
+
+        try:
+            if "intensity-fitburst" in event["locked"].keys():
+                locked_id_fitburst = event["locked"]["intensity-fitburst"]
+
+            for current_measurement in event["measured_parameters"]:
+
+                if (
                     current_measurement["pipeline"]["name"] == "intensity-fitburst"
                     and current_measurement["measurement_id"] == locked_id_fitburst
                 ):
