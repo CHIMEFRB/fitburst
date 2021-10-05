@@ -31,10 +31,10 @@ There are also several example scripts available in the `fitburst/pipelines` sec
 pc> python /path/to/fitburst_example_chimefrb.py 48851362 --pipeline dm
 ```
 
-If you wish to change the size of the windowed spectrum, fit for a scattering timescale of a thin-screen model, and toggle it's initial guess, you should instead run:
+If you wish to change the size of the windowed spectrum, fit for a scattering timescale of a thin-screen model, and toggle its initial guess to a value of your choosing, you should instead run:
 
 ```
 pc> python /path/to/fitburst_example_chimefrb.py 48851362 --pipeline dm --window 0.12 --fit scattering_timescale --scattering_timescale 0.05
 ```
 
-Use the `-h` option in the above script to see all available options.
+Use the `-h` option in the above script to see all available options and units for various numerical quantities.
