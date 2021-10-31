@@ -2,3 +2,4 @@
 
 from . import fitter 
 from . import model  
+from . import stats

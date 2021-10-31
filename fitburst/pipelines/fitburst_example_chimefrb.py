@@ -174,16 +174,6 @@ for current_event_id in eventIDs:
         initial_parameters = results["model_parameters"]
         log.info("window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
 
-        # if scattering timescale is a fit parameter, initially set to width.
-        if (
-            initial_parameters["scattering_timescale"][0] == 0. and 
-            "scattering_timescale" not in parameters_to_fix
-        ):
-            initial_parameters["scattering_timescale"] = copy.deepcopy(
-                (np.array(initial_parameters["burst_width"]) * 3.).tolist()
-            )
-            initial_parameters["burst_width"] = (np.array(initial_parameters["burst_width"]) / 3.).tolist()
-
     elif (
         latest_solution_location is not None and os.path.isfile(latest_solution_file)
     ):
@@ -193,6 +183,16 @@ for current_event_id in eventIDs:
     else: 
         pass
         #initial_parameters["burst_width"] = [window / 10.]
+
+    # if scattering timescale is a fit parameter, initially set to width.
+    if (
+        initial_parameters["scattering_timescale"][0] == 0. and 
+        "scattering_timescale" not in parameters_to_fix
+    ):
+        initial_parameters["scattering_timescale"] = copy.deepcopy(
+            (np.array(initial_parameters["burst_width"]) * 3.).tolist()
+        )
+        initial_parameters["burst_width"] = (np.array(initial_parameters["burst_width"]) / 3.).tolist()
 
     # if guesses are provided at command, overload them into the initial-guess dictionary.
     initial_parameters["dm"][0] += offset_dm
