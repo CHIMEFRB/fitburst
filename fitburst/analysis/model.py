@@ -13,6 +13,8 @@ class SpectrumModeler(object):
 
         # first define model-configuration parameters that are not fittable.
         self.dedispersion_idx = None
+        self.is_dedispersed = False
+        self.is_folded = False
         self.num_components = 1
         self.num_freq = None
         self.num_time = None
@@ -124,6 +126,7 @@ class SpectrumModeler(object):
                     0.0, # since 'current_times' is already corrected for DM.
                     current_sc_time_scaled,
                     current_width,
+                    is_folded = self.is_folded,
                 )
 
                 # third, compute and scale profile by spectral energy distribution.
@@ -150,27 +153,41 @@ class SpectrumModeler(object):
         return model_spectrum
 
     def compute_profile(self, times: float, arrival_time: float, sc_time: float,
-        width: float) -> float:
+        width: float, is_folded: bool = False) -> float:
         """
         Returns the Gaussian or pulse-broadened temporal profile, depending on input 
         values of width and scattering timescale..
         """
 
-        profile = np.zeros(len(times), dtype=np.float)
+        # if data are "folded" (i.e., data from pulsar timing observations),
+        # model at twice the timespan and wrap/average the two realizations. 
+        # this step is to account for potential wrapping of pulse shape.
+        times_copy = times.copy()
+        res_time = times_copy[1] - times_copy[0]
+
+        if is_folded:
+            times_copy = np.append(
+                times, 
+                np.linspace(1, len(times), num=len(times)) * res_time + times[-1]
+            )
 
         # compute either Gaussian or pulse-broadening function, depending on inputs.
+        profile = np.zeros(len(times_copy), dtype=np.float)
+
         if sc_time < np.fabs(0.15 * width):
-            profile = rt.profile.compute_profile_gaussian(times, arrival_time, width)
+            profile = rt.profile.compute_profile_gaussian(times_copy, arrival_time, width)
 
         else:
             # the following times array manipulates the times array so that we avoid a 
             # floating-point overlow in the exp((-times - toa) / sc_time) term in the 
             # PBF call. TODO: use a better, more transparent method for avoiding this.
-            times_copy = times.copy()
             times_copy[times_copy < -5 * width] = -5 * width
  
             # now call the function.
             profile = rt.profile.compute_profile_pbf(times_copy, arrival_time, width, sc_time)
+
+        if is_folded:
+            profile = np.sum(profile.reshape(2, len(times)), axis=0) / 2
 
         return profile
 
