@@ -257,7 +257,6 @@ class LSFitter(object):
         chisq_final = np.sum(fit_result.fun**2)
         chisq_final_reduced = chisq_final / self.fit_statistics["num_observations"]
 
-        self.fit_statistics["chisq_initial_unweighted"] = np.sum(spectrum_observed**2)
         self.fit_statistics["chisq_initial"] = chisq_initial
         self.fit_statistics["chisq_final"] = chisq_final
         self.fit_statistics["chisq_final_reduced"] = chisq_final_reduced
