@@ -1,4 +1,4 @@
-For general use, we have defined a "generic" format for loading data into the `fitburst` data object. Users can adopt this generic format to ensure initialization of required variables and arrays. The generic-format data are stored in and read from a Python3 Numpy `.npz` file.
+he have defined a "generic" format for loading all required data into the `fitburst` data object. Users can adopt this generic format to ensure initialization of required variables and arrays. The generic-format data are stored in and read from a Python3 Numpy `.npz` file.
 
 ## Concept of Generic Format
 A generic-compatible data file, e.g., "input\_data.npz", is assumed to contain three entries:
@@ -47,6 +47,7 @@ All dictionary keys contain Python lists of floating-point values. The number of
 
 ``` python
 burst_parameters = {
+    "amplitude"            : # a list containing the the log (base 10) of the overall signal amplitude
     "arrival_time"         : # a list containing the arrival times, in seconds
     "burst_width"          : # a list containing the temporal widths, in seconds
     "dm"                   : # a list containing the dispersion measures (DM), in parsec per cubic centimeter
