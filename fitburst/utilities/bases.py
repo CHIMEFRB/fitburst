@@ -26,6 +26,7 @@ class ReaderBaseClass(object):
         self.res_time = None
         self.res_freq = None
         self.times = None
+        self.times_bin0 = None
 
     def dedisperse(self, 
         dm: np.float, 
