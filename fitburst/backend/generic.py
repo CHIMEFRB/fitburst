@@ -83,6 +83,7 @@ class DataReader(bases.ReaderBaseClass):
         self.res_time = metadata["res_time"]
         times = np.arange(self.num_time, dtype=np.float64) * self.res_time
         self.times = times
+        self.times_bin0 = metadata["times_bin0"]
 
         # create frequency channel centre labels from data shape and metadata
         self.res_freq = metadata["res_freq"]

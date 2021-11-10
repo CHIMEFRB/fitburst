@@ -83,9 +83,18 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
 
     # compute bounds of plotting region.
     min_time = 0.0
-    min_freq = min(freqs_downsampled[idx_good_freq]) - res_freq_orig / 2
     max_time = num_time * res_time * 1e3 # last term converts to ms
-    max_freq = max(freqs_downsampled[idx_good_freq]) + res_freq_orig / 2
+    freq_initial = freqs_downsampled[idx_good_freq][0]
+    freq_final = freqs_downsampled[idx_good_freq][-1]
+
+    if freq_final > freq_initial:
+        freq_initial -= res_freq_orig / 2
+        freq_finial += res_freq_orig / 2
+
+    else:
+        freq_initial += res_freq_orig / 2
+        freq_final -= res_freq_orig / 2
+
     times_plot = np.linspace(min_time + res_time / 2., max_time - res_time / 2., num=num_time)
 
     # now set up figure and gridspec axes.
@@ -112,7 +121,7 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     # plot dynamic-spectrum data and band-averaged timeseries.
     panel2d_data.imshow(
         spectrum_downsampled[idx_good_freq], origin = 'lower', aspect="auto", interpolation="nearest", 
-        extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
+        extent=[min_time, max_time, freq_initial, freq_final], vmin=vmin, vmax=vmax
     )
 
     timeseries =  np.nanmean(spectrum_downsampled[idx_good_freq], axis=0) * np.sqrt(
@@ -129,7 +138,7 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     if model is not None:
         panel2d_model.imshow(
             model_downsampled[idx_good_freq], origin = 'lower', aspect="auto", interpolation="nearest",
-            extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
+            extent=[min_time, max_time, freq_initial, freq_final], vmin=vmin, vmax=vmax
         )
 
         panel1d_model.plot(
@@ -142,7 +151,7 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     if residuals is not None:
         panel2d_residual.imshow(
             residuals_downsampled[idx_good_freq], origin = 'lower', aspect="auto", cmap="bwr", interpolation="nearest",
-            extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
+            extent=[min_time, max_time, freq_initial, freq_final], vmin=vmin, vmax=vmax
         )
 
         panel1d_residual.plot(
