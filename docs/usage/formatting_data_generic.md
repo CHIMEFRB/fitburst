@@ -34,14 +34,14 @@ metadata = {
     "is_dedispersed" : # a boolean indicating if spectrum is already dedispersed (True) or not (False)
     "num_freq"       : # an integer scalar indicating the number of frequency bins/channels
     "num_time"       : # an integer scalar indicating the number of time bins
-    "times_bin0"     : # a floating-point scalar indicating the value of time bin at index 0, in seconds
+    "times_bin0"     : # a floating-point scalar indicating the value of time bin at index 0, in MJD
     "res_freq"       : # a floating-point scalar indicating the frequency resolution, in MHz
     "res_time"       : # a floating-point scalar indicating the time resolution, in seconds
 }
 ```
 
 ## Required Burst Parameters
-Unless otherwise noted, all data in the `burst_parameters` dictionary are used as initial guesses and are subject to least-squares optimization. It is recommended that as many initial guesses as possible be "good enough" based on prior information. However, the `fitburst` API allows for initial-guess modifications at later, pre-fit stages. 
+Unless otherwise noted, all data in the `burst_parameters` dictionary are used as initial guesses and are subject to least-squares optimization. (Only the `ref_freq` parameter is held fixed permanently; all other parameters can be fitted or held fixed at the discretion of the user.) As with other "initial-guess" problems, we recommended that as many initial guesses as possible be "good enough" based on prior information. However, the `fitburst` API allows for initial-guess modifications at later, pre-fit stages. 
 
 All dictionary keys contain Python lists of floating-point values. The number of list elements is equal to the number of burst components to be modeled. For example, a "simple" burst described with a single profile will have `burst_parameters` entries with `len(burst_parameters[name]) = 1`.
 
