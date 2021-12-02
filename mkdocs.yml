@@ -73,6 +73,7 @@ nav:
   - Installation: installation.md
   - Usage: 
     - Format of Input Data: usage/formatting_data_generic.md
+    - Working with Data Readers: usage/using_data_readers.md
   - Developer Guide: 
     - Coding Philosophy: developer_guide/philosophy.md
     - Package Structure: developer_guide/package_structure.md
