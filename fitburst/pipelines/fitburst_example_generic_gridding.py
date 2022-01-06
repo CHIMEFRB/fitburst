@@ -165,7 +165,7 @@ for current_file, current_solution in zip(infiles, insolutions):
 
                     # update model with adjusted values for gridded parameters.
                     current_parameters_grid["dm"] = [array_dm[ii]]
-                    current_parameters_grid["scattering_timescale"] = [array_dm[jj]]
+                    current_parameters_grid["scattering_timescale"] = [array_st[jj]]
                     model.update_parameters(current_parameters_grid)
 
                     # now define fitter for gridded parameters.
@@ -179,4 +179,4 @@ for current_file, current_solution in zip(infiles, insolutions):
             print(matrix_chisq)
             pdf_chisq = 0.5 * np.exp(-0.5 * (matrix_chisq - np.min(matrix_chisq)))
             plt.pcolormesh(array_dm, array_st, pdf_chisq)
-            plt.savefig("pdf_map.png", dpi=500, fmt="png", color="Blues")
+            plt.savefig("pdf_map.png", dpi=500, fmt="png", cmap="Blues")
