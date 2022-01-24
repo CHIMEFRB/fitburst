@@ -1,6 +1,9 @@
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, curve_fit
+from fitburst.backend.baseband import *
 import numpy as np
+import matplotlib.pyplot as plt
 from . import model
+from . import fitter_plotting
 
 class LSFitter(object):
     """
@@ -292,3 +295,115 @@ class LSFitter(object):
         self.weights[bad_freq] = 0.
         self.good_freq = good_freq
 
+def fit_LS(profile : np.ndarray, xvals : np.ndarray, peaks : np.ndarray,
+    event_id : str = '', model : str = 'emg', res : float = 1., ICs : np.ndarray = None,
+    tight : float = None, bounds : dict = {}, diagnostic_plots : bool = True) -> tuple:
+    """
+    Least squares fitting using curve_fit.
+    
+    Parameters
+    ----------
+    profile : np.ndarray
+        Pulse profile to be fit
+    x_vals : np.ndarray
+        Timestamp of every time bin (same size as profile)
+    peaks : np.ndarray, optional
+        Array with the peak times of every burst component in s
+    event_id : str, optional
+        Event ID of the FRB
+    model : str, optional
+        For now, the only option is 'emg'
+    res : float, optional
+        Resolution (either time in s or freq in MHz)
+    ICs : dict, optional
+        You can provide a dict with ICs if the ones calculated by the code are not good enough.
+        Every key of the dict is a parameter i.e. for EMG: ["A", "mu", "sigma", "lam"]
+        To every key, provide an array with length = npeaks with the initial param guesses.
+        Note: This feature doesn't work currently.
+    tight : float
+        If provided, narrows the parameter bounds (for all parameters) provided to curve_fit
+        The provided float is the upper bound for the parameter sigma, especially useful to force curve_fit
+        to fit narrower peaks.
+    bounds : dict, optional
+        You can provide a dict with upper bounds if the ones calculated by the code are too wide.
+        Every key of the dict is a parameter i.e. for EMG: ["A", "mu", "sigma", "lam"]
+        To every key, provide an array with length = npeaks with the upper bound for the LS fit 
+        for each param of each burst component.
+    
+    Returns
+    -------
+    tuple
+        LS fit to data, LS best fit params, LS best fit 1 sigma error on params, full covariance matrix.
+    
+    """
+    bounds = {}
+    if ICs is None and model == 'emg':
+        ICs = []
+        peaks = np.array(sorted(peaks))
+        ub = []
+        lb = []
+        keys = ["A", "mu", "sigma", "lam"]
+        for k in keys:
+            try:
+                bounds[k]
+            except KeyError:
+                    bounds[k] = np.inf
+            if type(bounds[k]) != np.ndarray and k != "lam":
+                bounds[k] = np.zeros(len(peaks)) + bounds[k]
+        if tight is not None:
+            mu_max = peaks
+            mu_min = peaks - np.diff(np.append(peaks, max(xvals)))/3
+        else:
+            mu_max = peaks
+            mu_min = peaks - np.diff(np.append(peaks, max(xvals)))/2
+            print(mu_min)
+            for i in range(len(peaks)):
+                if i > 0:
+                    mu_min[i] = max(peaks[i-1], mu_min[i])
+            print(mu_min)
+        mu_min[mu_min < 0] = 0
+        for i in range(len(peaks)):
+            diff = abs(xvals - peaks[i])
+            lhs = profile[0:np.where(profile == max(profile))[0][0]]
+            if tight is not None:
+                ub.extend([bounds["A"][i],mu_max[i], tight])
+                sigma_guess = tight*0.9
+            else:
+                ub.extend([bounds["A"][i],mu_max[i], bounds["sigma"][i]])
+                sigma_guess = res*len(lhs[lhs > max(profile)/2])
+            ICs.extend([max(profile)*sigma_guess, peaks[i], sigma_guess])
+            lb.extend([0,mu_min[i], 0])
+        #scattering tail is the same for all peaks
+        ICs.extend([(2*sigma_guess)])
+        ub.extend([bounds["lam"]])
+        lb.extend([0])
+        print(lb, ICs, ub)
+        f = sum_emg 
+    elif ICs is None and model == 'rpl':
+        f = rpl
+        ICs = [max(profile),max(profile), 0]
+        ub = [np.inf, np.inf,np.inf]
+        lb = [0, -np.inf, -np.inf]
+        print(lb, ICs, ub)
+    else:
+        ub, lb = [], []
+        for i in range(len(peaks)):
+            ub.extend([np.inf,peaks[i] + 150, max(xvals)])
+            lb.extend([0,peaks[i] - 150, 0])
+        ub.extend([np.inf])
+        lb.extend([0])
+        print(lb, ICs, ub)
+        f = sum_emg
+    x = xvals
+    y = profile
+    plt.plot(x,y)
+    for p in peaks:
+        plt.axvline(p, color = 'r')
+    plt.plot(x,f(x,ICs),color = 'orange')
+    plt.show()
+    popt,pcov = curve_fit(f,x, y, p0=ICs, bounds = (lb, ub),maxfev = 100000000)
+    if diagnostic_plots:
+        print('Curve_fit params: ' + str(popt))
+        fitter_plotting.show_fit(profile, xvals, popt, res, event_id, m = model)
+    
+    return f(xvals, popt), popt, np.sqrt(np.diag(pcov)), pcov

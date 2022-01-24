@@ -7,6 +7,7 @@ import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import matplotlib.gridspec as gridspec
 
 # now import fitburst-specific things.
@@ -118,7 +119,7 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     timeseries =  np.nanmean(spectrum_downsampled[idx_good_freq], axis=0) * np.sqrt(
         np.count_nonzero(~np.isnan(np.nansum(spectrum_downsampled[idx_good_freq], axis=-1)))
     )
-    panel1d_data.plot(times_plot, timeseries)
+    panel1d_data.plot(times_plot, timeseries, color = 'k')
 
     # extract y-axis limits from data panel for model and residual panels.
     y_min, y_max = panel1d_data.get_ylim()
@@ -132,11 +133,15 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
             extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
         )
 
+        panel1d_data.plot(
+            times_plot, np.nanmean(model_downsampled[idx_good_freq], axis=0) * np.sqrt(
+        np.count_nonzero(~np.isnan(np.nansum(model_downsampled[idx_good_freq], axis=-1)))),
+        color = 'r')
         panel1d_model.plot(
             times_plot, np.nanmean(model_downsampled[idx_good_freq], axis=0) * np.sqrt(
         np.count_nonzero(~np.isnan(np.nansum(model_downsampled[idx_good_freq], axis=-1)))
-    )
-        )
+    ),
+        color = 'k')
 
     # plot residual panel.
     if residuals is not None:
@@ -148,8 +153,8 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
         panel1d_residual.plot(
             times_plot,  np.nanmean(residuals_downsampled[idx_good_freq], axis=0) * np.sqrt(
         np.count_nonzero(~np.isnan(np.nansum(residuals_downsampled[idx_good_freq], axis=-1)))
-    )
-        )
+    ),
+        color = 'k')
 
     # remove the appropriate 2D labels and tickmarks.
     plt.setp(panel2d_model.get_yticklabels(), visible=False)
@@ -183,22 +188,6 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     panel2d_residual.set_xlabel("Time [ms]")
     
     plt.savefig(output_name, dpi=150, bbox_inches="tight")      
-    
-    if show:
-        plt.show()
-    
-    plt.clf()
-    plt.figure(figsize = (7,5))
-    plt.plot(
-            times_plot, timeseries, color = 'k', alpha = 0.3, lw=4
-        )
-    plt.plot(
-            times_plot,  np.nanmean(model_downsampled[idx_good_freq], axis=0) * np.sqrt(
-        np.count_nonzero(~np.isnan(np.nansum(model_downsampled[idx_good_freq], axis=-1)))
-    ), c = 'r'
-        )
-    plt.xlabel('Time [ms]')
-    #plt.savefig(output_name, dpi=150, bbox_inches="tight")      
     
     if show:
         plt.show()

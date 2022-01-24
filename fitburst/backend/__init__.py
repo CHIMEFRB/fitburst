@@ -26,3 +26,5 @@ telescopes = yaml.load(
 # now import the project-specific routines.
 from . import generic
 from . import chimefrb
+from . import waterfall_plotting
+from . import baseband
