@@ -89,7 +89,7 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
 
     if freq_final > freq_initial:
         freq_initial -= res_freq_orig / 2
-        freq_finial += res_freq_orig / 2
+        freq_final += res_freq_orig / 2
 
     else:
         freq_initial += res_freq_orig / 2

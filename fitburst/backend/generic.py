@@ -14,12 +14,12 @@ class DataReader(bases.ReaderBaseClass):
     ReaderBaseClass().
     """
 
-    def __init__(self, fname, data_location="."):
+    def __init__(self, fname):
         # initialise superclass
         super().__init__()
 
         # ensure file exists, else raise an AssertionError
-        self.file_path = f"{data_location}/{fname}"
+        self.file_path = fname
         if not os.path.isfile(self.file_path):
             raise IOError(f"Data file not found: {self.file_path}")
 

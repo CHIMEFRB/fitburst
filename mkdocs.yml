@@ -72,6 +72,7 @@ nav:
   - About: about.md
   - Installation: installation.md
   - Usage: 
+    - Ways to Use fitburst: usage/using_fitburst.md
     - Format of Input Data: usage/formatting_data_generic.md
     - Working with Data Readers: usage/using_data_readers.md
   - Developer Guide: 

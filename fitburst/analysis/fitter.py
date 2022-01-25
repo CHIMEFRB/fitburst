@@ -112,7 +112,9 @@ class LSFitter(object):
 
             # now try computing uncertainties and fit statistics.
             self._compute_fit_statistics(spectrum_observed, results)
-            print("INFO: derived uncertainties and fit statistics")
+
+            if self.success:
+                print("INFO: derived uncertainties and fit statistics")
 
         except Exception as exc:
             print("ERROR: solver encountered a failure! Debug!")
@@ -276,7 +278,8 @@ class LSFitter(object):
             self.fit_statistics["bestfit_covariance"] = None # return the full matrix at some point?
 
         except Exception as exc:
-            print(exc)
+            print(f"ERROR: {exc}; designating fit as unsuccessful...")
+            self.success = False
 
     def _set_weights(self, spectrum_observed: float) -> None:
         """
