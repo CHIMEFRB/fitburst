@@ -178,5 +178,7 @@ for current_file, current_solution in zip(infiles, insolutions):
             # now compute PDF map and plot.
             print(matrix_chisq)
             pdf_chisq = 0.5 * np.exp(-0.5 * (matrix_chisq - np.min(matrix_chisq)))
-            plt.pcolormesh(array_dm, array_st, pdf_chisq)
-            plt.savefig("pdf_map.png", dpi=500, fmt="png", cmap="Blues")
+            plt.pcolormesh(array_dm, array_st, pdf_chisq, cmap="Blues")
+            plt.xlabel(r"Dispersion Measure (pc cm$^{-3}$)")
+            plt.ylabel(r"Scattering Timescale @ 400 MHz (ms)")
+            plt.savefig("pdf_map.png", dpi=500, fmt="png")
