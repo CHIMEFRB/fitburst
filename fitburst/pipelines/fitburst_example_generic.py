@@ -19,7 +19,8 @@ import os
 
 parser = argparse.ArgumentParser(description=
     "A Python3 script that uses fitburst API to read, preprocess, and fit 'generic'-formatted data " + 
-    "against a model of the dynamic spectrum."
+    "against a model of the dynamic spectrum. NOTE: by default, the scattering timescale is not a " +
+    "fit parameter but can be turned into one through use of the --fit option."
 )
 
 parser.add_argument(
@@ -27,6 +28,36 @@ parser.add_argument(
     action="store", 
     type=str,
     help="A Numpy state file containing data and metadata in fitburst-compliant ('generic') format."
+)
+
+parser.add_argument(
+    "--amplitude",
+    action="store",
+    dest="amplitude",
+    default=None,
+    nargs="+",
+    type=float,
+    help="Initial guess for log (base 10) of the overall amplitude."
+)
+
+parser.add_argument(
+    "--arrival_time",
+    action="store",
+    dest="arrival_time",
+    default=None,
+    nargs="+",
+    type=float,
+    help="Initial guess for arrival time, in units of seconds."
+)
+
+parser.add_argument(
+    "--dm",
+    action="store",
+    dest="dm",
+    default=None,
+    nargs="+",
+    type=float,
+    help="Initial guess for DM, in units of pc/cc."
 )
 
 parser.add_argument(
@@ -65,7 +96,27 @@ parser.add_argument(
     default=None, 
     nargs="+", 
     type=float,
-    help="Initial guess for scattering timescale."
+    help="Initial guess for scattering timescale, in units of seconds."
+)
+
+parser.add_argument(
+    "--spectral_index",
+    action="store",
+    dest="spectral_index",
+    default=None,
+    nargs="+",
+    type=float,
+    help="Initial guess for power-law spectral index."
+)
+
+parser.add_argument(
+    "--spectral_running",
+    action="store",
+    dest="spectral_running",
+    default=None,
+    nargs="+",
+    type=float,
+    help="Initial guess for power-law spectral 'running'."
 )
 
 parser.add_argument(
@@ -107,17 +158,22 @@ parser.add_argument(
 ### grab CLI inputs from argparse.
 args = parser.parse_args()
 input_file = args.file
+amplitude = args.amplitude
+arrival_time = args.arrival_time
+dm = args.dm
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
 scattering_timescale = args.scattering_timescale
+spectral_index = args.spectral_index
+spectral_running = args.spectral_running
 solution_file = args.solution_file
 verbose = args.verbose
 width = args.width
 window = args.window
 snr_threshold = 10.
 
-# before proceeding, adjusted fixed-parameter list if necessary.
+# before proceeding, adjust fixed-parameter list if necessary.
 parameters_to_fix += ["dm_index", "scattering_index", "scattering_timescale"]
 
 for current_fit_parameter in parameters_to_fit:
@@ -148,6 +204,14 @@ data.good_freq = np.sum(data.data_weights, axis=1) // data.num_time
 initial_parameters = data.burst_parameters
 current_parameters = deepcopy(initial_parameters)
 
+# update DM value to use ("full" or DM offset) for dedispersion if 
+# input data are already dedispersed or not.
+if data.is_dedispersed:
+    print("INFO: input data cube is already dedispersed!")
+    print("INFO: setting 'dm' entry to 0, now considered a dm-offset parameter...")
+    current_parameters["dm"][0] = 0.0
+
+# if an existing solution is supplied in a JSON file, then read it or use basic guesses.
 if existing_results is not None:
     current_parameters = existing_results["model_parameters"]
 
@@ -160,18 +224,26 @@ else:
     current_parameters["spectral_running"] = [1.0]
 
 # if values are supplied at command line, then overload those here.
+if amplitude is not None:
+    current_parameters["amplitude"] = amplitude
+
+if arrival_time is not None:
+    current_parameters["arrival_time"] = arrival_time
+
+if dm is not None:
+    current_parameters["dm"] = dm
+
 if scattering_timescale is not None:
     current_parameters["scattering_timescale"] = scattering_timescale
 
+if spectral_index is not None:
+    current_parameters["spectral_index"] = spectral_index
+
+if spectral_running is not None:
+    current_parameters["spectral_running"] = spectral_running
+
 if width is not None:
     current_parameters["burst_width"] = width
-
-# update DM value to use ("full" or DM offset) for dedispersion if 
-# input data are already dedispersed or not.
-if data.is_dedispersed:
-    print("INFO: input data cube is already dedispersed!")
-    print("INFO: setting 'dm' entry to 0, now considered a dm-offset parameter...")
-    current_parameters["dm"][0] = 0.0
 
 # print parameter info if desired.
 if verbose:
