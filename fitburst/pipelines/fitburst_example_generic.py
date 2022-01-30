@@ -288,7 +288,7 @@ data_windowed = data.data_full
 times_windowed = data.times
 
 if window is not None:
-    data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=window)
+    data_windowed, times_windowed = data.window_data(current_parameters["arrival_time"][0], window=window)
 
 # now create initial model.
 print("INFO: initializing model")
