@@ -112,7 +112,6 @@ parser.add_argument(
     action="store_true",
     dest="use_outfile_substring",
     default=False,
-    type=str,
     help="If set, then use substring to uniquely label output filenamese based on input filenames."
 )
 
