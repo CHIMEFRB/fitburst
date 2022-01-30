@@ -108,6 +108,15 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--outfile",
+    action="store_true",
+    dest="use_outfile_substring",
+    default=False,
+    type=str,
+    help="If set, then use substring to uniquely label output filenamese based on input filenames."
+)
+
+parser.add_argument(
     "--scattering_timescale", 
     action="store", 
     dest="scattering_timescale",
@@ -184,6 +193,7 @@ factor_time = args.factor_time
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
+use_outfile_substring = args.use_outfile_substring
 scattering_timescale = args.scattering_timescale
 spectral_index = args.spectral_index
 spectral_running = args.spectral_running
@@ -212,6 +222,13 @@ if solution_file is not None and os.path.isfile(solution_file):
 
 else:
     print("INFO: no solution file found or provided; proceeding with fit...")
+
+# also create filename substring if desired.
+outfile_substring = ""
+
+if use_outfile_substring:
+    elems = input_file.split(".")
+    outfile_substring = "_" + ".".join(elems[0:len(elems)-1])
 
 # read in input data.
 data = DataReader(input_file)
@@ -329,10 +346,11 @@ for current_iteration in range(num_iterations):
             # now create plots.
             ut.plotting.plot_summary_triptych(
                 times_windowed, data.freqs, data_windowed, fitter.good_freq, model = bestfit_model,
-                residuals = bestfit_residuals, output_name = f"summary_plot.png", show = False
+                residuals = bestfit_residuals, output_name = f"summary_plot{outfile_substring}.png", 
+                show = False
             )
 
-            with open(f"results_fitburst.json", "w") as out:
+            with open(f"results_fitburst{outfile_substring}.json", "w") as out:
                 json.dump(
                     {
                         "initial_dm": initial_parameters["dm"][0],
