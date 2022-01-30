@@ -61,6 +61,24 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--downsample_freq",
+    action="store",
+    dest="factor_freq",
+    default=1,
+    type=int,
+    help="Downsample the raw spectrum along the frequency axis by a specified integer."
+)
+
+parser.add_argument(
+    "--downsample_time",
+    action="store",
+    dest="factor_time",
+    default=1,
+    type=int,
+    help="Downsample the raw spectrum along the time axis by a specified integer."
+)
+
+parser.add_argument(
     "--fit", 
     action="store", 
     dest="parameters_to_fit", 
@@ -155,12 +173,14 @@ parser.add_argument(
     help="Half of size of data window, in seconds."
 )
 
-### grab CLI inputs from argparse.
+# grab CLI inputs from argparse.
 args = parser.parse_args()
 input_file = args.file
 amplitude = args.amplitude
 arrival_time = args.arrival_time
 dm = args.dm
+factor_freq = args.factor_freq
+factor_time = args.factor_time
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
@@ -193,11 +213,12 @@ if solution_file is not None and os.path.isfile(solution_file):
 else:
     print("INFO: no solution file found or provided; proceeding with fit...")
 
-### read in input data.
+# read in input data.
 data = DataReader(input_file)
 
-### load data into memory and pre-process.
+# load data into memory and pre-process.
 data.load_data()
+data.downsample(factor_freq, factor_time)
 data.good_freq = np.sum(data.data_weights, axis=1) // data.num_time
 
 # get parameters and configure initial guesses.
@@ -269,7 +290,7 @@ times_windowed = data.times
 if window is not None:
     data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=window)
 
-### now create initial model.
+# now create initial model.
 print("INFO: initializing model")
 model = SpectrumModeler()
 model.dm0 = initial_parameters["dm"][0]
@@ -278,7 +299,7 @@ model.is_folded = True
 model.set_dimensions(data.num_freq, len(times_windowed))
 model.update_parameters(current_parameters)
 
-### now set up fitter and execute least-squares fitting
+# now set up fitter and execute least-squares fitting
 for current_iteration in range(num_iterations):
     fitter = LSFitter(model)
     fitter.fix_parameter(parameters_to_fix)
