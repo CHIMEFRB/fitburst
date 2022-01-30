@@ -285,7 +285,6 @@ if use_outfile_substring:
 data = DataReader(input_file)
 
 # load data into memory and pre-process.
-data = DataReader(input_file)
 data.load_data()
 data.downsample(factor_freq, factor_time)
 data.preprocess_data(
