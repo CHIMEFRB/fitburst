@@ -160,6 +160,7 @@ parser.add_argument(
     default=[0.2, 0.8],
     dest="variance_range",
     nargs=2,
+    type=float,
     help="Bounds of per-channel variance used to designate 'bad' channels in preprocessing step."
 )
 
