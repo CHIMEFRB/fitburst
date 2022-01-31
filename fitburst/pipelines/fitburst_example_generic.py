@@ -192,13 +192,12 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--variance_range", 
+    "--variance_range",
     action="store",
-    default=[0., 1.], 
+    default=[0.2, 0.8],
     dest="variance_range",
     nargs=2,
-    type=float,
-    help="Set range of channel variances for RFI mitigation."
+    help="Bounds of per-channel variance used to designate 'bad' channels in preprocessing step."
 )
 
 parser.add_argument(
@@ -292,7 +291,6 @@ data.preprocess_data(
     normalize_variance=True,
     variance_range=variance_range,
 )
-#data.good_freq = np.sum(data.data_weights, axis=1) // data.num_time
 
 # get parameters and configure initial guesses.
 initial_parameters = {
