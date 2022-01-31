@@ -155,6 +155,15 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--variance_range",
+    action="store",
+    default=[0.2, 0.8],
+    dest="variance_range",
+    nargs=2,
+    help="Bounds of per-channel variance used to designate 'bad' channels in preprocessing step."
+)
+
+parser.add_argument(
     "--verbose", 
     action="store_true",
     default=False, 
@@ -197,6 +206,7 @@ scattering_timescale = args.scattering_timescale
 spectral_index = args.spectral_index
 spectral_running = args.spectral_running
 solution_file = args.solution_file
+variance_range = args.variance_range
 verbose = args.verbose
 width = args.width
 window = args.window
@@ -236,6 +246,7 @@ data = DataReader(input_file)
 data.load_data()
 data.downsample(factor_freq, factor_time)
 data.good_freq = np.sum(data.data_weights, axis=1) // data.num_time
+data.preprocess_data(variance_range=variance_range)
 
 # get parameters and configure initial guesses.
 initial_parameters = data.burst_parameters
