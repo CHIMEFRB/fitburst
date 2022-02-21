@@ -265,7 +265,8 @@ def fit_emg_mcmc(profile : np.ndarray, xvals : np.ndarray, peaks : np.ndarray,
         # This is the index of the last peak we include in the fit 
         # i.e. the last element of num_fit = fit with all components.
         num_peaks_to_fit = np.arange(max(int(len(peaks)/2),4), len(peaks) + 1) 
-        log.info("Perform MCMC fit for " + str(num_peaks_to_fit[0]) + " to " + str(num_peaks_to_fit[-1]) + " components.")
+        #log.info("Perform MCMC fit for " + str(num_peaks_to_fit[0]) + " to " + str(num_peaks_to_fit[-1]) + " components.")
+        print("Perform MCMC fit for " + str(num_peaks_to_fit[0]) + " to " + str(num_peaks_to_fit[-1]) + " components.")
     else:
         num_peaks_to_fit = np.array([len(peaks)])
     # Record reduced chi squared as a function number of peaks:

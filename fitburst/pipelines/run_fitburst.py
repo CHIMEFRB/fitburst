@@ -17,7 +17,8 @@ import sys
 import logging
 
 from fitburst.routines.profile import get_signal
-from baseband_analysis.utilities import get_profile
+#from baseband_analysis.utilities import get_profile
+from baseband_analysis.core.signal import _get_profile
 # Logging Config
 LOGGING_CONFIG = {}
 logging_format = "[%(asctime)s] %(process)d-%(levelname)s "

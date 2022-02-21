@@ -1,5 +1,8 @@
 from baseband_analysis.core import BBData
-from baseband_analysis.utilities import get_profile, get_snr, get_floor, get_main_peak_lim, apply_coherent_dedisp, tiedbeam_baseband_to_power
+#from baseband_analysis.utilities import get_profile, get_snr, get_floor, get_main_peak_lim, apply_coherent_dedisp, tiedbeam_baseband_to_power
+from baseband_analysis.core.signal import _get_profile, get_floor, get_main_peak_lim, tiedbeam_baseband_to_power
+from baseband_analysis.analysis.snr import get_snr
+from baseband_analysis.core.dedispersion import apply_coherent_dedisp
 from fitburst.routines.profile import *
 from fitburst.routines.spectrum import *
 from fitburst.utilities.plotting import *
@@ -82,7 +85,7 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         )
     dm_max_range = 0.3
 
-    profile = get_profile(power)
+    profile = _get_profile(power)
     if time_range is None:
         start, end = get_signal(profile, ds = downsampling_factor)
     else:
@@ -103,7 +106,7 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         return_full=True
     )
     t_res = 2.56e-6 * downsampling_factor
-    profile = get_profile(power)
+    profile = _get_profile(power)
     if time_range is None:
         start, end = get_signal(profile, ds = downsampling_factor)
     else:
@@ -128,7 +131,7 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         diagnostic_plots=False,
         return_full=True
         )
-        profile = get_profile(power)
+        profile = _get_profile(power)
         f = old_ds/downsampling_factor
         start, end = int(start*f), int(min(end*f, len(profile)))
         plt.clf()
@@ -146,7 +149,7 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         diagnostic_plots=False,
         return_full=True
         )
-        profile = get_profile(power)
+        profile = _get_profile(power)
         profile = profile[start:end]
     
         t_res = 2.56e-6 * downsampling_factor
