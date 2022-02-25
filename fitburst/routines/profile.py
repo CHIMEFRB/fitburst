@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pathlib
 import datetime
 from scipy.signal import find_peaks
+from baseband_analysis.core.signal import get_main_peak_lim
 
 def compute_profile_gaussian(times: np.ndarray, toa: np.float, width: np.float) -> np.ndarray:
     """

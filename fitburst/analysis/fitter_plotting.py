@@ -12,7 +12,8 @@ from fitburst.routines.profile import *
 import statsmodels.api as sm
 from fitburst.routines.spectrum import rpl
 #Can easily replace get_floor by something else
-from baseband_analysis.utilities import get_floor
+#from baseband_analysis.utilities import get_floor
+from baseband_analysis.core.signal import get_floor
 def reduced_chisq(data : np.ndarray, fit : np.ndarray, pars: int) -> float:
     """
     Calculates the reduced chi squared
