@@ -43,6 +43,11 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--dm", action="store", dest="dm", default=None, nargs="+", type=float,
+    help="Initial guess for dispersion measure (DM), in pc/cc."
+)
+
+parser.add_argument(
     "--fit", action="store", dest="parameters_to_fit", default=[], nargs="+", type=str,
     help="A list of model parameters to fit during least-squares estimation."
 )
@@ -111,6 +116,7 @@ parser.add_argument(
 args = parser.parse_args()
 eventIDs = args.eventIDs
 amplitude = args.amplitude
+dm = args.dm
 latest_solution_location = args.latest_solution_location
 num_iterations = args.num_iterations
 offset_dm = args.offset_dm
@@ -201,6 +207,9 @@ for current_event_id in eventIDs:
     if amplitude is not None:
         initial_parameters["amplitude"] = amplitude
    
+    if dm is not None:
+        initial_parameters["dm"] = dm
+   
     if scattering_timescale is not None:
         initial_parameters["scattering_timescale"] = scattering_timescale
 
@@ -279,21 +288,39 @@ for current_event_id in eventIDs:
         bestfit_model = model.compute_model(data.times, data.freqs) * data.good_freq[:, None]
         bestfit_residuals = data_windowed - bestfit_model
 
+        # create summary plot.
         ut.plotting.plot_summary_triptych(
             data.times, data.freqs, data_windowed, data.good_freq, model = bestfit_model, 
             residuals = bestfit_residuals, output_name = f"summary.{current_event_id}.png",
             factor_freq = 64
         )
 
-        # finally, stash results into a JSON file.
-        if save_results:
+        # create JSON file contain burst parameters and statistics.
+        with open(f"results_fitburst_{current_event_id}.json", "w") as out:
+            json.dump(
+                {
+                    "model_parameters": model.get_parameters_dict(), 
+                    "fit_statistics": fitter.fit_statistics,
+                },
+                out, 
+                indent=4
+            )
 
-            with open(f"results_fitburst_{current_event_id}.json", "w") as out:
-                json.dump(
-                    {
-                        "model_parameters": model.get_parameters_dict(), 
-                        "fit_statistics": fitter.fit_statistics,
-                    },
-                    out, 
-                    indent=4
-                )
+        # finally, if desired, save spectrum and burst-parameter/metadata dictionaries.
+        if save_results:
+            np.savez(
+                f"test_data_CHIMEFRB_{current_event_id}.npz",
+                burst_parameters = model.get_parameters_dict(),
+                data_full = data_windowed,
+                metadata = {
+                    "bad_chans" : [],
+                    "freqs_bin0" : data.freqs[0],
+                    "is_dedispersed" : True,
+                    "num_freq" : data.num_freq,
+                    "num_time" : len(times_windowed),
+                    "times_bin0" : times_windowed[0],
+                    "res_freq" : data.res_freq,
+                    "res_time" : data.res_time,
+                }
+                
+            )
