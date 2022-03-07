@@ -81,6 +81,43 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--folded", 
+    action="store_true", 
+    dest="is_folded", 
+    default=False, 
+    help="If set, then fit spectrum of a folded profile (e.g., for a pulsar observation)."
+)
+
+parser.add_argument(
+    "--freqmean",
+    action="store",
+    dest="freq_mean",
+    default=None,
+    nargs="+",
+    type=float,
+    help="Initial guess for mean of (Gaussian) spectral energy distribution, in units of MHz."
+)
+
+parser.add_argument(
+    "--freqwidth",
+    action="store",
+    dest="freq_width",
+    default=None,
+    nargs="+",
+    type=float,
+    help="Initial guess for width of (Gaussian) spectral energy distribution, in units of MHz."
+)
+
+parser.add_argument(
+    "--freqmodel",
+    action="store",
+    dest="freq_model",
+    default="powerlaw",
+    type=str,
+    help="Type of model for spectral energy distribution ('gaussian' or 'powerlaw')."
+)
+
+parser.add_argument(
     "--iterations", 
     action="store", 
     dest="num_iterations", 
@@ -161,6 +198,10 @@ input_file = args.file
 amplitude = args.amplitude
 arrival_time = args.arrival_time
 dm = args.dm
+freq_mean = args.freq_mean
+freq_model = args.freq_model
+freq_width = args.freq_width
+is_folded = args.is_folded
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
@@ -195,8 +236,6 @@ else:
 
 ### read in input data.
 data = DataReader(input_file)
-
-### load data into memory and pre-process.
 data.load_data()
 data.good_freq = np.sum(data.data_weights, axis=1) // data.num_time
 
@@ -233,6 +272,12 @@ if arrival_time is not None:
 if dm is not None:
     current_parameters["dm"] = dm
 
+if freq_mean is not None:
+    current_parameters["freq_mean"] = freq_mean
+
+if freq_width is not None:
+    current_parameters["freq_width"] = freq_width
+
 if scattering_timescale is not None:
     current_parameters["scattering_timescale"] = scattering_timescale
 
@@ -244,6 +289,26 @@ if spectral_running is not None:
 
 if width is not None:
     current_parameters["burst_width"] = width
+
+# before proceeding further, ensure that SED parameters match desired model.
+if freq_model == "gaussian":
+    
+    # if power-law parameters reside in dictionary, remove them.
+    if "spectral_index" in current_parameters:
+        current_parameters.pop("spectral_index", None)
+
+    if "spectral_running" in current_parameters:
+        current_parameters.pop("spectral_running", None)
+
+    # now check that Gaussian-model parameters are initialized.
+    if "freq_mean" not in current_parameters or "freq_width" not in current_parameters:
+        sys.exit("ERROR: missing SED parameters for Gaussian model in parameter dictionary.")
+
+elif freq_model == "powerlaw":
+    pass
+
+else:
+    sys.exit(f"ERROR: cannot recognize SED model of type '{freq_model}.'")
 
 # print parameter info if desired.
 if verbose:
@@ -269,13 +334,16 @@ times_windowed = data.times
 if window is not None:
     data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=window)
 
-### now create initial model.
+# now create initial model, and overload initial guesses into model object.
 print("INFO: initializing model")
-model = SpectrumModeler()
-model.dm0 = initial_parameters["dm"][0]
-model.is_dedispersed = data.is_dedispersed
-model.is_folded = True
-model.set_dimensions(data.num_freq, len(times_windowed))
+model = SpectrumModeler(
+    data.num_freq,
+    len(times_windowed),
+    freq_model=freq_model,
+    is_dedispersed = data.is_dedispersed,
+    is_folded = is_folded,
+    verbose = verbose
+)
 model.update_parameters(current_parameters)
 
 ### now set up fitter and execute least-squares fitting
