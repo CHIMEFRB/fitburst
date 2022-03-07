@@ -5,23 +5,56 @@ import sys
 
 class SpectrumModeler(object):
     """
-    A python structure that contains all information regarding parameters that 
+    A Python structure that contains all information regarding parameters that 
     describe and are used to compute models of dynamic spectra.
     """
 
-    def __init__(self, spectrum_model="powerlaw"):
+    def __init__(self, num_freq: int, num_time: int, freq_model: str = "powerlaw", 
+        is_dedispersed: bool = False, is_folded: bool = False, verbose: bool = False):
+        """
+        Instantiates the model object and sets relevant parameters, depending on 
+        desired model for spectral energy distribution.
+
+        Parameters
+        ----------
+
+        num_freq: float
+            The total number of frequency channels in the spectrum (including masked ones)
+
+        num_time: float
+            The total number of time samples in the spectrum for which a model is desired
+
+        freq_model : str, optional
+            The name of the desired spectral energy distribution, currently either 
+            'gaussian' or 'powerlaw'
+
+        is_dedispersed : bool, optional
+            If true, then assume that the dispersion measure is an 'offset' parameter 
+            and computes the relative dispersion for non-zero offset values
+
+        is_folded : bool, optional
+            If true, then the temporal profile is computed over two realizations and then 
+            averaged down to one (in order to allow for wrapping of a folded pulse shape)
+
+        verbose : bool, optional
+            If true, then print parameter values during each function call. 
+            (This is mainly useful to gauge least-squares fitting algorithms.)
+
+        """
 
         # first define model-configuration parameters that are not fittable.
         self.dedispersion_idx = None
-        self.is_dedispersed = False
-        self.is_folded = False
+        self.freq_model = freq_model
+        self.is_dedispersed = is_dedispersed
+        self.is_folded = is_folded
         self.num_components = 1
-        self.num_freq = None
-        self.num_time = None
-        self.spectrum_model = spectrum_model
+        self.num_freq = num_freq
+        self.num_time = num_time
+        self.verbose = verbose
 
-        # define all fittable model parameters first.
-        self.parameters_all = [
+        # define all *fittable* model parameters first.
+        # NOTE: 'ref_freq' is not listed here as it's a parameter that is always held fixed.
+        self.parameters = [
             "amplitude",
             "arrival_time",
             "burst_width",
@@ -32,14 +65,18 @@ class SpectrumModeler(object):
         ]
 
         # add the appropriate spectral parameters to the list.
-        if (self.spectrum_model == "powerlaw"):
-            self.parameters_all += ["spectral_index", "spectral_running"]
+        if self.freq_model == "powerlaw":
+            self.parameters += ["spectral_index", "spectral_running"]
 
-        elif (self.spectrum_model == "gaussian"):
-            self.parameters_all += ["freq_mean", "freq_width"]
+        elif self.freq_model == "gaussian":
+            self.parameters += ["freq_mean", "freq_width"]
 
-        for current_parameter in self.parameters_all:
-            setattr(self, current_parameter, [None])
+        else:
+            sys.exit(f"ERROR: cannot recognize SED model of type '{freq_model}")
+
+        # now instantiate parameter attributes and set initially to NoneType.
+        for current_parameter in self.parameters:
+            setattr(self, current_parameter, None)
 
     def compute_model(self, times: float, freqs: float) -> float:
         """
@@ -49,6 +86,10 @@ class SpectrumModeler(object):
         Parameters
         ----------
         times : np.ndarray
+            an array of values corresponding to time
+
+        freqs : np.ndarray
+            an array of values corresponding to observing frequency
         """
 
         # initialize model matrix and size of temporal window.
@@ -67,11 +108,11 @@ class SpectrumModeler(object):
             current_sc_time = self.scattering_timescale[0]
             current_width = self.burst_width[current_component]
 
-            #print("Current parameters:", end=" ")
-            #print("{0:.5f}  {1:.5f}  {2:.5f}  {3:.5f}  {4:.5f} {5:.5f}".format(
-            #    current_dm, current_amplitude, current_arrival_time, 
-            #    current_sc_idx, current_sc_time, current_width), end=" "
-            #)
+            if self.verbose:
+                print("{0:.5f}  {1:.5f}  {2:.5f}  {3:.5f}  {4:.5f} {5:.5f}".format(
+                    current_dm, current_amplitude, current_arrival_time, 
+                    current_sc_idx, current_sc_time, current_width), end=" "
+                )
 
             # now loop over bandpass.
             for current_freq in range(self.num_freq):
@@ -130,7 +171,7 @@ class SpectrumModeler(object):
                 )
 
                 # third, compute and scale profile by spectral energy distribution.
-                if (self.spectrum_model == "powerlaw"):
+                if (self.freq_model == "powerlaw"):
                     current_sp_idx = self.spectral_index[current_component]
                     current_sp_run = self.spectral_running[current_component]
 
@@ -141,14 +182,27 @@ class SpectrumModeler(object):
                         current_sp_run,
                     )
 
-                elif (self.spectrum_model == "gaussian"):
-                    pass
+                elif (self.freq_model == "gaussian"):
+                    current_freq_mean = self.freq_mean[current_component]
+                    current_freq_width = self.freq_width[current_component]
+
+                    current_profile *= rt.profile.compute_profile_gaussian(
+                        freqs[current_freq],
+                        current_freq_mean,
+                        current_freq_width,
+                    )
 
                 # finally, add to approrpiate slice of model-spectrum matrix.
                 model_spectrum[current_freq, :] += (10**current_amplitude) * current_profile
 
             # print spectral index/running for current component.
-            #print("{0:.5f}  {1:.5f}".format(current_sp_idx, current_sp_run))
+            if self.verbose:
+                if self.freq_model == "powerlaw":
+                    print("{0:.5f}  {1:.5f}".format(current_sp_idx, current_sp_run))
+
+                elif self.freq_model == "gaussian":
+                    print("{0:.5f}  {1:.5f}".format(current_freq_mean, current_freq_width))
+
 
         return model_spectrum
 
@@ -191,58 +245,23 @@ class SpectrumModeler(object):
 
         return profile
 
-    def compute_spectrum(self, freqs: float, freq_mean: float, freq_width: float,
-        sp_idx: float, sp_run: float) -> float:
-        """
-        Returns the Gaussian or power-law spectral energy distribution, depending on the 
-        desired spectral model (set by self.spectrum_model). 
-        """
-
-        spectrum = 0.
-
-        if (self.spectrum_model == "powerlaw"):
-            spectrum = rt.spectrum.compute_spectrum_rpl(
-                freqs,
-                current_ref_freq,
-                sp_idx,
-                sp_run
-            )
-
-        elif (self.spectrum_model == "gaussian"):
-            spectrum = rt.spectrum.compute_spectrum_gaussian(freqs, freq_mean, freq_width)
-
-        return spectrum
-
     def get_parameters_dict(self) -> dict:
         """
-
+        Returns model parameters as a dictionary, with keys set to the parameter names 
+        and values set to the Python list containing parameter values.
         """
 
         parameter_dict = {}
 
         # loop over all fittable parameters and grab their values.
-        for current_parameter in self.parameters_all:
+        for current_parameter in self.parameters:
             parameter_dict[current_parameter] = getattr(self, current_parameter)
 
         # before exiting, grab the values of the reference frequency, which 
-        # isn't fittable and is therefore not in the 'parameters_all' list.
+        # isn't fittable and is therefore not in the 'parameters' list.
         parameter_dict["ref_freq"] = getattr(self, "ref_freq")
 
         return parameter_dict
-
-    def set_dimensions(self, num_freq: int, num_time: int) -> None:
-        """
-        Sets the dimensions of the model spectrum. If data are windowed in frequency 
-        and/or time during preprocessing, then the inputs must match the dimensions of 
-        the processed data.
-        """
-
-        self.num_freq = num_freq
-        self.num_time = num_time
-
-        print("INFO: dimensions of model spectrum set to ({0}, {1})".format(
-            self.num_freq, self.num_time)
-        )
 
     def set_dedispersion_idx(self, dedispersion_idx: int) -> None:
         """

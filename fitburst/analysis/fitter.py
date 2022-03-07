@@ -19,7 +19,7 @@ class LSFitter(object):
         self.model = model_class
 
         # initialize fit-parameter list.
-        self.fit_parameters = self.model.parameters_all.copy()
+        self.fit_parameters = self.model.parameters.copy()
 
         # set parameters for fitter configuration.
         self.weighted_fit = True
@@ -169,7 +169,7 @@ class LSFitter(object):
         parameter_list = []
 
         # loop over all parameters, only extract values for fit parameters.
-        for current_parameter in self.model.parameters_all:
+        for current_parameter in self.model.parameters:
             if current_parameter in self.fit_parameters:
                 current_sublist = getattr(self.model, current_parameter)
 
@@ -208,7 +208,7 @@ class LSFitter(object):
         # loop over all parameters, only preserve values for fit parameters.
         current_idx = 0
 
-        for current_parameter in self.model.parameters_all:
+        for current_parameter in self.model.parameters:
             if (current_parameter in self.fit_parameters):
                 # if global parameter, load list of length == 1 into dictionary.
                 if current_parameter in global_parameters:

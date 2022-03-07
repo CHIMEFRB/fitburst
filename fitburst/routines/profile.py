@@ -1,20 +1,20 @@
 from scipy.special import erf
 import numpy as np
 
-def compute_profile_gaussian(times: np.ndarray, toa: np.float, width: np.float) -> np.ndarray:
+def compute_profile_gaussian(values: np.ndarray, mean: np.float, width: np.float, norm: bool = False) -> np.ndarray:
     """
     Computes a one-dimensional Gaussian profile across frequency or time, depending on inputs.
 
     Parameters
     ----------
-    times: np.ndarray
-        an array of values corresponding to time or observing frequency
+    values: np.ndarray
+        An array of values corresponding to time or observing frequency
 
-    toa: float
-        central value for Gaussian profile
+    mean: float
+        The arithmetic mean value of the Gaussian profile
 
     width: float
-        standard deviation (i.e., 'width') of Gaussian profile
+        The standard deviation (i.e., 'width') of the Gaussian profile
 
     Returns
     -------
@@ -22,8 +22,12 @@ def compute_profile_gaussian(times: np.ndarray, toa: np.float, width: np.float) 
         an array containing the normalized Gaussian profile
     """
 
-    norm_factor = 1. / np.sqrt(2 * np.pi) / width
-    profile = norm_factor * np.exp(-0.5 * ((times - toa) / width)**2)
+    norm_factor = 1.
+
+    if norm: 
+        norm_factor /= np.sqrt(2 * np.pi) / width
+
+    profile = norm_factor * np.exp(-0.5 * ((values - mean) / width)**2)
 
     return profile
 
