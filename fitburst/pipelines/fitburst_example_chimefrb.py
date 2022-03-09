@@ -58,6 +58,21 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--freqmean", action="store", dest="freq_mean", default=None, nargs="+", type=float,
+    help="Initial guess for mean of (Gaussian) spectral energy distribution, in units of MHz."
+)
+
+parser.add_argument(
+    "--freqwidth", action="store", dest="freq_width", default=None, nargs="+", type=float,
+    help="Initial guess for width of (Gaussian) spectral energy distribution, in units of MHz."
+)
+
+parser.add_argument(
+    "--freqmodel", action="store", dest="freq_model", default="powerlaw", type=str,
+    help="Type of model for spectral energy distribution ('gaussian' or 'powerlaw')."
+)
+
+parser.add_argument(
     "--iterations", action="store", dest="num_iterations", default=1, type=int,
     help="Integer number of fit iterations."
 )
@@ -103,6 +118,11 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--verbose", action="store_true", dest="verbose",
+    help="If set, then print more information during pipeline execution."
+)
+
+parser.add_argument(
     "--width", action="store", dest="width", default=None, nargs="+", type=float,
     help="Initial guess for burst width, in seconds."
 )
@@ -117,6 +137,9 @@ args = parser.parse_args()
 eventIDs = args.eventIDs
 amplitude = args.amplitude
 dm = args.dm
+freq_mean = args.freq_mean
+freq_model = args.freq_model
+freq_width = args.freq_width
 latest_solution_location = args.latest_solution_location
 num_iterations = args.num_iterations
 offset_dm = args.offset_dm
@@ -128,6 +151,7 @@ save_results = args.save_results
 scattering_timescale = args.scattering_timescale
 spectral_index = args.spectral_index
 spectral_running = args.spectral_running
+verbose = args.verbose
 width = args.width
 window_orig = args.window
 
@@ -209,6 +233,12 @@ for current_event_id in eventIDs:
    
     if dm is not None:
         initial_parameters["dm"] = dm
+
+    if freq_mean is not None:
+        initial_parameters["freq_mean"] = freq_mean
+
+    if freq_width is not None:
+        initial_parameters["freq_width"] = freq_width
    
     if scattering_timescale is not None:
         initial_parameters["scattering_timescale"] = scattering_timescale
@@ -261,13 +291,41 @@ for current_event_id in eventIDs:
 
     data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=window)
 
+    # before proceeding further, ensure that SED parameters match desired model.
+    if freq_model == "gaussian":
+
+        # if power-law parameters reside in dictionary, remove them.
+        if "spectral_index" in initial_parameters:
+            initial_parameters.pop("spectral_index", None)
+
+        if "spectral_running" in initial_parameters:
+            initial_parameters.pop("spectral_running", None)
+
+        # now check that Gaussian-model parameters are initialized.
+        if "freq_mean" not in initial_parameters or "freq_width" not in initial_parameters:
+            sys.exit("ERROR: missing SED parameters for Gaussian model in parameter dictionary.")
+
+        elif freq_model == "powerlaw":
+            pass
+
+    elif freq_model == "powerlaw":
+        pass
+
+    else:
+        sys.exit(f"ERROR: cannot recognize SED model of type '{freq_model}.'")
+
     # now create initial model.
     # since CHIME/FRB data are in msgpack format, define a few things 
     # so that this version of fitburst works similar to the original version on site.
     print("INFO: initializing model")
-    model = mod.SpectrumModeler()
-    model.is_dedispersed = False
-    model.set_dimensions(data.num_freq, len(times_windowed))
+    model = mod.SpectrumModeler(
+        data.num_freq,
+        len(times_windowed),
+        freq_model=freq_model,
+        is_dedispersed=False,
+        is_folded=False,
+        verbose=verbose,
+    )
     model.set_dedispersion_idx(data.dedispersion_idx)
     model.update_parameters(initial_parameters)
 
