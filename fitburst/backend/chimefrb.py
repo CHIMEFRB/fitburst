@@ -75,7 +75,12 @@ class DataReader(bases.ReaderBaseClass):
             # adjust certain FRBMaster entries if burst has multiple components.
             num_components = len(parameter_dict["arrival_time"])
             parameter_dict["ref_freq"] = parameter_dict["ref_freq"] * num_components
- 
+
+            # add parameters that are not reported in FRBMaster here.
+            parameter_dict["dm_index"] = [-2.0] * num_components
+            parameter_dict["scattering_index"] = [-4.0] * num_components
+            
+
         ### if instead the DM-pipeline results exist and are desired, grab those.
         elif bool(self.burst_parameters["dm-pipeline"]) and pipeline == "dm":
             print("woohoo DM pipleine")
