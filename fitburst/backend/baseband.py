@@ -58,13 +58,13 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
     event_id = path.split('/')[-2].split('_')[-1]
     fname = pathlib.Path(path)
     assert fname.exists(), f'No such file: {fname}'  # check that the file exists
-    mtime = datetime.datetime.fromtimestamp(fname.stat().st_mtime)
-    if mtime >= datetime.datetime(2020, 5, 1):
+    try:
+        data['tiedbeam_power'].attrs['DM_coherent']
+    except KeyError:
+        print('Coherent de-dispersion was not done on this event.')
         if DM is not None:
-            try:
-                data['tiedbeam_power']
-            except KeyError:
-                tiedbeam_baseband_to_power(data,time_downsample_factor=1,dm = DM,dedisperse=True)           
+            print('Performing oherent de-dispersion...')
+            tiedbeam_baseband_to_power(data,time_downsample_factor=1,dm = DM,dedisperse=True)           
             apply_coherent_dedisp(data, DM)
             try:
                 data['tiedbeam_power'].attrs['DM_coherent']
@@ -195,7 +195,7 @@ def fit_profile(path : str, nwalkers : int = 100, nchain : int = 500000,
     downsample2 : int = None, DM : float = None, fit_DM : bool = True,
     logl : int = 0, save : bool = None, spectrum_lim : bool = True, 
     fill_missing_time : bool = None, show_chains : bool = False, 
-    peaks : list = None, diagnostic_plots : bool = False) -> tuple:
+    peaks : list = None, fit_spectrum = False, diagnostic_plots : bool = False) -> tuple:
     """
     Fits an EMG to the pulse profile and then a RPL to the spectrum of every burst component using MCMC.
     If a path is provided in 'save', saves the MCMC fitting results.
@@ -260,60 +260,53 @@ def fit_profile(path : str, nwalkers : int = 100, nchain : int = 500000,
     tmp_pars = np.reshape(profile_pars[:-1], (n, 3))
     mus, widths = tmp_pars[...,1], tmp_pars[...,2]
     mus = np.append(mus, len(profile)*t_res)
+    
     # Fit spectrum for each component
     amps, running, index = np.zeros(n), np.zeros(n), np.zeros(n)
     amps_errs, running_errs, index_errs = np.zeros((n,2)), np.zeros((n,2)), np.zeros((n,2))
-    profile_fit = sum_emg(t_res * np.arange(power.shape[-1]), profile_pars)
-    lims = [np.where(profile_fit > 0.1)[0][0],np.where(profile_fit > 0.1)[0][-1]]
-    fit_ps = find_peaks(profile_fit)[0]
-    if len(fit_ps) != n:
-        fit_ps = np.array(sorted([int(p / t_res) for p in peak_times]))
-    print(fit_ps)
-    for i in range(n):
-        if i == 0:
-            tmp = profile_fit[int(fit_ps[i]):int(mus[i+1] / t_res)]
-            print(int(fit_ps[i]), int(peak_times[i] / t_res), int(mus[i+1] / t_res))
-            all_lims = [lims[0], int(fit_ps[i]) + np.where(tmp == min(tmp))[0][0]]
-        elif i < n-1:
-            tmp = profile_fit[int(fit_ps[i]):int(mus[i+1] / t_res)]
-            if len(tmp) > 2:
-                all_lims.append(int(fit_ps[i]) + np.where(tmp == min(tmp))[0][0])
+    if fit_spectrum:
+        profile_fit = sum_emg(t_res * np.arange(power.shape[-1]), profile_pars)
+        lims = [np.where(profile_fit > 0.1)[0][0],np.where(profile_fit > 0.1)[0][-1]]
+        fit_ps = find_peaks(profile_fit)[0]
+        if len(fit_ps) != n:
+            fit_ps = np.array(sorted([int(p / t_res) for p in peak_times]))
+        print(fit_ps)
+        for i in range(n):
+            if i == 0:
+                tmp = profile_fit[int(fit_ps[i]):int(mus[i+1] / t_res)]
+                print(int(fit_ps[i]), int(peak_times[i] / t_res), int(mus[i+1] / t_res))
+                all_lims = [lims[0], int(fit_ps[i]) + np.where(tmp == min(tmp))[0][0]]
+            elif i < n-1:
+                tmp = profile_fit[int(fit_ps[i]):int(mus[i+1] / t_res)]
+                if len(tmp) > 2:
+                    all_lims.append(int(fit_ps[i]) + np.where(tmp == min(tmp))[0][0])
+                else:
+                    tmp = profile_fit[int(mus[i]):int(mus[i+1] / t_res)]
+                    all_lims.append(int(mus[i]) + np.where(tmp == min(tmp))[0][0])
             else:
-                tmp = profile_fit[int(mus[i]):int(mus[i+1] / t_res)]
-                all_lims.append(int(mus[i]) + np.where(tmp == min(tmp))[0][0])
-        else:
-            all_lims.append(lims[-1])
-    for i in range(n):
-        lim = [all_lims[i], all_lims[i+1]]
-        plt.clf()
-        waterfall_plotting.plot_waterfall(power, t_res, freq, peaks = np.array(lim)*t_res)
-        plt.show()
-        
-        spectrum = get_spectrum(power[...,max(0,lim[0] - int(widths[i] / t_res)): lim[1]])
+                all_lims.append(lims[-1])
+        for i in range(n):
+            lim = [all_lims[i], all_lims[i+1]]
+            plt.clf()
+            waterfall_plotting.plot_waterfall(power, t_res, freq, peaks = np.array(lim)*t_res)
+            plt.show()
 
-        spect_peaks = spect_count_components(spectrum, freq, event_id=event_id, diagnostic_plots=diagnostic_plots)
+            spectrum = get_spectrum(power[...,max(0,lim[0] - int(widths[i] / t_res)): lim[1]])
 
-        spectrum_pars, spectrum_errs = fit_rpl_mcmc(spectrum, freq, peaks=spect_peaks, res = 400. / 1024., nwalkers=100, 
-                 nchain=5000, event_id=event_id, ncores=ncores, show_chains = show_chains,
-                 diagnostic_plots=diagnostic_plots
-                 )
-        amps[i] = spectrum_pars[0]
-        index[i] = spectrum_pars[1]
-        running[i] = spectrum_pars[2]
-        
-        amps_errs[i] = spectrum_errs[0]
-        index_errs[i] = spectrum_errs[1]
-        running_errs[i] = spectrum_errs[2]   
-    # For plotting only
-    if n > 1:
-        spectrum_pars_plot, _ = fit_rpl_mcmc(get_spectrum(power), freq, peaks=spect_peaks, res = 400. / 1024., nwalkers=100, 
-                 nchain=10000, event_id=event_id, ncores=ncores, show_chains = show_chains,
-                 diagnostic_plots=diagnostic_plots
-                 )
-    else:
-        spectrum_pars_plot = spectrum_pars
-    waterfall_plotting.plot_waterfall(power, t_res, freq, fit_spect = rpl(freq, spectrum_pars_plot) , fit_profile = profile_fit)
-    plt.show()
+            spect_peaks = spect_count_components(spectrum, freq, event_id=event_id, diagnostic_plots=diagnostic_plots)
+
+            spectrum_pars, spectrum_errs = fit_rpl_mcmc(spectrum, freq, peaks=spect_peaks, res = 400. / 1024., nwalkers=100, 
+                     nchain=5000, event_id=event_id, ncores=ncores, show_chains = show_chains,
+                     diagnostic_plots=diagnostic_plots
+                     )
+            amps[i] = spectrum_pars[0]
+            index[i] = spectrum_pars[1]
+            running[i] = spectrum_pars[2]
+
+            amps_errs[i] = spectrum_errs[0]
+            index_errs[i] = spectrum_errs[1]
+            running_errs[i] = spectrum_errs[2]   
+
     mask_freq = np.array(np.zeros(power.shape[0]), dtype = bool)
     mask = np.array(np.ones(power.shape[0]), dtype = bool)
     for i in range(power.shape[0]):

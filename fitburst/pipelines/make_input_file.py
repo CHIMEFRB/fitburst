@@ -5,7 +5,7 @@ def make_input(path : str, peaks : list = None, nwalkers : int = 50, nchain : in
     show_chains : bool = False, DM : float = None, fit_DM : bool = True, logl : int = 0, 
     save : str = None, diagnostic_plots : bool = False, downsample2 : int = None, 
     downsample : int = None, spectrum_lim : bool = True, fill_missing_time : bool = None, 
-    ref_freq : float = 600., time_range : tuple = None, output : str = None) -> None:
+    ref_freq : float = 600., fit_spectrum : bool = False, time_range : tuple = None, output : str = None) -> None:
     """
     Produces the fitburst input .npz file with burst data, metadata, and parameters.
     
@@ -68,8 +68,8 @@ def make_input(path : str, peaks : list = None, nwalkers : int = 50, nchain : in
     #Run profile analysis to estimate burst parameters
     data, freq_id, freq, power, DM, downsampling_factor, t_res, params, spectrum_pars, mask_freq = fit_profile(path,
                    nwalkers=nwalkers, nchain=nchain, ncores=ncores, downsample2 = downsample2,
-                   downsample = downsample, DM = DM, fit_DM = fit_DM, logl = logl, peaks = peaks,
-                   fill_missing_time = fill_missing_time, save = save, spectrum_lim = spectrum_lim, 
+                   downsample = downsample, DM = DM, fit_DM = fit_DM, fit_spectrum = fit_spectrum, logl = logl, 
+                   peaks = peaks, fill_missing_time = fill_missing_time, save = save, spectrum_lim = spectrum_lim, 
                    time_range = time_range, show_chains=show_chains, diagnostic_plots=diagnostic_plots)
     
     params, scattering_t = np.array(params[:-1]), params[-1]

@@ -72,8 +72,8 @@ def run_fitburst(fname, path):
     model.update_parameters({"scattering_index": [-4.0] * num_components})
     model.update_parameters({"arrival_time": current_parameters["arrival_time"]})
     model.update_parameters({"scattering_timescale": current_parameters["scattering_timescale"]})
-    model.update_parameters({"spectral_index": [0.0] * num_components})#current_parameters["spectral_index"]})
-    model.update_parameters({"spectral_running": [0.0] * num_components})#current_parameters["spectral_running"]})
+    model.update_parameters({"spectral_index": current_parameters["spectral_index"]})
+    model.update_parameters({"spectral_running": current_parameters["spectral_running"]})
     model.update_parameters({"ref_freq": current_parameters['ref_freq']})
 
     current_model = model.compute_model(times_windowed, data.freqs)
