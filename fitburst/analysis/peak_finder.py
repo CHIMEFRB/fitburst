@@ -1,0 +1,172 @@
+#! /usr/bin/env python
+
+from cProfile import label
+from curses import meta
+from dis import dis
+from hashlib import sha1
+from xml.etree.ElementPath import find
+from fitburst.backend.generic import DataReader
+import matplotlib.gridspec as gridspec
+from scipy.signal import find_peaks
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import argparse
+import sys
+import os
+
+parser=argparse.ArgumentParser(description="====A python script to read .npz files and find the peak values for the given data====\n \
+                                            Include the name of file with full path if you are out of the file directory."
+                                            )
+parser.add_argument('file_name', 
+                    type=str,
+                    metavar='',
+                    help='A Numpy state file containing data and metadata.')
+
+parser.add_argument('-r','--shift_rms',type=float,metavar='',
+                    help='By what percent would you like to increase RMS value?')
+
+args=parser.parse_args()
+
+input_file=args.file_name  #Store the input file in input_file variable
+rms_shift=args.shift_rms   #Store the shift rms percentage in rms_shift variable.
+#Read the input file.
+input_data=DataReader(input_file)
+
+# Load the data into the memory for processing.
+input_data.load_data()
+input_data.downsample(64,1)
+freq=input_data.freqs
+time=input_data.times
+data_full=input_data.data_full
+print(data_full.shape)
+
+class FindPeak:
+    """
+    A Python Class Find Peaks in the Loaded Data.
+    
+    """
+    #This is for creating the name of output files same as the input files.
+    name_of_file=str(input_file).replace('.npz','')
+    
+    def __init__(self,data,tim,fre,rms=None):    
+        """
+        Initializes FindPeak class with data(data is input file provided),time,freq as a parameters.
+         """     
+        self.data=data
+        self.freq=fre
+        self.time=tim
+        self.rms=rms
+        
+    def find_peak(self):
+        self.mean_intensity_freq=self.data.mean(axis=0)
+        plt.plot(self.time*1000,self.mean_intensity_freq)
+        peaks_location=find_peaks(self.mean_intensity_freq)
+        # print(peaks_location)
+        # print(peaks_location[0])
+        self.peak_times=self.time[peaks_location[0]]
+        self.peak_mean_intensities=self.mean_intensity_freq[peaks_location[0]]
+        # print(self.time.shape)
+        # print(self.freq.shape)
+        
+        #Find the rms value of intensities
+        self.rms_intensity=np.sqrt(np.mean((self.mean_intensity_freq)**2))
+        print(f"The rms intensity is {self.rms_intensity} \n")
+
+        #Shift RMS line by given percentage if asked in the input.
+        if self.rms is not None:
+            #Increase the value of rms intensity by given rms shift percent.
+            shifted_rms_intensity=self.rms_intensity+(self.rms/100)*self.rms_intensity
+
+            #Find the peaks greater than shifted_rms values.
+            index_peaks_greater_rms=np.where(self.peak_mean_intensities>shifted_rms_intensity)
+            self.peaks_greater_rms=self.peak_mean_intensities[index_peaks_greater_rms]
+            self.times_peaks_greater_rms=self.peak_times[index_peaks_greater_rms]
+        else:  
+            #Find the peaks greater than rms values.
+            index_peaks_greater_rms=np.where(self.peak_mean_intensities>self.rms_intensity)
+            self.peaks_greater_rms=self.peak_mean_intensities[index_peaks_greater_rms]
+            self.times_peaks_greater_rms=self.peak_times[index_peaks_greater_rms]
+        
+  
+        
+        #Now find the width of each burst
+        for each_peak in index_peaks_greater_rms:
+
+            # These are the indices of times just below and just above the peaks.
+            below_peak_index,above_peak_index=each_peak-2,each_peak+2
+            
+            # Now find the times for above and below peak
+            below_peak_time=self.peak_times[below_peak_index]*1000
+            above_peak_time=self.peak_times[above_peak_index]*1000
+
+            # Print the Burst Width for each burst
+            self.burst_widths=above_peak_time-below_peak_time
+            self.time_of_arrivals=self.times_peaks_greater_rms*1000
+
+
+        # dictionary_of_outputs={"Times of Arrivals":self.time_of_arrivals,"Burst_Widths":self.burst_widths}
+        # self.df=pd.DataFrame(data=dictionary_of_outputs)
+        # print(self.df)
+
+    def create_csv_files_and_plot(self):
+        """This method creates a csv file for output of find_peak method."""
+        self.find_peak()
+        self.df.to_csv(f"{self.name_of_file}_peaks",index=False,)
+
+        #Now create plots.
+        fig = plt.figure(figsize=(15,12))
+        gs = gridspec.GridSpec(2, 1,hspace=0.0, wspace=0.1)
+        panel_2d=plt.subplot(gs[1])
+        panel_1d=plt.subplot(gs[0])
+        # panel_1d.scatter(self.time*1000,self.mean_intensity_freq)
+        panel_2d.imshow(self.data,origin='lower',aspect='auto')
+        panel_1d.plot(self.time*1000,self.mean_intensity_freq)
+        panel_1d.plot(self.time*1000,self.rms_intensity*np.ones(len(self.time)),linestyle='dashed',
+        label='RMS')
+
+        if self.rms is not None:
+            panel_1d.plot(self.time*1000,(self.rms_intensity+self.rms/100*self.rms_intensity)*np.ones(len(self.time)),
+            linestyle='dashed',label='Shifted RMS')
+
+        #Add or Remove labels
+        plt.setp(panel_1d.get_xticklabels(), visible=False)
+        panel_2d.set_xlabel('Time(ms)',fontsize=20)
+        panel_2d.set_ylabel('Frequency(MHz)',fontsize=20)
+        panel_1d.set_ylabel('Mean Intensity',fontsize=20)
+        panel_1d.legend()
+
+        panel_1d.set_xlim(self.time.min()*1000,self.time.max()*1000)
+        panel_1d.scatter(self.peak_times*1000,self.peak_mean_intensities,c='red')
+        panel_1d.scatter(self.times_peaks_greater_rms*1000,self.peaks_greater_rms,c='green',s=45)
+        plt.savefig(f"{self.name_of_file}_peaks.png")
+    
+    def get_parameters_dict(self):
+        self.find_peak()
+        mul_factor=len(self.time_of_arrivals)
+        burst_parameters={
+            "amplitude"             :   [0.0]*mul_factor,
+            "arrival_time"          :   [self.time_of_arrivals],
+            "burst_width"           :   [self.burst_widths],
+            "dm"                    :   [557.0]*mul_factor,
+            "dm_index"              :   [-2.0]*mul_factor,
+            "ref_freq"              :   [600.0]*mul_factor,
+            "scattering_index"      :   [-4.0]*mul_factor,
+            "scattering_timescale"  :   [0.0]*mul_factor,
+            "freq_mean"             :   [450.0]*mul_factor,
+            "freq_width"            :   [43.0]*mul_factor,
+
+        }
+
+
+        return burst_parameters
+        
+
+if __name__=='__main__':
+    display_peaks=FindPeak(data_full,time,freq,rms_shift)
+    # display_peaks.create_csv_files_and_plot()
+    display_peaks.get_parameters_dict()
+    
+        
+
+
