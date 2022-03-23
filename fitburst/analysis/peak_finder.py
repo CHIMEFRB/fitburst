@@ -1,10 +1,4 @@
 #! /usr/bin/env python
-
-from cProfile import label
-from curses import meta
-from dis import dis
-from hashlib import sha1
-from xml.etree.ElementPath import find
 from fitburst.backend.generic import DataReader
 import matplotlib.gridspec as gridspec
 from scipy.signal import find_peaks
@@ -15,59 +9,80 @@ import argparse
 import sys
 import os
 
-parser=argparse.ArgumentParser(description="====A python script to read .npz files and find the peak values for the given data====\n \
-                                            Include the name of file with full path if you are out of the file directory."
-                                            )
-parser.add_argument('file_name', 
-                    type=str,
-                    metavar='',
-                    help='A Numpy state file containing data and metadata.')
+if __name__=='__main__':
 
-parser.add_argument('-r','--shift_rms',type=float,metavar='',
-                    help='By what percent would you like to increase RMS value?')
+    parser=argparse.ArgumentParser(description="====A python script to read .npz files and find the peak values for the given data====\n \
+                                                Include the name of file with full path if you are out of the file directory."
+                                                )
+    parser.add_argument('file_name', 
+                        type=str,
+                        metavar='',
+                        help='A Numpy state file containing data and metadata.')
 
-args=parser.parse_args()
+    parser.add_argument('-r','--shift_rms',type=float,metavar='',
+                        help='By what percent would you like to increase RMS value?')
 
-input_file=args.file_name  #Store the input file in input_file variable
-rms_shift=args.shift_rms   #Store the shift rms percentage in rms_shift variable.
-#Read the input file.
-input_data=DataReader(input_file)
+    args=parser.parse_args()
 
-# Load the data into the memory for processing.
-input_data.load_data()
-input_data.downsample(64,1)
-freq=input_data.freqs
-time=input_data.times
-data_full=input_data.data_full
-print(data_full.shape)
+    input_file=args.file_name  #Store the input file in input_file variable
+    rms_shift=args.shift_rms   #Store the shift rms percentage in rms_shift variable.
+    #Read the input file.
+    input_data=DataReader(input_file)
+
+    # Load the data into the memory for processing.
+    input_data.load_data()
+    input_data.downsample(64,1)
+    freq=input_data.freqs
+    time=input_data.times
+    data_full=input_data.data_full
 
 class FindPeak:
     """
     A Python Class Find Peaks in the Loaded Data.
-    
     """
+
     #This is for creating the name of output files same as the input files.
     name_of_file=str(input_file).replace('.npz','')
     
-    def __init__(self,data,tim,fre,rms=None):    
+    def __init__(self,data,time,freq,rms=None):    
         """
         Initializes FindPeak class with data(data is input file provided),time,freq as a parameters.
-         """     
+
+        Parameters:
+        ----------
+        data : numpy.ndarray
+            a matrix of spectrum data, with dimenions that match those of the times 
+            and freqs arrays
+
+        time : numpy.ndarray
+            an array of values corresponding to observing times
+
+        freq : numpy.ndarray
+            an array of observing frequencies at which to evaluate spectrum
+
+        rms : a floating value ranging from 0 to infinity
+            this is the percentage by which we want to shift(increase) the original rms value 
+
+        """     
         self.data=data
-        self.freq=fre
-        self.time=tim
+        self.freq=freq
+        self.time=time
         self.rms=rms
         
     def find_peak(self):
+        """
+        Finds peak positions in a spectrum and the approximate temporal width of each peak. Prints out
+        the peak positions and corresponding temporal width in a data frame.
+
+        Returns: None
+
+        """
         self.mean_intensity_freq=self.data.mean(axis=0)
         plt.plot(self.time*1000,self.mean_intensity_freq)
         peaks_location=find_peaks(self.mean_intensity_freq)
-        # print(peaks_location)
-        # print(peaks_location[0])
+        
         self.peak_times=self.time[peaks_location[0]]
         self.peak_mean_intensities=self.mean_intensity_freq[peaks_location[0]]
-        # print(self.time.shape)
-        # print(self.freq.shape)
         
         #Find the rms value of intensities
         self.rms_intensity=np.sqrt(np.mean((self.mean_intensity_freq)**2))
@@ -105,12 +120,19 @@ class FindPeak:
             self.time_of_arrivals=self.times_peaks_greater_rms*1000
 
 
-        # dictionary_of_outputs={"Times of Arrivals":self.time_of_arrivals,"Burst_Widths":self.burst_widths}
-        # self.df=pd.DataFrame(data=dictionary_of_outputs)
-        # print(self.df)
+        dictionary_of_outputs={"Times of Arrivals":self.time_of_arrivals,"Burst_Widths":self.burst_widths}
+        self.df=pd.DataFrame(data=dictionary_of_outputs)
+        print(self.df)      #This displays output in dataframe format.
 
     def create_csv_files_and_plot(self):
-        """This method creates a csv file for output of find_peak method."""
+        """
+        This method creates a csv file and a plot in .png format for the peaks and corresponding 
+        temporal widths. If you call this method then you don't have to call find_peak method 
+        because find_peak method is already called here.
+
+        Returns: None
+        ------
+        """
         self.find_peak()
         self.df.to_csv(f"{self.name_of_file}_peaks",index=False,)
 
@@ -119,7 +141,6 @@ class FindPeak:
         gs = gridspec.GridSpec(2, 1,hspace=0.0, wspace=0.1)
         panel_2d=plt.subplot(gs[1])
         panel_1d=plt.subplot(gs[0])
-        # panel_1d.scatter(self.time*1000,self.mean_intensity_freq)
         panel_2d.imshow(self.data,origin='lower',aspect='auto')
         panel_1d.plot(self.time*1000,self.mean_intensity_freq)
         panel_1d.plot(self.time*1000,self.rms_intensity*np.ones(len(self.time)),linestyle='dashed',
@@ -142,6 +163,12 @@ class FindPeak:
         plt.savefig(f"{self.name_of_file}_peaks.png")
     
     def get_parameters_dict(self):
+        """
+        This method returns peak values and burst width in dictionary which is compatible with fitburst.
+
+        Returns: Dictionary with values in List
+        --------
+        """
         self.find_peak()
         mul_factor=len(self.time_of_arrivals)
         burst_parameters={
@@ -164,9 +191,6 @@ class FindPeak:
 
 if __name__=='__main__':
     display_peaks=FindPeak(data_full,time,freq,rms_shift)
-    # display_peaks.create_csv_files_and_plot()
-    display_peaks.get_parameters_dict()
-    
-        
+    display_peaks.create_csv_files_and_plot()
 
 
