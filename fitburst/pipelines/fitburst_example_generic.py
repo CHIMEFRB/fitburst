@@ -61,6 +61,24 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--downsample_freq",
+    action="store",
+    dest="factor_freq",
+    default=1,
+    type=int,
+    help="Downsample the raw spectrum along the frequency axis by a specified integer."
+)
+
+parser.add_argument(
+    "--downsample_time",
+    action="store",
+    dest="factor_time",
+    default=1,
+    type=int,
+    help="Downsample the raw spectrum along the time axis by a specified integer."
+)
+
+parser.add_argument(
     "--fit", 
     action="store", 
     dest="parameters_to_fit", 
@@ -166,6 +184,16 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--variance_range", 
+    action="store",
+    default=[0., 1.], 
+    dest="variance_range",
+    nargs=2,
+    type=float,
+    help="Set range of channel variances for RFI mitigation."
+)
+
+parser.add_argument(
     "--verbose", 
     action="store_true",
     default=False, 
@@ -192,12 +220,14 @@ parser.add_argument(
     help="Half of size of data window, in seconds."
 )
 
-### grab CLI inputs from argparse.
+# grab CLI inputs from argparse.
 args = parser.parse_args()
 input_file = args.file
 amplitude = args.amplitude
 arrival_time = args.arrival_time
 dm = args.dm
+factor_freq = args.factor_freq
+factor_time = args.factor_time
 freq_mean = args.freq_mean
 freq_model = args.freq_model
 freq_width = args.freq_width
@@ -209,6 +239,7 @@ scattering_timescale = args.scattering_timescale
 spectral_index = args.spectral_index
 spectral_running = args.spectral_running
 solution_file = args.solution_file
+variance_range = args.variance_range
 verbose = args.verbose
 width = args.width
 window = args.window
@@ -234,14 +265,30 @@ if solution_file is not None and os.path.isfile(solution_file):
 else:
     print("INFO: no solution file found or provided; proceeding with fit...")
 
-### read in input data.
+# load data into memory and pre-process.
 data = DataReader(input_file)
 data.load_data()
-data.good_freq = np.sum(data.data_weights, axis=1) // data.num_time
+data.downsample(factor_freq, factor_time)
+data.preprocess_data(
+    normalize_variance=True,
+    variance_range=variance_range,
+)
+#data.good_freq = np.sum(data.data_weights, axis=1) // data.num_time
 
 # get parameters and configure initial guesses.
-initial_parameters = data.burst_parameters
+initial_parameters = {
+    "amplitude"        : [-2.0],
+    "arrival_time"     : [0.5],
+    "burst_width"      : [0.05],
+    "dm"               : [0.0],
+    "dm_index"         : [-2.0],
+    "ref_freq"         : [np.min(data.freqs)],
+    "scattering_index" : [-4.0], 
+    "spectral_index"   : [0.0],
+    "spectral_running" : [0.0],
+}
 current_parameters = deepcopy(initial_parameters)
+print(current_parameters)
 
 # update DM value to use ("full" or DM offset) for dedispersion if 
 # input data are already dedispersed or not.
@@ -256,7 +303,7 @@ if existing_results is not None:
 
 else:
     # assume some basic guesses.
-    current_parameters["arrival_time"] = [0.5]
+    current_parameters["arrival_time"] = [np.mean(data.times)]
     current_parameters["burst_width"] = [0.05]
     current_parameters["scattering_timescale"] = [0.0]
     current_parameters["spectral_index"] = [-1.0]
@@ -332,9 +379,12 @@ data_windowed = data.data_full
 times_windowed = data.times
 
 if window is not None:
-    data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=window)
+    data_windowed, times_windowed = data.window_data(
+        current_parameters["arrival_time"][0], 
+        window=window
+    )
 
-# now create initial model, and overload initial guesses into model object.
+# now create initial model.
 print("INFO: initializing model")
 model = SpectrumModeler(
     data.num_freq,
@@ -346,7 +396,7 @@ model = SpectrumModeler(
 )
 model.update_parameters(current_parameters)
 
-### now set up fitter and execute least-squares fitting
+# now set up fitter and execute least-squares fitting
 for current_iteration in range(num_iterations):
     fitter = LSFitter(model)
     fitter.fix_parameter(parameters_to_fix)
@@ -374,12 +424,15 @@ for current_iteration in range(num_iterations):
                     print(f"    * {current_parameter_label}: {current_list} +/- {current_uncertainties}")        
 
             # now create plots.
+            filename_elems = input_file.split(".")
+            output_string = ".".join(filename_elems[:len(filename_elems)-1])
+
             ut.plotting.plot_summary_triptych(
                 times_windowed, data.freqs, data_windowed, fitter.good_freq, model = bestfit_model,
-                residuals = bestfit_residuals, output_name = f"summary_plot.png", show = False
+                residuals = bestfit_residuals, output_name = f"summary_plot_{output_string}.png", show = False
             )
 
-            with open(f"results_fitburst.json", "w") as out:
+            with open(f"results_fitburst_{output_string}.json", "w") as out:
                 json.dump(
                     {
                         "initial_dm": initial_parameters["dm"][0],
