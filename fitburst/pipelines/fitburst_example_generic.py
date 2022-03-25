@@ -236,10 +236,13 @@ arrival_time = args.arrival_time
 dm = args.dm
 factor_freq = args.factor_freq
 factor_time = args.factor_time
+<<<<<<< HEAD
 freq_mean = args.freq_mean
 freq_model = args.freq_model
 freq_width = args.freq_width
 is_folded = args.is_folded
+=======
+>>>>>>> 6f8b1d25702ca622e22d623fd0e1ef5cd6c57240
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
@@ -285,7 +288,6 @@ if use_outfile_substring:
 data = DataReader(input_file)
 
 # load data into memory and pre-process.
-data = DataReader(input_file)
 data.load_data()
 data.downsample(factor_freq, factor_time)
 data.preprocess_data(
