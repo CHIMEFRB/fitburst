@@ -10,6 +10,7 @@ class SpectrumModeler(object):
     """
 
     def __init__(self, num_freq: int, num_time: int, freq_model: str = "powerlaw", 
+        factor_upsample_freq: int = 1, factor_upsample_time: int = 1, 
         is_dedispersed: bool = False, is_folded: bool = False, verbose: bool = False):
         """
         Instantiates the model object and sets relevant parameters, depending on 
@@ -44,6 +45,8 @@ class SpectrumModeler(object):
 
         # first define model-configuration parameters that are not fittable.
         self.dedispersion_idx = None
+        self.factor_upsample_freq = factor_upsample_freq
+        self.factor_upsample_time = factor_upsample_time
         self.freq_model = freq_model
         self.is_dedispersed = is_dedispersed
         self.is_folded = is_folded
@@ -92,9 +95,14 @@ class SpectrumModeler(object):
             an array of values corresponding to observing frequency
         """
 
+        # determine resolutions.
+        res_freq = np.diff(freqs)[0]
+        res_time = np.diff(times)[0]
+
         # initialize model matrix and size of temporal window.
         model_spectrum = np.zeros((self.num_freq, self.num_time), dtype=np.float)
         num_window_bins = self.num_time // 2
+
         # loop over all components.
         for current_component in range(self.num_components):
 
@@ -116,6 +124,12 @@ class SpectrumModeler(object):
 
             # now loop over bandpass.
             for current_freq in range(self.num_freq):
+
+                current_freq_arr = rt.manipulate.upsample_1d(
+                    [freqs[current_freq]], 
+                    res_freq, 
+                    self.factor_upsample_freq
+                )
 
                 # compute dispersion-corrected timeseries.
                 # first, check if model is for dispersed data.
@@ -147,11 +161,17 @@ class SpectrumModeler(object):
                     )
                     
                     # now compute current-times array corrected for relative delay.
-                    current_times = times.copy() - current_arrival_time
+                    current_times = rt.manipulate.upsample_1d(
+                        times.copy() - current_arrival_time, 
+                        res_time, 
+                        self.factor_upsample_time
+                    ) 
                     current_times -= relative_delay
 
                 else:
                     sys.exit("ERROR: type of dedispersion plan is ambiguous!")                    
+
+                sys.exit()
 
                 # first, scale scattering timescale.
                 current_sc_time_scaled = rt.ism.compute_time_scattering(
