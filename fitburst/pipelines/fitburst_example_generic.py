@@ -18,16 +18,18 @@ import sys
 import os
 
 parser = argparse.ArgumentParser(description=
-    "A Python3 script that uses fitburst API to read, preprocess, and fit 'generic'-formatted data " + 
-    "against a model of the dynamic spectrum. NOTE: by default, the scattering timescale is not a " +
-    "fit parameter but can be turned into one through use of the --fit option."
+    "A Python3 script that uses fitburst API to read, preprocess, and fit " +  
+    "'generic'-formatted data against a model of the dynamic spectrum. NOTE: " + 
+    "by default, the scattering timescale is not a fit parameter but can be " + 
+    "turned into one through use of the --fit option."
 )
 
 parser.add_argument(
     "file", 
     action="store", 
     type=str,
-    help="A Numpy state file containing data and metadata in fitburst-compliant ('generic') format."
+    help="A Numpy state file containing data and metadata in " + 
+        "fitburst-compliant ('generic') format."
 )
 
 parser.add_argument(
@@ -63,19 +65,21 @@ parser.add_argument(
 parser.add_argument(
     "--downsample_freq",
     action="store",
-    dest="factor_freq",
+    dest="factor_freq_downsample",
     default=1,
     type=int,
-    help="Downsample the raw spectrum along the frequency axis by a specified integer."
+    help="Downsample the raw spectrum along the frequency axis " + 
+        "by a specified integer."
 )
 
 parser.add_argument(
     "--downsample_time",
     action="store",
-    dest="factor_time",
+    dest="factor_time_downsample",
     default=1,
     type=int,
-    help="Downsample the raw spectrum along the time axis by a specified integer."
+    help="Downsample the raw spectrum along the time axis by " + 
+        "a specified integer."
 )
 
 parser.add_argument(
@@ -85,7 +89,8 @@ parser.add_argument(
     default=[], 
     nargs="+", 
     type=str,
-    help="A list of assumed-fixed model parameters to fit during least-squares estimation."
+    help="A list of assumed-fixed model parameters to fit during " + 
+        "least-squares estimation."
 )
 
 parser.add_argument(
@@ -103,7 +108,8 @@ parser.add_argument(
     action="store_true", 
     dest="is_folded", 
     default=False, 
-    help="If set, then fit spectrum of a folded profile (e.g., for a pulsar observation)."
+    help="If set, then fit spectrum of a folded profile (e.g., " + 
+        "for a pulsar observation)."
 )
 
 parser.add_argument(
@@ -113,7 +119,8 @@ parser.add_argument(
     default=None,
     nargs="+",
     type=float,
-    help="Initial guess for mean of (Gaussian) spectral energy distribution, in units of MHz."
+    help="Initial guess for mean of (Gaussian) spectral energy " + 
+        "distribution, in units of MHz."
 )
 
 parser.add_argument(
@@ -123,7 +130,8 @@ parser.add_argument(
     default=None,
     nargs="+",
     type=float,
-    help="Initial guess for width of (Gaussian) spectral energy distribution, in units of MHz."
+    help="Initial guess for width of (Gaussian) spectral energy " + 
+        "distribution, in units of MHz."
 )
 
 parser.add_argument(
@@ -132,7 +140,8 @@ parser.add_argument(
     dest="freq_model",
     default="powerlaw",
     type=str,
-    help="Type of model for spectral energy distribution ('gaussian' or 'powerlaw')."
+    help="Type of model for spectral energy distribution " + 
+        "('gaussian' or 'powerlaw')."
 )
 
 parser.add_argument(
@@ -149,7 +158,15 @@ parser.add_argument(
     action="store_true",
     dest="use_outfile_substring",
     default=False,
-    help="If set, then use substring to uniquely label output filenamese based on input filenames."
+    help="If set, then use substring to uniquely label output " + 
+        "filenamese based on input filenames."
+)
+
+parser.add_argument(
+    "--remove_smearing",
+    action="store_true",
+    dest="remove_dispersion_smearing",
+    help="If set, then allow for removal of dispersion smearing."
 )
 
 parser.add_argument(
@@ -192,13 +209,34 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--upsample_freq",
+    action="store",
+    dest="factor_freq_upsample",
+    default=1,
+    type=int,
+    help="Upsample the raw spectrum along the frequency axis " + 
+        "by a specified integer."
+)
+
+parser.add_argument(
+    "--upsample_time",
+    action="store",
+    dest="factor_time_upsample",
+    default=1,
+    type=int,
+    help="Upsample the raw spectrum along the time axis by " + 
+        "a specified integer."
+)
+
+parser.add_argument(
     "--variance_range",
     action="store",
     default=[0.2, 0.8],
     dest="variance_range",
     nargs=2,
     type=float,
-    help="Bounds of per-channel variance used to designate 'bad' channels in preprocessing step."
+    help="Bounds of per-channel variance used to designate 'bad' " + 
+        "channels in preprocessing step."
 )
 
 parser.add_argument(
@@ -206,7 +244,8 @@ parser.add_argument(
     action="store_true",
     default=False, 
     dest="verbose",
-    help="If set, then print additional information related to fit parameters and fitting."
+    help="If set, then print additional information related to " + 
+        "fit parameters and fitting."
 )
 
 parser.add_argument(
@@ -234,8 +273,10 @@ input_file = args.file
 amplitude = args.amplitude
 arrival_time = args.arrival_time
 dm = args.dm
-factor_freq = args.factor_freq
-factor_time = args.factor_time
+factor_freq_downsample = args.factor_freq_downsample
+factor_time_downsample = args.factor_time_downsample
+factor_freq_upsample = args.factor_freq_upsample
+factor_time_upsample = args.factor_time_upsample
 freq_mean = args.freq_mean
 freq_model = args.freq_model
 freq_width = args.freq_width
@@ -243,6 +284,7 @@ is_folded = args.is_folded
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
+remove_dispersion_smearing = args.remove_dispersion_smearing
 use_outfile_substring = args.use_outfile_substring
 scattering_timescale = args.scattering_timescale
 spectral_index = args.spectral_index
@@ -252,7 +294,6 @@ variance_range = args.variance_range
 verbose = args.verbose
 width = args.width
 window = args.window
-snr_threshold = 10.
 
 # before proceeding, adjust fixed-parameter list if necessary.
 parameters_to_fix += ["dm_index", "scattering_index", "scattering_timescale"]
@@ -269,7 +310,7 @@ if solution_file is not None and os.path.isfile(solution_file):
         existing_results = json.load(open(solution_file, "r"))
 
     except:
-        print("WARNING: input solution cannot be read; proceeding using basic initial parameters...")
+        print("WARNING: input solution cannot be read; using basic initial parameters...")
 
 else:
     print("INFO: no solution file found or provided; proceeding with fit...")
@@ -286,11 +327,8 @@ data = DataReader(input_file)
 
 # load data into memory and pre-process.
 data.load_data()
-data.downsample(factor_freq, factor_time)
-data.preprocess_data(
-    normalize_variance=True,
-    variance_range=variance_range,
-)
+data.downsample(factor_freq_downsample, factor_time_downsample)
+#data.preprocess_data(normalize_variance=True, variance_range=variance_range)
 
 # get parameters and configure initial guesses.
 initial_parameters = {
@@ -304,15 +342,20 @@ initial_parameters = {
     "spectral_index"   : [0.0],
     "spectral_running" : [0.0],
 }
+initial_parameters = data.burst_parameters
 current_parameters = deepcopy(initial_parameters)
-print(current_parameters)
 
 # update DM value to use ("full" or DM offset) for dedispersion if 
 # input data are already dedispersed or not.
+dm_incoherent = initial_parameters["dm"][0]
+
 if data.is_dedispersed:
     print("INFO: input data cube is already dedispersed!")
     print("INFO: setting 'dm' entry to 0, now considered a dm-offset parameter...")
     current_parameters["dm"][0] = 0.0
+
+if not remove_dispersion_smearing:
+    dm_incoherent = 0.
 
 # if an existing solution is supplied in a JSON file, then read it or use basic guesses.
 if existing_results is not None:
@@ -366,7 +409,7 @@ if freq_model == "gaussian":
 
     # now check that Gaussian-model parameters are initialized.
     if "freq_mean" not in current_parameters or "freq_width" not in current_parameters:
-        sys.exit("ERROR: missing SED parameters for Gaussian model in parameter dictionary.")
+        sys.exit("ERROR: missing Gaussian SED parameters in parameter dictionary.")
 
 elif freq_model == "powerlaw":
     pass
@@ -406,7 +449,10 @@ print("INFO: initializing model")
 model = SpectrumModeler(
     data.num_freq,
     len(times_windowed),
-    freq_model=freq_model,
+    dm_incoherent = dm_incoherent,
+    factor_freq_upsample = factor_freq_upsample,
+    factor_time_upsample = factor_time_upsample,
+    freq_model = freq_model,
     is_dedispersed = data.is_dedispersed,
     is_folded = is_folded,
     verbose = verbose
