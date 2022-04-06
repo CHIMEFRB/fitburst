@@ -58,6 +58,12 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
     event_id = path.split('/')[-2].split('_')[-1]
     fname = pathlib.Path(path)
     assert fname.exists(), f'No such file: {fname}'  # check that the file exists
+    if DM is not None:
+        dm_range_snr = None
+        print("Since the DM was already provided get_snr() will run with DM Range as", dm_range_snr)
+    else:
+        dm_range_snr = 5
+    print("While running the first get_snr it will use the DM range as", dm_range_snr)
     try:
         data['tiedbeam_power'].attrs['DM_coherent']
     except KeyError:
@@ -74,6 +80,7 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
                 print('Coherent de-dispersion performed successfully.')
         else:
             raise ValueError('Please supply the DM to use for coherent de-dispersion!')
+    print("Running the first get_snr() at DM ", DM)
     freq_id, freq, power, _, _, valid_channels, _, DM, downsampling_factor = get_snr(
         data, 
         DM = DM,
@@ -81,9 +88,12 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         fill_missing_time = fill_missing_time,
         diagnostic_plots=False,
         spectrum_lim = spectrum_lim,
-        return_full=True
+        return_full=True,
+        DM_range = dm_range_snr
         )
     dm_max_range = 0.3
+    dm_range_snr = None
+    print("From now on the DM_range for get_snr() will be", dm_range_snr)
 
     profile = _get_profile(power)
     if time_range is None:
@@ -93,6 +103,7 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
     plt.clf()
     if fit_DM:
         DM_corr, DM_err = get_structure_max_DM(power[...,start: end], freq, t_res = 2.56e-6 * downsampling_factor, DM_range = dm_max_range)
+        print("DM after struc max", DM + DM_corr)
         plt.show()
     else:
         DM_corr ,DM_err = 0, 0.05/2
@@ -103,8 +114,11 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         fill_missing_time = fill_missing_time,
         spectrum_lim = spectrum_lim,
         diagnostic_plots=False,
-        return_full=True
+        return_full=True,
+        DM_range = dm_range_snr
     )
+    DM = DM + DM_corr #Changing DM value for fit incase of downsample2
+    print("DM value used from now on is", DM)
     t_res = 2.56e-6 * downsampling_factor
     profile = _get_profile(power)
     if time_range is None:
@@ -122,6 +136,7 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         waterfall_plotting.plot_waterfall(power[...,start:end],t_res, freq)
         plt.show()
         old_ds = downsampling_factor
+        print("Performing Get snr for downsample2 with DM {} and DM range {}".format(DM, dm_range_snr))
         freq_id, freq, power, _, _, valid_channels, _, DM, downsampling_factor = get_snr(
         data,
         DM = DM,
@@ -129,8 +144,10 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         fill_missing_time = fill_missing_time,
         spectrum_lim = spectrum_lim,
         diagnostic_plots=False,
-        return_full=True
+        return_full=True,
+        DM_range = dm_range_snr
         )
+        print("DM after Downsample2 get_snr()", DM)
         profile = _get_profile(power)
         f = old_ds/downsampling_factor
         start, end = int(start*f), int(min(end*f, len(profile)))
@@ -140,6 +157,7 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
             plt.show()
         else:
             DM_corr ,DM_err = 0, 0.05/2
+        print(dm_range_snr)
         freq_id, freq, power, _, _, valid_channels, _, DM, downsampling_factor = get_snr(
         data,
         DM = DM + DM_corr,
@@ -147,8 +165,10 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         fill_missing_time = fill_missing_time,
         spectrum_lim = spectrum_lim,
         diagnostic_plots=False,
-        return_full=True
+        return_full=True,
+        DM_range = dm_range_snr
         )
+        print("DM after downsample2 struc max get_snr function", DM)
         profile = _get_profile(power)
         profile = profile[start:end]
     
@@ -242,6 +262,8 @@ def fit_profile(path : str, nwalkers : int = 100, nchain : int = 500000,
     peaks : list, optional
         List of bin numbers at downsampling 'downsample' where to put the initial guess
         for the peak position of each component. If not provided, use lowess algorithm.
+    fit_spectrum: bool, optional
+        If True then perform mcmc fit on the spectrum of each component. Default is False
     diagnostic_plots : bool, optional
         If True, shows plots of many intermediate steps. Default is False.
     Returns
@@ -252,6 +274,7 @@ def fit_profile(path : str, nwalkers : int = 100, nchain : int = 500000,
     # Fit pulse profile
     event_id = path.split('/')[-2].split('_')[-1]
     data, freq_id, freq, power, valid_channels, DM, DM_err, downsampling_factor, profile, t_res, peak_times, start, full_power = cut_profile(path, diagnostic_plots = diagnostic_plots, time_range = time_range, fill_missing_time = fill_missing_time, downsample = downsample, downsample2 = downsample2, DM = DM, fit_DM = fit_DM, peaks = peaks, spectrum_lim = spectrum_lim, return_full = True)
+    print("Starting MCMC fit")
     profile_pars, profile_pars_errs = fit_emg_mcmc(profile, t_res * np.arange(len(profile)), peaks=peak_times, logl = logl, res = t_res, nwalkers=nwalkers, 
                  nchain=nchain, event_id=event_id, ncores=ncores, show_chains = show_chains, 
                  diagnostic_plots=diagnostic_plots
