@@ -63,6 +63,16 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--dm_index",
+    action="store",
+    dest="dm_index",
+    default=None,
+    nargs="+",
+    type=float,
+    help="Initial guess for index DM time delay, in units of dex."
+)
+
+parser.add_argument(
     "--downsample_freq",
     action="store",
     dest="factor_freq_downsample",
@@ -273,6 +283,7 @@ input_file = args.file
 amplitude = args.amplitude
 arrival_time = args.arrival_time
 dm = args.dm
+dm_index = args.dm_index
 factor_freq_downsample = args.factor_freq_downsample
 factor_time_downsample = args.factor_time_downsample
 factor_freq_upsample = args.factor_freq_upsample
@@ -325,15 +336,17 @@ if use_outfile_substring:
 # read in input data.
 data = DataReader(input_file)
 
-# load data into memory and pre-process.
+# load spectrum data into memory and pre-process, and load in parameter data..
 data.load_data()
 data.downsample(factor_freq_downsample, factor_time_downsample)
-#data.preprocess_data(normalize_variance=True, variance_range=variance_range)
+data.preprocess_data(
+    normalize_variance=True, 
+    variance_range=variance_range
+)
 
-# get parameters and configure initial guesses.
-initial_parameters = {
+basic_parameters = {
     "amplitude"        : [-2.0],
-    "arrival_time"     : [0.5],
+    "arrival_time"     : [np.mean(data.times)],
     "burst_width"      : [0.05],
     "dm"               : [0.0],
     "dm_index"         : [-2.0],
@@ -342,7 +355,17 @@ initial_parameters = {
     "spectral_index"   : [0.0],
     "spectral_running" : [0.0],
 }
+
 initial_parameters = data.burst_parameters
+
+# check if any initial guesses are missing, and overload 'basic' guess value if so.
+for current_parameter in initial_parameters.keys():
+    current_list = initial_parameters[current_parameter]
+
+    if len(current_list) == 0:
+        print(f"WARNING: parameter '{current_parameter}' has no value in data file, overloading a basic guess...")
+        initial_parameters[current_parameter] = basic_parameters[current_parameter]
+
 current_parameters = deepcopy(initial_parameters)
 
 # update DM value to use ("full" or DM offset) for dedispersion if 
@@ -378,6 +401,9 @@ if arrival_time is not None:
 
 if dm is not None:
     current_parameters["dm"] = dm
+
+if dm is not None:
+    current_parameters["dm_index"] = dm_index
 
 if freq_mean is not None:
     current_parameters["freq_mean"] = freq_mean
