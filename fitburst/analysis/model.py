@@ -179,7 +179,7 @@ class SpectrumModeler(object):
 
                     # then compute "relative" delays with respect to central frequency.
                     relative_delay -= rt.ism.compute_time_dm_delay(
-                        self.dm_incoherent + current_dm,
+                        self.dm_incoherent,
                         general["constants"]["dispersion"],
                         current_dm_index,
                         freqs[current_freq],
