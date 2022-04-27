@@ -14,12 +14,12 @@ class DataReader(bases.ReaderBaseClass):
     ReaderBaseClass().
     """
 
-    def __init__(self, fname, data_location="."):
+    def __init__(self, fname):
         # initialise superclass
         super().__init__()
 
         # ensure file exists, else raise an AssertionError
-        self.file_path = f"{data_location}/{fname}"
+        self.file_path = fname
         if not os.path.isfile(self.file_path):
             raise IOError(f"Data file not found: {self.file_path}")
 
@@ -83,6 +83,7 @@ class DataReader(bases.ReaderBaseClass):
         self.res_time = metadata["res_time"]
         times = np.arange(self.num_time, dtype=np.float64) * self.res_time
         self.times = times
+        self.times_bin0 = metadata["times_bin0"]
 
         # create frequency channel centre labels from data shape and metadata
         self.res_freq = metadata["res_freq"]

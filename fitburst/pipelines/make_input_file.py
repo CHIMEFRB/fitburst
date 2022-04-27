@@ -75,6 +75,7 @@ def make_input(path : str, peaks : list = None, nwalkers : int = 50, nchain : in
     params, scattering_t = np.array(params[:-1]), params[-1]
     n = int(len(params)/3)
     params = params.reshape((n,3))
+    amps = params[...,0]
     mus = params[...,1]
     widths = params[...,2]
     
@@ -100,12 +101,13 @@ def make_input(path : str, peaks : list = None, nwalkers : int = 50, nchain : in
     #Output has shape burst_parameters, num components
     #Burst parameters
     burst_parameters = {
+    "amplitude"            : list(np.log10(amps / np.sqrt(data_full.shape[0] - len(bad)))), # Currently wrong. Should reflect inverse of how profile is calculated
     "arrival_time"         : list(mus), # a list containing the arrival times, in seconds
     "burst_width"          : list(widths), # a list containing the temporal widths, in seconds
     "dm"                   : [DM for i in range(len(mus))], # a list containing the dispersion measures (DM), in parsec per cubic centimeter
     "dm_index"             : [-2 for i in range(len(mus))], # a list containing the exponents of frequency dependence in DM delay
     "ref_freq"             : [ref_freq for i in range(len(mus))], # a list containing the reference frequencies for arrival-time and power-law parameter estimates, in MHz (held fixed)
-    "scattering_index"     : [], # a list containing the exponents of frequency dependence in scatter-broadening
+    "scattering_index"     : [-4 for i in range(len(mus))], # a list containing the exponents of frequency dependence in scatter-broadening
     "scattering_timescale" : [scattering_t for i in range(len(mus))], # a list containing the scattering timescales, in seconds
     "spectral_index"       : list(spectrum_pars[1]), # a list containing the power-law spectral indices
     "spectral_running"     : list(spectrum_pars[2]) # a list containing the power-law spectral running

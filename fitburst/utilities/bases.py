@@ -180,33 +180,30 @@ class ReaderBaseClass(object):
 
     def preprocess_data(
         self, 
-        variance_range: list = [0.2, 0.8], 
-        variance_weight: np.float = 1.,
+        normalize_variance: bool = True,
         skewness_range: list = [-3., 3.],
-        ):
+        variance_range: list = [0.2, 0.8], 
+        variance_weight: float = 1.,
+        ) -> None:
         """
         Applies pre-fit routines for cleaning raw dynamic spectrum (e.g., RFI-masking, 
         baseline subtraction, normalization, etc.).
-
         Parameters
         ----------
-        variance_range : list, optional
-            a two-element list containing the range of allowed variances; values outside 
-            of this range are flagged as RFI and removed from the data cube.
-
-        variance_weigt : np.float, optional
-            a scaling factor applied to variance prior to exision.
-
-        
+        normalize_variance: bool, optional
         skewness_range : list, optional
             a two-element list containing the range of allowed values of skewness; 
             values outside of this range are flagged as RFI and removed from the data cube.
-
+        variance_range : list, optional
+            a two-element list containing the range of allowed variances; values outside 
+            of this range are flagged as RFI and removed from the data cube.
+        variance_weigt : np.float, optional
+            a scaling factor applied to variance prior to exision.
+        
         Returns
         -------
         self.good_freqs : np.ndarray
             an array of boolean values indicating good frequencies.
-
         Notes
         -----
         This method normalizes and cleans the self.data_full cube.
@@ -217,7 +214,8 @@ class ReaderBaseClass(object):
         good_freq = mask_freq != 0
 
         # normalize data and remove baseline.
-        mean_spectrum = np.sum(self.data_full * self.data_weights, -1)
+        floor = abs(np.nanmean(self.data_full, axis = 0)) < 3.
+        mean_spectrum = np.sum(self.data_full[...,floor] * self.data_weights[...,floor], -1)
         good_freq[np.where(mean_spectrum == 0.)] = False
         mean_spectrum[good_freq] /= mask_freq[good_freq]
         self.data_full[good_freq] /= mean_spectrum[good_freq][:, None]
@@ -227,11 +225,14 @@ class ReaderBaseClass(object):
         # compute variance and skewness of data.
         variance = np.sum(self.data_full**2, -1) 
         variance[good_freq] /= mask_freq[good_freq]
-        variance[good_freq] /= np.max(variance[good_freq])
         skewness = np.sum(self.data_full**3, -1) 
         skewness[good_freq] /= mask_freq[good_freq]
         skewness_mean = np.mean(skewness[good_freq])
         skewness_std = np.std(skewness[good_freq])
+
+        # if desired, normalize variance relative to maximum value.
+        if normalize_variance:
+            variance[good_freq] /= np.max(variance[good_freq])
 
         # now update good-frequencies list based on variance/skewness thresholds.
         good_freq = np.logical_and(

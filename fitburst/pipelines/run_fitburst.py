@@ -17,8 +17,7 @@ import sys
 import logging
 
 from fitburst.routines.profile import get_signal
-#from baseband_analysis.utilities import get_profile
-from baseband_analysis.core.signal import _get_profile
+
 # Logging Config
 LOGGING_CONFIG = {}
 logging_format = "[%(asctime)s] %(process)d-%(levelname)s "
@@ -32,6 +31,7 @@ def run_fitburst(fname, path):
     data = DataReader(fname, data_location=path)
     # load data into memory and pre-process.
     data.load_data()
+    data.preprocess_data(normalize_variance=True, variance_range = [0., 1.])
     data.good_freq = np.sum(data.data_weights, axis=1) // data.num_time
     # get parameters.
     initial_parameters = data.burst_parameters
@@ -68,7 +68,7 @@ def run_fitburst(fname, path):
     # add parameters to ensure all are set.
     model.num_components = num_components
     model.update_parameters(current_parameters)
-    model.update_parameters({"amplitude": [np.log10(np.mean(data_windowed))] * num_components})
+    model.update_parameters({"amplitude": current_parameters["amplitude"]})#[np.log10(np.mean(data_windowed))] * num_components})
     model.update_parameters({"scattering_index": [-4.0] * num_components})
     model.update_parameters({"arrival_time": current_parameters["arrival_time"]})
     model.update_parameters({"scattering_timescale": current_parameters["scattering_timescale"]})
@@ -93,7 +93,6 @@ def run_fitburst(fname, path):
     print(fitter.bestfit_results["solver"])
     print("Best-fit parameters:", bestfit_parameters)
     
-
     # now compute best-fit model, residuals, and plot.
     model.update_parameters(bestfit_parameters)
     bestfit_model = model.compute_model(times_windowed, data.freqs)

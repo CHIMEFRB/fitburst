@@ -5,7 +5,6 @@ import sys
 
 # import and configure matplotlig for GUI-less node.
 import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import matplotlib.gridspec as gridspec
@@ -191,3 +190,5 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     
     if show:
         plt.show()
+    else:
+        matplotlib.use("Agg")
