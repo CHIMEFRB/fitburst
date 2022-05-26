@@ -1,8 +1,8 @@
 from baseband_analysis.core import BBData
-#from baseband_analysis.utilities import get_profile, get_snr, get_floor, get_main_peak_lim, apply_coherent_dedisp, tiedbeam_baseband_to_power
-from baseband_analysis.core.signal import _get_profile, get_floor, get_main_peak_lim, tiedbeam_baseband_to_power
+#from baseband_analysis.utilities import get_profile, get_snr, get_floor, get_main_peak_lim, coherent_dedisp, tiedbeam_baseband_to_power
+from baseband_analysis.core.signal import get_profile, get_floor, get_main_peak_lim, tiedbeam_baseband_to_power
 from baseband_analysis.analysis.snr import get_snr
-from baseband_analysis.core.dedispersion import apply_coherent_dedisp
+from baseband_analysis.core.dedispersion import coherent_dedisp
 from fitburst.routines.profile import *
 from fitburst.routines.spectrum import *
 from fitburst.utilities.plotting import *
@@ -71,7 +71,7 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         if DM is not None:
             print('Performing oherent de-dispersion...')
             tiedbeam_baseband_to_power(data,time_downsample_factor=1,dm = DM,dedisperse=True)           
-            apply_coherent_dedisp(data, DM)
+            coherent_dedisp(data, DM)
             try:
                 data['tiedbeam_power'].attrs['DM_coherent']
             except KeyError:
@@ -89,18 +89,21 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         diagnostic_plots=False,
         spectrum_lim = spectrum_lim,
         return_full=True,
-        DM_range = dm_range_snr
+        DM_range = dm_range_snr,
+        lte_mask  = True,
+        raise_missing_signal = False,
+        do_rfi_clean = True
         )
     dm_max_range = 0.3
     dm_range_snr = None
     print("From now on the DM_range for get_snr() will be", dm_range_snr)
 
-    profile = _get_profile(power)
+    profile = get_profile(power)
     if time_range is None:
         start, end = get_signal(profile, ds = downsampling_factor)
     else:
         start, end = time_range[0], time_range[1]
-    plt.clf()
+
     if fit_DM:
         DM_corr, DM_err = get_structure_max_DM(power[...,start: end], freq, t_res = 2.56e-6 * downsampling_factor, DM_range = dm_max_range)
         print("DM after struc max", DM + DM_corr)
@@ -115,12 +118,15 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         spectrum_lim = spectrum_lim,
         diagnostic_plots=False,
         return_full=True,
-        DM_range = dm_range_snr
+        DM_range = dm_range_snr,
+        lte_mask  = True,
+        raise_missing_signal = False,
+        do_rfi_clean = True
     )
     DM = DM + DM_corr #Changing DM value for fit incase of downsample2
     print("DM value used from now on is", DM)
     t_res = 2.56e-6 * downsampling_factor
-    profile = _get_profile(power)
+    profile = get_profile(power)
     if time_range is None:
         start, end = get_signal(profile, ds = downsampling_factor)
     else:
@@ -145,10 +151,13 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         spectrum_lim = spectrum_lim,
         diagnostic_plots=False,
         return_full=True,
-        DM_range = dm_range_snr
+        DM_range = dm_range_snr,
+        lte_mask  = True,
+        raise_missing_signal = False,
+        do_rfi_clean = True
         )
         print("DM after Downsample2 get_snr()", DM)
-        profile = _get_profile(power)
+        profile = get_profile(power)
         f = old_ds/downsampling_factor
         start, end = int(start*f), int(min(end*f, len(profile)))
         plt.clf()
@@ -166,10 +175,13 @@ def cut_profile(path : str, downsample : int = None, downsample2 : int = None, p
         spectrum_lim = spectrum_lim,
         diagnostic_plots=False,
         return_full=True,
-        DM_range = dm_range_snr
+        DM_range = dm_range_snr,
+        lte_mask  = True,
+        raise_missing_signal = False,
+        do_rfi_clean = True
         )
         print("DM after downsample2 struc max get_snr function", DM)
-        profile = _get_profile(power)
+        profile = get_profile(power)
         profile = profile[start:end]
     
         t_res = 2.56e-6 * downsampling_factor
@@ -330,14 +342,8 @@ def fit_profile(path : str, nwalkers : int = 100, nchain : int = 500000,
             index_errs[i] = spectrum_errs[1]
             running_errs[i] = spectrum_errs[2]   
 
-    mask_freq = np.array(np.zeros(power.shape[0]), dtype = bool)
-    mask = np.array(np.ones(power.shape[0]), dtype = bool)
-    for i in range(power.shape[0]):
-        if i in mask_freq:
-            mask[i] = False
-    power[~mask] = 0
     spectrum_pars = [amps, index, running]
     spectrum_errs = [amps_errs, index_errs, running_errs]
     if save is not None:
         np.savez(save + event_id, {'profile_pars':profile_pars, 'profile_pars_errs': profile_pars_errs, 'spectrum_pars': spectrum_pars, 'spectrum_pars_errs': spectrum_errs, 'DM': DM, 'DM_err': DM_err, 'S/N': max(profile), 'bw': max(freq) - min(freq), 'ds': downsampling_factor})
-    return data, freq_id, freq, power, DM, downsampling_factor, t_res, profile_pars, spectrum_pars, mask_freq
+    return data, freq_id, freq, power, DM, downsampling_factor, t_res, profile_pars, spectrum_pars, valid_channels

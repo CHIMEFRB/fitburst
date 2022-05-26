@@ -87,7 +87,7 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     max_time = num_time * res_time * 1e3 # last term converts to ms
     max_freq = max(freqs[idx_good_freq]) + res_freq_orig / 2
     times_plot = np.linspace(min_time + res_time / 2., max_time - res_time / 2., num=num_time)
-    print(min_freq, max_freq)
+ 
     # now set up figure and gridspec axes.
     fig = plt.figure(figsize=(15,12))#(3.25,3.25))
     gs = gridspec.GridSpec(2, 3, width_ratios=[1, 1, 1], height_ratios=[1, 3], 
@@ -132,15 +132,16 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
             extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
         )
 
+        model_profile = np.nanmean(model_downsampled[idx_good_freq], axis=0) * np.sqrt(
+        np.count_nonzero(~np.isnan(np.nansum(model_downsampled[idx_good_freq], axis=-1)))
+    )
         panel1d_data.plot(
-            times_plot, np.nanmean(model_downsampled[idx_good_freq], axis=0) * np.sqrt(
-        np.count_nonzero(~np.isnan(np.nansum(model_downsampled[idx_good_freq], axis=-1)))),
+            times_plot, model_profile,
         color = 'r')
         panel1d_model.plot(
-            times_plot, np.nanmean(model_downsampled[idx_good_freq], axis=0) * np.sqrt(
-        np.count_nonzero(~np.isnan(np.nansum(model_downsampled[idx_good_freq], axis=-1)))
-    ),
+            times_plot, model_profile,
         color = 'k')
+        print('Model S/N: ', max(model_profile))
 
     # plot residual panel.
     if residuals is not None:

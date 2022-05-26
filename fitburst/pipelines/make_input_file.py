@@ -66,7 +66,7 @@ def make_input(path : str, peaks : list = None, nwalkers : int = 50, nchain : in
         and initial fitburst parameters is saved to disk.       
     """
     #Run profile analysis to estimate burst parameters
-    data, freq_id, freq, power, DM, downsampling_factor, t_res, params, spectrum_pars, mask_freq = fit_profile(path,
+    data, freq_id, freq, power, DM, downsampling_factor, t_res, params, spectrum_pars, valid_channels = fit_profile(path,
                    nwalkers=nwalkers, nchain=nchain, ncores=ncores, downsample2 = downsample2,
                    downsample = downsample, DM = DM, fit_DM = fit_DM, fit_spectrum = fit_spectrum, logl = logl, 
                    peaks = peaks, fill_missing_time = fill_missing_time, save = save, spectrum_lim = spectrum_lim, 
@@ -83,7 +83,7 @@ def make_input(path : str, peaks : list = None, nwalkers : int = 50, nchain : in
     data_full[1023 - freq_id] = power
     bad = []
     for i in range(1024):
-        if i in mask_freq or i not in freq_id:
+        if i not in 1023 - freq_id:
             bad.append(i)
     #Metadata
     metadata = {

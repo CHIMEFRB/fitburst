@@ -28,10 +28,10 @@ log = logging.getLogger()
 
 def run_fitburst(fname, path):
     # read in data.
-    data = DataReader(fname, data_location=path)
+    data = DataReader(path+fname)
     # load data into memory and pre-process.
     data.load_data()
-    data.preprocess_data(normalize_variance=True, variance_range = [0., 1.])
+    #data.preprocess_data(normalize_variance=True, variance_range = [0., 1.])
     data.good_freq = np.sum(data.data_weights, axis=1) // data.num_time
     # get parameters.
     initial_parameters = data.burst_parameters
@@ -56,9 +56,8 @@ def run_fitburst(fname, path):
 
     # now create model.
     log.info("Initializing model...")
-    model = SpectrumModeler()
+    model = SpectrumModeler(data.num_freq,len(times_windowed))
     model.is_dedispersed = data.is_dedispersed
-    model.set_dimensions(data.num_freq, len(times_windowed))
     
     # before instantiating model parameters, add a second (first-arriving) component.
     # this step manually creates a two-component parameter dictionary that is needed
@@ -84,14 +83,10 @@ def run_fitburst(fname, path):
     fitter.weighted_fit = True
     fitter.fit(times_windowed, data.freqs, data_windowed)
     # extract best-fit data, create best-fit model and plot windowed data.
-    bestfit_parameters = fitter.load_fit_parameters_list(fitter.bestfit_results["parameters"])
-    try:
-        bestfit_uncertainties = fitter.load_fit_parameters_list(fitter.bestfit_results["uncertainties"])
-        print("Best-fit uncertaintes:", bestfit_uncertainties)
-    except:
-        pass
-    print(fitter.bestfit_results["solver"])
+    bestfit_parameters = fitter.fit_statistics["bestfit_parameters"]
+    bestfit_uncertainties = fitter.fit_statistics["bestfit_uncertainties"]
     print("Best-fit parameters:", bestfit_parameters)
+    print("Best-fit uncertaintes:", bestfit_uncertainties)
     
     # now compute best-fit model, residuals, and plot.
     model.update_parameters(bestfit_parameters)

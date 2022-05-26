@@ -10,7 +10,7 @@ import matplotlib.gridspec as gridspec
 
 from fitburst.utilities.plotting import *
 # These two functions can easily be replaced / copied from baseband-analysis
-from baseband_analysis.core.signal import _get_profile, get_spectrum
+from baseband_analysis.core.signal import get_profile, get_spectrum
 
 def plot_waterfall(power : np.ndarray, t_res : float, freq : np.ndarray, 
     fit_spect : np.ndarray = None, fit_profile : np.ndarray = None, 
@@ -49,7 +49,7 @@ def plot_waterfall(power : np.ndarray, t_res : float, freq : np.ndarray,
     ax[1][0].set_xlabel(r'Time (ms)', fontsize = fs)
 
     x = np.arange(power.shape[-1]) * t_res * 1000
-    ax[0][0].plot(x,_get_profile(power), color = 'k')
+    ax[0][0].plot(x, get_profile(power), color = 'k')
     if fit_profile is not None:
         ax[0][0].plot(x,fit_profile, color = 'r')
     ax[0][0].set_xlim(0, power.shape[-1] * t_res * 1000)

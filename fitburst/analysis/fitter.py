@@ -263,7 +263,8 @@ class LSFitter(object):
 
         except Exception as exc:
             print(f"ERROR: {exc}; designating fit as unsuccessful...")
-            self.success = False
+            #self.success = False
+            self.fit_statistics["bestfit_uncertainties"] = None
 
     def _set_weights(self, spectrum_observed: float) -> None:
         """

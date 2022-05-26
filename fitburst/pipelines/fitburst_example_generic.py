@@ -173,6 +173,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--preprocess",
+    action="store",
+    dest="preprocess",
+    default=False,
+    help="If True, pre-process the input data cube."
+)
+
+parser.add_argument(
     "--remove_smearing",
     action="store_true",
     dest="remove_dispersion_smearing",
@@ -304,6 +312,7 @@ is_folded = args.is_folded
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
+preprocess = args.preprocess
 remove_dispersion_smearing = args.remove_dispersion_smearing
 use_outfile_substring = args.use_outfile_substring
 scattering_timescale = args.scattering_timescale
@@ -350,11 +359,15 @@ data = DataReader(input_file)
 
 # load spectrum data into memory and pre-process, and load in parameter data..
 data.load_data()
-data.downsample(factor_freq_downsample, factor_time_downsample)
-data.preprocess_data(
-    normalize_variance=True, 
-    variance_range=variance_range
-)
+
+data.good_freq = np.sum(data.data_weights, axis=1) != 0.
+
+#data.downsample(factor_freq_downsample, factor_time_downsample)
+if preprocess:
+    data.preprocess_data(
+        normalize_variance = True, 
+        variance_range = variance_range
+    )
 
 basic_parameters = {
     "amplitude"        : [-2.0],
@@ -521,8 +534,11 @@ for current_iteration in range(num_iterations):
 
                 for current_parameter_label in bestfit_parameters.keys():
                     current_list = bestfit_parameters[current_parameter_label]
-                    current_uncertainties = bestfit_uncertainties[current_parameter_label]
-                    print(f"    * {current_parameter_label}: {current_list} +/- {current_uncertainties}")        
+                    try:
+                        current_uncertainties = bestfit_uncertainties[current_parameter_label]
+                        print(f"    * {current_parameter_label}: {current_list} +/- {current_uncertainties}") 
+                    except:
+                        pass
 
             # now create plots.
             filename_elems = input_file.split(".")
@@ -533,7 +549,6 @@ for current_iteration in range(num_iterations):
                 residuals = bestfit_residuals, output_name = f"summary_plot{outfile_substring}.png", 
                 show = show
             )
-
             with open(f"results_fitburst{outfile_substring}.json", "w") as out:
                 json.dump(
                     {

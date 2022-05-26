@@ -209,13 +209,12 @@ class ReaderBaseClass(object):
         This method normalizes and cleans the self.data_full cube.
         """
 
-        # define weight and mask arrays.        
+        # define weight and mask arrays.
         mask_freq = np.sum(self.data_weights, -1)
         good_freq = mask_freq != 0
 
         # normalize data and remove baseline.
-        floor = abs(np.nanmean(self.data_full, axis = 0)) < 3.
-        mean_spectrum = np.sum(self.data_full[...,floor] * self.data_weights[...,floor], -1)
+        mean_spectrum = np.sum(self.data_full * self.data_weights, -1)
         good_freq[np.where(mean_spectrum == 0.)] = False
         mean_spectrum[good_freq] /= mask_freq[good_freq]
         self.data_full[good_freq] /= mean_spectrum[good_freq][:, None]
@@ -223,9 +222,9 @@ class ReaderBaseClass(object):
         self.data_full[np.logical_not(self.data_weights)] = 0
 
         # compute variance and skewness of data.
-        variance = np.sum(self.data_full**2, -1) 
+        variance = np.sum(self.data_full**2, -1)
         variance[good_freq] /= mask_freq[good_freq]
-        skewness = np.sum(self.data_full**3, -1) 
+        skewness = np.sum(self.data_full**3, -1)
         skewness[good_freq] /= mask_freq[good_freq]
         skewness_mean = np.mean(skewness[good_freq])
         skewness_std = np.std(skewness[good_freq])
@@ -235,34 +234,24 @@ class ReaderBaseClass(object):
             variance[good_freq] /= np.max(variance[good_freq])
 
         # now update good-frequencies list based on variance/skewness thresholds.
-        good_freq = np.logical_and(
-            good_freq, 
-            (variance / variance_weight < variance_range[1])
-        )
-        good_freq = np.logical_and(
-            good_freq, 
-            (variance / variance_weight > variance_range[0])
-        )
-        good_freq = np.logical_and(
-            good_freq, 
-            (skewness < skewness_mean + skewness_range[1] * skewness_std)
-        )
-        good_freq = np.logical_and(
-            good_freq, 
-            (skewness > skewness_mean + skewness_range[0] * skewness_std)
-        )
+        good_freq = np.logical_and(good_freq, (variance / variance_weight < variance_range[1]))
+
+        good_freq = np.logical_and(good_freq, (variance / variance_weight > variance_range[0]))
+
+        good_freq = np.logical_and(good_freq,
+                                   (skewness < skewness_mean + skewness_range[1] * skewness_std))
+
+        good_freq = np.logical_and(good_freq,
+                                   (skewness > skewness_mean + skewness_range[0] * skewness_std))
 
         # finally, downweight zapped channels.
         self.data_full[np.logical_not(good_freq)] = 0.
 
         # stash good frequencies and print some info.
         self.good_freq = good_freq
+        num_freq_bad = self.num_freq - np.sum(self.good_freq)
 
-        print("INFO: flagged and removed {0} out of {1} channels!".format(
-            self.num_freq - np.sum(self.good_freq),
-            self.num_freq,
-            )
-        )
+        print(f"INFO: flagged and removed {num_freq_bad} out of {self.num_freq} channels!")
 
     def window_data(self, arrival_time: np.float, window: np.float = 0.08):
         """
