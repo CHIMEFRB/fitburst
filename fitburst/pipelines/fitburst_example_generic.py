@@ -198,6 +198,15 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--scintillation", 
+    action="store", 
+    default=None, 
+    dest="scintillation", 
+    type=float,
+    help="Give # of std for channel S/N lower bound. All channels with S/N < scint * std will be masked."
+)
+
+parser.add_argument(
     "--show", 
     action="store", 
     default=False, 
@@ -316,6 +325,7 @@ preprocess = args.preprocess
 remove_dispersion_smearing = args.remove_dispersion_smearing
 use_outfile_substring = args.use_outfile_substring
 scattering_timescale = args.scattering_timescale
+scintillation = args.scintillation
 show = args.show
 spectral_index = args.spectral_index
 spectral_running = args.spectral_running
@@ -362,13 +372,52 @@ data.load_data()
 
 data.good_freq = np.sum(data.data_weights, axis=1) != 0.
 
-#data.downsample(factor_freq_downsample, factor_time_downsample)
+data.downsample(factor_freq_downsample, factor_time_downsample)
+
+if scintillation is not None:
+    if show:
+        print('Before applying scintillation mask:')
+        import matplotlib.pyplot as plt
+        plt.figure(figsize = (12,10))
+        plt.imshow(data.data_full * data.data_weights, 
+                   extent = [0, data.data_full.shape[-1] * data.res_time, 400., 800.], vmin = -1, vmax = 10, origin = 'lower')
+        plt.hlines(data.freqs[~data.good_freq], xmin = 0, xmax = data.data_full.shape[-1] * data.res_time, colors = 'white')
+        plt.show()
+    from baseband_analysis.core.signal import get_profile, get_spectrum
+    spect = get_spectrum(data.data_full)
+    med, std = np.nanmedian(spect), np.nanstd(data.data_full)
+    print('Removing channels with median below: max(0, ', med - scintillation * std, ')')
+    print(data.good_freq.shape, sum(data.good_freq))
+    # If a channel is QUIETER than the med - 2 * std, just flag it
+    print(spect.shape)
+    before = sum(data.good_freq)
+    for i in range(spect.shape[0]):
+        if spect[i] < max(0, med - scintillation * std):
+            data.data_weights[i] = 0.
+            data.data_full[i] = 0.
+    if show:
+        print('After scintillation mask:')
+
+data.good_freq = np.sum(data.data_weights, axis=1) != 0.
+
+if scintillation is not None:
+    after = sum(data.good_freq)
+    print('Scintillation mask removed: ', before - after, ' frequency channels')
+    print('After applying scintillation mask:')
+    plt.figure(figsize = (12,10))
+    plt.imshow(data.data_full * data.data_weights, 
+               extent = [0, data.data_full.shape[-1] * data.res_time, 400., 800.], vmin = -1, vmax = 10, origin = 'lower')
+    plt.hlines(data.freqs[~data.good_freq], xmin = 0, xmax = data.data_full.shape[-1] * data.res_time, colors = 'white')
+    plt.show()            
+
+
+
+
 if preprocess:
     data.preprocess_data(
         normalize_variance = True, 
         variance_range = variance_range
     )
-
 basic_parameters = {
     "amplitude"        : [-2.0],
     "arrival_time"     : [np.mean(data.times)],
@@ -406,16 +455,16 @@ if not remove_dispersion_smearing:
     dm_incoherent = 0.
 
 # if an existing solution is supplied in a JSON file, then read it or use basic guesses.
-if existing_results is not None:
-    current_parameters = existing_results["model_parameters"]
+#if existing_results is not None:
+#    current_parameters = existing_results["model_parameters"]
 
-else:
+#else:
     # assume some basic guesses.
-    current_parameters["arrival_time"] = [np.mean(data.times)]
-    current_parameters["burst_width"] = [0.05]
-    current_parameters["scattering_timescale"] = [0.0]
-    current_parameters["spectral_index"] = [-1.0]
-    current_parameters["spectral_running"] = [1.0]
+#    current_parameters["arrival_time"] = [np.mean(data.times)]
+#    current_parameters["burst_width"] = [0.05]
+#    current_parameters["scattering_timescale"] = [0.0]
+#    current_parameters["spectral_index"] = [-1.0]
+#    current_parameters["spectral_running"] = [1.0]
 
 # if values are supplied at command line, then overload those here.
 if amplitude is not None:
@@ -547,7 +596,7 @@ for current_iteration in range(num_iterations):
             ut.plotting.plot_summary_triptych(
                 times_windowed, data.freqs, data_windowed, fitter.good_freq, model = bestfit_model,
                 residuals = bestfit_residuals, output_name = f"summary_plot{outfile_substring}.png", 
-                show = show
+                show = show,
             )
             with open(f"results_fitburst{outfile_substring}.json", "w") as out:
                 json.dump(

@@ -114,7 +114,6 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
         spectrum_downsampled[idx_good_freq], origin = 'lower', aspect="auto", interpolation="nearest", 
         extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
     )
-
     timeseries =  np.nanmean(spectrum_downsampled[idx_good_freq], axis=0) * np.sqrt(
         np.count_nonzero(~np.isnan(np.nansum(spectrum_downsampled[idx_good_freq], axis=-1)))
     )
@@ -131,7 +130,7 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
             model_downsampled[idx_good_freq], origin = 'lower', aspect="auto", interpolation="nearest",
             extent=[min_time, max_time, min_freq, max_freq], vmin=vmin, vmax=vmax
         )
-
+        
         model_profile = np.nanmean(model_downsampled[idx_good_freq], axis=0) * np.sqrt(
         np.count_nonzero(~np.isnan(np.nansum(model_downsampled[idx_good_freq], axis=-1)))
     )
@@ -151,7 +150,7 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
         )
 
         panel1d_residual.plot(
-            times_plot,  np.nanmean(residuals_downsampled[idx_good_freq], axis=0) * np.sqrt(
+            times_plot, np.nanmean(residuals_downsampled[idx_good_freq], axis=0) * np.sqrt(
         np.count_nonzero(~np.isnan(np.nansum(residuals_downsampled[idx_good_freq], axis=-1)))
     ),
         color = 'k')
@@ -187,6 +186,8 @@ def plot_summary_triptych(times: np.ndarray, freqs: np.ndarray, spectrum_orig: n
     panel2d_model.set_xlabel("Time [ms]")
     panel2d_residual.set_xlabel("Time [ms]")
     
+    if factor_freq == 1:
+        panel2d_data.hlines(freqs[~mask_freq_downsampled], xmin = min_time, xmax = max_time, colors = 'white')
     plt.savefig(output_name, dpi=150, bbox_inches="tight")      
     
     if show:

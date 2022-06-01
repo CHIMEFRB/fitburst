@@ -67,7 +67,10 @@ def run_fitburst(fname, path):
     # add parameters to ensure all are set.
     model.num_components = num_components
     model.update_parameters(current_parameters)
-    model.update_parameters({"amplitude": current_parameters["amplitude"]})#[np.log10(np.mean(data_windowed))] * num_components})
+    try:
+        model.update_parameters({"amplitude": current_parameters["amplitude"]})
+    except:
+        model.update_parameters({"amplitude": [-2.0] * num_components})
     model.update_parameters({"scattering_index": [-4.0] * num_components})
     model.update_parameters({"arrival_time": current_parameters["arrival_time"]})
     model.update_parameters({"scattering_timescale": current_parameters["scattering_timescale"]})

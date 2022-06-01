@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from . import model
 from . import fitter_plotting
-
+from baseband_analysis.core.signal import get_profile, get_spectrum
 class LSFitter(object):
     """
     A Python object that defines methods and configurations for 
@@ -50,15 +50,27 @@ class LSFitter(object):
             an array of residuals (i.e., the difference between the observed and model spectra)
         """
 
-        # define base model with given parameters.        
+        # define base model with given parameters. 
         parameter_dict = self.load_fit_parameters_list(parameter_list)
         self.model.update_parameters(parameter_dict)
         model = self.model.compute_model(times, freqs)
-
         # now compute resids and return.
         resid = spectrum_observed - model
         resid *= self.weights[:, None]
         resid = resid.flat[:]
+        
+        #Calculate profile and subtract
+        #prof_m = get_profile(model * self.weights[:, None])
+        #prof_d = get_profile(spectrum_observed * self.weights[:, None])
+        #res = prof_d - prof_m
+        #res = res.flat[:]
+        
+        #spect_m = get_spectrum(model)
+        #spect_d = get_spectrum(spectrum_observed)
+        #res_s = spect_d - spect_m
+        #res_s *= self.weights
+        #res_s = res_s.flat[:]
+        
         
         return resid
 
