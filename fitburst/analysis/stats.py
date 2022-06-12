@@ -1,10 +1,15 @@
-from scipy.special import fdtr
-import numpy as np
-import sys
+"""
+Routines for Computing Statistical Tests and Criteria
 
-def compute_test_F(
-    chisq_1: float, chisq_2: float, num_fit_parameters_1: int, num_fit_parameters_2: int, 
-    num_observations_1: int, num_observations_2: int) -> float:
+This module contains functions that return various types of standard
+statistical quantities for distribution comparisons.
+"""
+
+# pylint: disable=no-name-in-module
+from scipy.special import fdtr
+
+def compute_test_f(chisq_1: float, chisq_2: float, num_fit_parameters_1: int,
+    num_fit_parameters_2: int, num_observations_1: int, num_observations_2: int) -> float:
     """
     Computes the statistical 'F' test value for comparing best-fit fitburst models.
 
@@ -35,8 +40,10 @@ def compute_test_F(
         The F-test (chance coincidence probability) value.
     """
 
+    # pylint: disable=too-many-arguments
+
     # compute various terms needed for F-test calc.
-    delta_chisq = chisq_2 - chisq_1 
+    delta_chisq = chisq_2 - chisq_1
     deg_freedom_1 = num_observations_1 - num_fit_parameters_1
     deg_freedom_2 = num_observations_2 - num_fit_parameters_2
     delta_deg_freedom = deg_freedom_2 - deg_freedom_1

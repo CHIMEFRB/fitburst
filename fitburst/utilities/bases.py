@@ -1,12 +1,28 @@
+"""
+Base Class for fitburst DataReader Structures
+
+This module contains the base class for the 'DataReader' structure,
+which handles all I/O of dynamic spectra. While some methods of the
+ReaderBaseClass are common for all data types, other methods (e.g.,
+the load_data() method) depend on the nature of the input and are
+thus left to be defined by the user for their specific data format.
+"""
+
+
+# standard imports go here.
+import sys
+import numpy as np
+
+# package specific imports go here.
 from fitburst.backend import general
 import fitburst.routines as rt
-import numpy as np
-import sys
 
-class ReaderBaseClass(object):
+class ReaderBaseClass:
     """
     A base class for objects that read and pre-process data provided by user.
     """
+
+    # pylint: disable=too-many-instance-attributes,too-many-arguments,dangerous-default-value,no-self-use
 
     def __init__(self):
         """
@@ -28,61 +44,58 @@ class ReaderBaseClass(object):
         self.times = None
         self.times_bin0 = None
 
-    def dedisperse(self, 
-        dm: np.float, 
-        arrival_time: float,
-        reference_freq: float = np.inf,
-        dm_idx: float = general["constants"]["index_dispersion"],
-        dm_offset: float = None
-        ) -> None:
+    def dedisperse(self, dm_value: float, arrival_time: float, ref_freq: float = np.inf,
+                   dm_idx: float = general["constants"]["index_dispersion"],
+                   dm_offset: float = None) -> None:
         """
-        Computes a matrix of time-bin indices corresponding to delays from interstellar 
-        dispersion of the dynamic spectrum. 
-        
+        Computes a matrix of time-bin indices corresponding to delays from
+        interstellar dispersion of the dynamic spectrum.
+
         Parameters
         ----------
-        dm : np.float
-            dispersion measure, in units of pc/cc.
+        dm_value : float
+            The dispersion measure, in units of pc/cc.
 
-        arrival_time : np.float
-            arrival time of the burst, in units of seconds.
+        arrival_time : float
+            The arrival time of the burst, in units of seconds.
 
-        reference_freq : np.float, optional
-            reference frequency for supplied arrival time.
+        ref_freq : float, optional
+            The reference frequency for supplied arrival time.
 
-        dm_idx : np.float, optional
-            exponent of frequency dependence in dispersion delay
+        dm_idx : float, optional
+            The exponent of frequency dependence in dispersion delay
 
-        dm_offset : np.float, optional
-            offset in dispersion measure, in units of pc/cc; this option is only used 
+        dm_offset : float, optional
+            The offset in dispersion measure, in units of pc/cc; this option is only used
             if the 'is_dedispersed' attribute is set to True.
 
         Returns
         -------
-        self.dedispersion_delay : np.ndarray
-            a matrix of indeces corresponding to incoherent dedispersion of the raw data,
-            with dimensions of (self.num_freq x self.num_time).
+        None : NoneType
+            This functions has no return value, but instead defines a matrix of indeces
+            corresponding to incoherent dedispersion of the raw data, with dimensions
+            of (self.num_freq x self.num_time).
         """
 
         # initialize array that contains indices.
-        self.dedispersion_idx = np.zeros(self.num_freq, dtype=np.int)
+        self.dedispersion_idx = np.zeros(self.num_freq, dtype=int)
 
-        # now compute indicies for a dispersed signal, which will be used 
+        # now compute indicies for a dispersed signal, which will be used
         # in the 'window_data' method for obtain a dedispersed spectrum.
-        # NOTE: the dedispersion algorithm is different for dispersed and 
+        # NOTE: the dedispersion algorithm is different for dispersed and
         # already-dedispersed spectra, and the following conditionals address this.
-        
+
         if not self.is_dedispersed:
 
             # now loop over dimensions and compute indices.
             delay = arrival_time + rt.ism.compute_time_dm_delay(
-                dm,
+                dm_value,
                 general["constants"]["dispersion"],
                 dm_idx,
                 self.freqs,
-                freq2=reference_freq,
+                freq2=ref_freq,
             )
-        
+
             # fill initial matrix and transpose.
             self.dedispersion_idx[:] = np.ceil(
                 (delay - self.times[0]) / (self.res_time),
@@ -92,21 +105,21 @@ class ReaderBaseClass(object):
 
             # now compute delays for initial and adjusted DM.
             delay_1 = rt.ism.compute_time_dm_delay(
-                dm,
+                dm_value,
                 general["constants"]["dispersion"],
                 dm_idx,
                 self.freqs,
-                freq2=reference_freq,
+                freq2=ref_freq,
             )
 
             delay_2 = rt.ism.compute_time_dm_delay(
-                dm + dm_offset,
+                dm_value + dm_offset,
                 general["constants"]["dispersion"],
                 dm_idx,
                 self.freqs,
-                freq2=reference_freq,
+                freq2=ref_freq,
             )
-    
+
             # compute discretized delays and finally the difference.
             idx_arrival_time = np.fabs(self.times - arrival_time).argmin()
             dedispersion_idx_1 = np.around((delay_1 - self.times[0]) / (self.res_time))
@@ -115,7 +128,7 @@ class ReaderBaseClass(object):
 
     def downsample(self, factor_freq: int = 1, factor_time: int = 1) -> None:
         """
-        Downsamples the input spectrum by specified factors across the frequency 
+        Downsamples the input spectrum by specified factors across the frequency
         and time axes. The relevant model attributes are updated to downsampled values.
         """
 
@@ -147,8 +160,9 @@ class ReaderBaseClass(object):
         # if the good-frequency array is defined, compute the downsampled version as well.
         if self.good_freq is not None:
             current_good_freq = self.good_freq.copy()
-            new_good_freq = rt.manipulate.downsample_1d(current_good_freq, factor_freq, boolean=True)
-        
+            new_good_freq = rt.manipulate.downsample_1d(current_good_freq,
+                                                        factor_freq, boolean=True)
+
             # replace attribute.
             del self.good_freq
             self.good_freq = new_good_freq
@@ -159,15 +173,20 @@ class ReaderBaseClass(object):
         # if the good-frequency array is defined, compute the downsampled version as well.
         if self.data_weights is not None:
             current_data_weights = self.data_weights.copy()
-            new_data_weights = rt.manipulate.downsample_2d(current_data_weights, factor_freq, factor_time)
-        
+            new_data_weights = rt.manipulate.downsample_2d(current_data_weights,
+                                                           factor_freq, factor_time)
+
             # replace attribute.
             del self.data_weights
             self.data_weights = new_data_weights
 
     def load_data(self) -> None:
         """
-        Loads data from file into memory; to be defined by inherited classes.
+        Loads data from file into memory; to be defined by inheriting DataReader
+        classes in backends/ subdirectory.
+
+        Notes
+        -----
         This method must define the following:
             self.data_full
             self.data_weights
@@ -177,17 +196,12 @@ class ReaderBaseClass(object):
             self.num_time
         """
 
-        pass
+        sys.exit("ERROR: load_data() must be defined for input data format!")
 
-    def preprocess_data(
-        self, 
-        normalize_variance: bool = True,
-        skewness_range: list = [-3., 3.],
-        variance_range: list = [0.2, 0.8], 
-        variance_weight: float = 1.,
-        ) -> None:
+    def preprocess_data(self, normalize_variance: bool = True, skewness_range: list = [-3., 3.],
+                        variance_range: list = [0.2, 0.8], variance_weight: float = 1.) -> None:
         """
-        Applies pre-fit routines for cleaning raw dynamic spectrum (e.g., RFI-masking, 
+        Applies pre-fit routines for cleaning raw dynamic spectrum (e.g., RFI-masking,
         baseline subtraction, normalization, etc.).
 
         Parameters
@@ -195,16 +209,16 @@ class ReaderBaseClass(object):
         normalize_variance: bool, optional
 
         skewness_range : list, optional
-            a two-element list containing the range of allowed values of skewness; 
+            a two-element list containing the range of allowed values of skewness;
             values outside of this range are flagged as RFI and removed from the data cube.
 
         variance_range : list, optional
-            a two-element list containing the range of allowed variances; values outside 
+            a two-element list containing the range of allowed variances; values outside
             of this range are flagged as RFI and removed from the data cube.
 
         variance_weigt : np.float, optional
             a scaling factor applied to variance prior to exision.
-        
+
         Returns
         -------
         self.good_freqs : np.ndarray
@@ -215,7 +229,7 @@ class ReaderBaseClass(object):
         This method normalizes and cleans the self.data_full cube.
         """
 
-        # define weight and mask arrays.        
+        # define weight and mask arrays.
         mask_freq = np.sum(self.data_weights, -1)
         good_freq = mask_freq != 0
 
@@ -228,9 +242,9 @@ class ReaderBaseClass(object):
         self.data_full[np.logical_not(self.data_weights)] = 0
 
         # compute variance and skewness of data.
-        variance = np.sum(self.data_full**2, -1) 
+        variance = np.sum(self.data_full**2, -1)
         variance[good_freq] /= mask_freq[good_freq]
-        skewness = np.sum(self.data_full**3, -1) 
+        skewness = np.sum(self.data_full**3, -1)
         skewness[good_freq] /= mask_freq[good_freq]
         skewness_mean = np.mean(skewness[good_freq])
         skewness_std = np.std(skewness[good_freq])
@@ -240,39 +254,29 @@ class ReaderBaseClass(object):
             variance[good_freq] /= np.max(variance[good_freq])
 
         # now update good-frequencies list based on variance/skewness thresholds.
-        good_freq = np.logical_and(
-            good_freq, 
-            (variance / variance_weight < variance_range[1])
-        )
-        good_freq = np.logical_and(
-            good_freq, 
-            (variance / variance_weight > variance_range[0])
-        )
-        good_freq = np.logical_and(
-            good_freq, 
-            (skewness < skewness_mean + skewness_range[1] * skewness_std)
-        )
-        good_freq = np.logical_and(
-            good_freq, 
-            (skewness > skewness_mean + skewness_range[0] * skewness_std)
-        )
+        good_freq = np.logical_and(good_freq, (variance / variance_weight < variance_range[1]))
+
+        good_freq = np.logical_and(good_freq, (variance / variance_weight > variance_range[0]))
+
+        good_freq = np.logical_and(good_freq,
+                                   (skewness < skewness_mean + skewness_range[1] * skewness_std))
+
+        good_freq = np.logical_and(good_freq,
+                                   (skewness > skewness_mean + skewness_range[0] * skewness_std))
 
         # finally, downweight zapped channels.
         self.data_full[np.logical_not(good_freq)] = 0.
 
         # stash good frequencies and print some info.
         self.good_freq = good_freq
+        num_freq_bad = self.num_freq - np.sum(self.good_freq)
 
-        print("INFO: flagged and removed {0} out of {1} channels!".format(
-            self.num_freq - np.sum(self.good_freq),
-            self.num_freq,
-            )
-        )
+        print(f"INFO: flagged and removed {num_freq_bad} out of {self.num_freq} channels!")
 
     def window_data(self, arrival_time: float, window: float = 0.08) -> tuple:
         """
         Returns a subset of data that is centered and "windowed" on the arrival time.
-        
+
         Parameters
         ----------
         arrival_time : np.float
@@ -289,18 +293,17 @@ class ReaderBaseClass(object):
         times_windowed : np.ndarray
             an array of timestamps for the dedispersed spectrum.
         """
-        
+
         idx_arrival_time = np.fabs(self.times - arrival_time).argmin()
         num_window_bins = np.around(window / self.res_time).astype(np.int)
         data_windowed = np.zeros((self.num_freq, num_window_bins * 2), dtype=np.float)
+
         # compute indeces of min/max window values along time axis.
         for idx_freq in range(self.num_freq):
             current_arrival_idx = self.dedispersion_idx[idx_freq]
-            data_windowed[idx_freq, :] = self.data_full[
-                idx_freq,
-                current_arrival_idx - num_window_bins: current_arrival_idx + num_window_bins
-            ]
-         
+            data_windowed[idx_freq, :] = self.data_full[idx_freq,
+                current_arrival_idx - num_window_bins: current_arrival_idx + num_window_bins]
+
         # before finishing, get array of windowed times as well.
         times_windowed = self.times[
             idx_arrival_time - num_window_bins: idx_arrival_time + num_window_bins
