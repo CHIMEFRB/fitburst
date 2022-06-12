@@ -173,6 +173,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--preprocess",
+    action="store_true",
+    dest="preprocess_data",
+    help="If set, the run preprocessing return to normalize data and mask bad frequencies."
+)
+
+parser.add_argument(
     "--remove_smearing",
     action="store_true",
     dest="remove_dispersion_smearing",
@@ -295,6 +302,7 @@ is_folded = args.is_folded
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
+preprocess_data = args.preprocess_data
 remove_dispersion_smearing = args.remove_dispersion_smearing
 use_outfile_substring = args.use_outfile_substring
 scattering_timescale = args.scattering_timescale
@@ -338,12 +346,18 @@ data = DataReader(input_file)
 
 # load spectrum data into memory and pre-process, and load in parameter data..
 data.load_data()
-data.downsample(factor_freq_downsample, factor_time_downsample)
-data.preprocess_data(
-    normalize_variance=True, 
-    variance_range=variance_range
-)
+data.good_freq = np.sum(data.data_weights, axis=1) != 0.
 
+if preprocess_data:
+    data.preprocess_data(normalize_variance=True, variance_range=variance_range)
+
+print(f"There are {data.good_freq.sum()} good frequencies...")
+
+# now downsample after preprocessing, if desired.
+data.downsample(factor_freq_downsample, factor_time_downsample)
+
+# check if any initial guesses are missing, and overload 'basic' guess value if so.
+initial_parameters = data.burst_parameters
 basic_parameters = {
     "amplitude"        : [-2.0],
     "arrival_time"     : [np.mean(data.times)],
@@ -356,9 +370,6 @@ basic_parameters = {
     "spectral_running" : [0.0],
 }
 
-initial_parameters = data.burst_parameters
-
-# check if any initial guesses are missing, and overload 'basic' guess value if so.
 for current_parameter in initial_parameters.keys():
     current_list = initial_parameters[current_parameter]
 
@@ -383,14 +394,6 @@ if not remove_dispersion_smearing:
 # if an existing solution is supplied in a JSON file, then read it or use basic guesses.
 if existing_results is not None:
     current_parameters = existing_results["model_parameters"]
-
-else:
-    # assume some basic guesses.
-    current_parameters["arrival_time"] = [np.mean(data.times)]
-    current_parameters["burst_width"] = [0.05]
-    current_parameters["scattering_timescale"] = [0.0]
-    current_parameters["spectral_index"] = [-1.0]
-    current_parameters["spectral_running"] = [1.0]
 
 # if values are supplied at command line, then overload those here.
 if amplitude is not None:
