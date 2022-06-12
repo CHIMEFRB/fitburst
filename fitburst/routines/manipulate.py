@@ -1,9 +1,16 @@
+"""
+Routines for Resampling Data
+
+This module contains functions that return modified arrays that are either
+upsampled or downsampled by specified factors.
+"""
+
 import numpy as np
 
-def downsample_1d(array_orig: float, factor: int, boolean: bool = False):
+def downsample_1d(array_orig: float, factor: int, boolean: bool = False) -> float:
     """
-    Downsamples an input array by the specified factor. It is assumed that the 
-    input array is regularly sampled (i.e., the difference in adjacent bins 
+    Downsamples an input array by the specified factor. It is assumed that the
+    input array is regularly sampled (i.e., the difference in adjacent bins
     have the same value.)
 
     Parameters
@@ -33,15 +40,15 @@ def downsample_1d(array_orig: float, factor: int, boolean: bool = False):
 
     return array_downsampled
 
-def downsample_2d(spectrum_orig: float, factor_freq: int, factor_time: int):
+def downsample_2d(spectrum_orig: float, factor_freq: int, factor_time: int) -> float:
     """
-    Downsamples a two-dimensional dynamic spectrum and its time/frequency arrays 
+    Downsamples a two-dimensional dynamic spectrum and its time/frequency arrays
     by specified factors.
 
     Parameters
     ----------
     array_orig : array_like
-        an two-dimensional array of values to be degraded to lower resolution 
+        an two-dimensional array of values to be degraded to lower resolution
         in one or both dimensions
 
     factor_freq : int
@@ -65,22 +72,22 @@ def downsample_2d(spectrum_orig: float, factor_freq: int, factor_time: int):
 
     return spectrum_downsampled
 
-def upsample_1d(array_orig: float, diff_orig: float, factor: int):
+def upsample_1d(array_orig: float, diff_orig: float, factor: int) -> float:
     """
-    Upsamples an input array by the specified factor. It is assumed that the 
-    input array is regularly sampled (i.e., the difference in adjacent bins 
+    Upsamples an input array by the specified factor. It is assumed that the
+    input array is regularly sampled (i.e., the difference in adjacent bins
     have the same value).
 
     Parameters
     ----------
     array_orig : array_like
-        a one-dimensional array of values to be degraded to lower resolution 
+        a one-dimensional array of values to be degraded to lower resolution
 
     diff_orig : float
         the resolution of the original array
 
     factor : int
-        an upsampling factor 
+        an upsampling factor
 
     Returns
     -------
@@ -100,29 +107,29 @@ def upsample_1d(array_orig: float, diff_orig: float, factor: int):
     return array_upsampled
 
 
-def upsample_orig(input_array, factor):
+def upsample_orig(input_array: float, factor: int) -> float:
     """
-    Upsamples an input array by the specified factor. It is assumed that the 
-    input array is regularly sampled (i.e., the difference in adjacent bins 
+    Upsamples an input array by the specified factor. It is assumed that the
+    input array is regularly sampled (i.e., the difference in adjacent bins
     have the same value.)
 
     Parameters
     ----------
     array_orig : array_like
-        a one-dimensional array of values to be degraded to lower resolution 
+        a one-dimensional array of values to be degraded to lower resolution
 
     diff_orig : float
         the resolution of the original array
 
     factor : int
-        an upsampling factor 
+        an upsampling factor
 
     Returns
     -------
     array_downsampled : array_like
         the new, upsampled array
 
-    Notes 
+    Notes
     -----
         This algorithm is used in the 'original' version of fitburst.
     """
@@ -138,4 +145,3 @@ def upsample_orig(input_array, factor):
     output_array = input_array[:, None] + new_array[None, :]
 
     return output_array
-
