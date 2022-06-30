@@ -293,14 +293,14 @@ class LSFitter:
         self.fit_statistics["num_time"] = num_time
 
         # compute chisq values and the fitburst S/N.
-        chisq_initial = np.sum((spectrum_observed * self.weights[:, None])**2)
-        chisq_final = np.sum(fit_result.fun**2)
+        chisq_initial = float(np.sum((spectrum_observed * self.weights[:, None])**2))
+        chisq_final = float(np.sum(fit_result.fun**2))
         chisq_final_reduced = chisq_final / self.fit_statistics["num_observations"]
 
         self.fit_statistics["chisq_initial"] = chisq_initial
         self.fit_statistics["chisq_final"] = chisq_final
         self.fit_statistics["chisq_final_reduced"] = chisq_final_reduced
-        self.fit_statistics["snr"] = np.sqrt(chisq_initial - chisq_final)
+        self.fit_statistics["snr"] = float(np.sqrt(chisq_initial - chisq_final))
 
         # now compute covarance matrix and parameter uncertainties.
         self.fit_statistics["bestfit_parameters"] = self.load_fit_parameters_list(
@@ -311,7 +311,7 @@ class LSFitter:
         try:
             hessian = fit_result.jac.T.dot(fit_result.jac)
             covariance = np.linalg.inv(hessian) * chisq_final_reduced
-            uncertainties = np.sqrt(np.diag(covariance)).tolist()
+            uncertainties = [float(x) for x in np.sqrt(np.diag(covariance)).tolist()]
 
             self.fit_statistics["bestfit_uncertainties"] = self.load_fit_parameters_list(
                 uncertainties)
