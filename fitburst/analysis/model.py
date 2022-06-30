@@ -310,12 +310,11 @@ class SpectrumModeler:
         times_copy = times.copy()
 
         if is_folded:
-            res_time = np.unique(np.diff(times_copy))
-            times_copy = np.append(times,
-                np.linspace(1, len(times), num=len(times)) * res_time + times[-1])
-
+            res_time = np.diff(times_copy[0, :])[0]
+            times_copy = np.append(times, times + (times[0, -1] + res_time), axis=1)
+        
         # compute either Gaussian or pulse-broadening function, depending on inputs.
-        profile = np.zeros(len(times_copy), dtype=np.float)
+        profile = np.zeros(times_copy.shape, dtype=np.float)
 
         if np.any(sc_time < np.fabs(0.15 * width)):
             profile = rt.profile.compute_profile_gaussian(times_copy, arrival_time, width)
@@ -330,7 +329,8 @@ class SpectrumModeler:
             profile = rt.profile.compute_profile_pbf(times_copy, arrival_time, width, sc_time)
 
         if is_folded:
-            profile = np.sum(profile.reshape(2, len(times)), axis=0) / 2
+            shape = times_copy.shape
+            profile = profile.reshape(shape[0], 1, int(shape[1] / 2), 2).sum(2).sum(1) / 2
 
         return profile
 
