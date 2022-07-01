@@ -460,7 +460,7 @@ print("INFO: computing dedispersion-index matrix")
 data.dedisperse(
     initial_parameters["dm"][0],
     current_parameters["arrival_time"][0],
-    reference_freq=initial_parameters["ref_freq"][0],
+    ref_freq=initial_parameters["ref_freq"][0],
     dm_offset=0.0
 )
 
@@ -490,7 +490,7 @@ model.update_parameters(current_parameters)
 
 # now set up fitter and execute least-squares fitting
 for current_iteration in range(num_iterations):
-    fitter = LSFitter(model)
+    fitter = LSFitter(model, data.good_freq)
     fitter.fix_parameter(parameters_to_fix)
     fitter.weighted_fit = True
     fitter.fit(times_windowed, data.freqs, data_windowed)
@@ -518,10 +518,14 @@ for current_iteration in range(num_iterations):
             # now create plots.
             filename_elems = input_file.split(".")
             output_string = ".".join(filename_elems[:len(filename_elems)-1])
+            data_grouped = ut.plotting.compute_downsampled_data(
+                times_windowed, data.freqs, data_windowed, data.good_freq,
+                spectrum_model = bestfit_model, factor_freq = factor_freq_downsample,
+                factor_time = factor_time_downsample
+            )
 
             ut.plotting.plot_summary_triptych(
-                times_windowed, data.freqs, data_windowed, fitter.good_freq, model = bestfit_model,
-                residuals = bestfit_residuals, output_name = f"summary_plot{outfile_substring}.png", 
+                data_grouped, output_name = f"summary_plot{outfile_substring}.png", 
                 show = False
             )
 

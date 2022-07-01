@@ -306,16 +306,18 @@ class SpectrumModeler:
 
         # if data are "folded" (i.e., data from pulsar timing observations),
         # model at twice the timespan and wrap/average the two realizations.
-        # this step is to account for potential wrapping of pulse shape.
+        # this step accounts for potential wrapping of pulse shape.
         times_copy = times.copy()
 
         if is_folded:
-            res_time = np.unique(np.diff(times_copy))
-            times_copy = np.append(times,
-                np.linspace(1, len(times), num=len(times)) * res_time + times[-1])
-
+            res_time = np.diff(times_copy, axis=1)[:, 0]
+            start = times[:, -1] + res_time
+            stop = times[:, -1] + (res_time * times.shape[1])
+            times_extended = np.linspace(start=start, stop=stop, num=times.shape[1], axis=1)
+            times_copy = np.append(times, times_extended, axis=1)
+        
         # compute either Gaussian or pulse-broadening function, depending on inputs.
-        profile = np.zeros(len(times_copy), dtype=np.float)
+        profile = np.zeros(times_copy.shape, dtype=np.float)
 
         if np.any(sc_time < np.fabs(0.15 * width)):
             profile = rt.profile.compute_profile_gaussian(times_copy, arrival_time, width)
@@ -325,12 +327,12 @@ class SpectrumModeler:
             # floating-point overlow in the exp((-times - toa) / sc_time) term in the
             # PBF call. TODO: use a better, more transparent method for avoiding this.
             times_copy[times_copy < -5 * width] = -5 * width
-
-            # now call the function.
             profile = rt.profile.compute_profile_pbf(times_copy, arrival_time, width, sc_time)
 
+        # if data are folded and time/profile data contain two realizations, then
+        # average along the appropriate axis to obtain a single realization.
         if is_folded:
-            profile = np.sum(profile.reshape(2, len(times)), axis=0) / 2
+            profile = profile.reshape(times.shape[0], 2, times.shape[1]).mean(1)
 
         return profile
 
