@@ -43,6 +43,11 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--arrival_time", action="store", dest="arrival_time", default=None, nargs="+", type=float,
+    help="Initial guess for arrival time, in seconds."
+)
+
+parser.add_argument(
     "--dm", action="store", dest="dm", default=None, nargs="+", type=float,
     help="Initial guess for dispersion measure (DM), in pc/cc."
 )
@@ -83,6 +88,11 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--normalize_variance", action="store_true", dest="normalize_variance", 
+    help="If set, then normalize variance during preprocessing of spectrum."
+)
+
+parser.add_argument(
     "--offset_dm", action="store", dest="offset_dm", default=0.0, type=float,
     help="Offset applied to initial dispersion measure, in pc/cc."
 )
@@ -118,6 +128,26 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--upsample_freq", action="store", dest="factor_freq_upsample", default=8, type=int,
+    help="Upsample the raw spectrum along the frequency axis by a specified integer."
+)
+
+parser.add_argument(
+    "--upsample_time", action="store", dest="factor_time_upsample", default=4, type=int,
+    help="Upsample the raw spectrum along the time axis by a specified integer."
+)
+
+parser.add_argument(
+    "--variance_range", action="store", dest="variance_range", default=[0.95, 1.05], 
+    nargs=2, type=float, help="Range of variance values used to designate channels with RFI."
+)
+
+parser.add_argument(
+    "--variance_weight", action="store", dest="variance_weight", default=(1. / const.L0_NUM_FRAMES_SAMPLE / 2),
+    type=float, help="Scaling value applied to variances in preprocessing step."
+)
+
+parser.add_argument(
     "--verbose", action="store_true", dest="verbose",
     help="If set, then print more information during pipeline execution."
 )
@@ -132,15 +162,19 @@ parser.add_argument(
     help="Half of size of data window, in seconds."
 )
 
-### grab CLI inputs from argparse.
+# grab CLI inputs from argparse.
 args = parser.parse_args()
-eventIDs = args.eventIDs
 amplitude = args.amplitude
+arrival_time = args.arrival_time
 dm = args.dm
+eventIDs = args.eventIDs
+factor_freq_upsample = args.factor_freq_upsample
+factor_time_upsample = args.factor_time_upsample
 freq_mean = args.freq_mean
 freq_model = args.freq_model
 freq_width = args.freq_width
 latest_solution_location = args.latest_solution_location
+normalize_variance = args.normalize_variance
 num_iterations = args.num_iterations
 offset_dm = args.offset_dm
 offset_time = args.offset_time
@@ -151,19 +185,20 @@ save_results = args.save_results
 scattering_timescale = args.scattering_timescale
 spectral_index = args.spectral_index
 spectral_running = args.spectral_running
+variance_range = args.variance_range
+variance_weight = args.variance_weight
 verbose = args.verbose
 width = args.width
 window_orig = args.window
 
-
-### before looping over events, suss out model parameters to fit and/or hold fixed.
+# before looping over events, suss out model parameters to fit and/or hold fixed.
 parameters_to_fix += ["dm_index", "scattering_index", "scattering_timescale"]
 
 for current_fit_parameter in parameters_to_fit:
     if current_fit_parameter in parameters_to_fix:
         parameters_to_fix.remove(current_fit_parameter)
 
-### loop over all CHIME/FRB events supplied at command line.
+# loop over all CHIME/FRB events supplied at command line.
 for current_event_id in eventIDs:
 
     # grab initial parameters to check if pipeline-specific parameters exist.
@@ -202,6 +237,14 @@ for current_event_id in eventIDs:
         log.info(f"loading data from results file for event {current_event_id}")
         results = json.load(open(latest_solution_file, "r"))
         initial_parameters = results["model_parameters"]
+
+        try:
+            window = results["fit_logistics"]["spectrum_window"]
+
+        except:
+            log.warning(f"window size not found in file '{latest_solution_file}'")
+            
+
         log.info("window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
 
     elif (
@@ -224,12 +267,15 @@ for current_event_id in eventIDs:
         )
         initial_parameters["burst_width"] = (np.array(initial_parameters["burst_width"]) / 3.).tolist()
 
-    # if guesses are provided at command, overload them into the initial-guess dictionary.
+    # if guesses are provided through CLI, overload them into the initial-guess dictionary.
     initial_parameters["dm"][0] += offset_dm
     initial_parameters["arrival_time"][0] += offset_time
 
     if amplitude is not None:
         initial_parameters["amplitude"] = amplitude
+   
+    if arrival_time is not None:
+        initial_parameters["arrival_time"] = arrival_time
    
     if dm is not None:
         initial_parameters["dm"] = dm
@@ -254,9 +300,9 @@ for current_event_id in eventIDs:
    
     # now, clean and normalize data.
     data.preprocess_data(
-        normalize_variance = False,
-        variance_range = [0.95, 1.05],
-        variance_weight=(1. / const.L0_NUM_FRAMES_SAMPLE / 2)
+        normalize_variance=normalize_variance,
+        variance_range=variance_range,
+        variance_weight=variance_weight
     )
 
     # if the number of RFI-flagged channels is "too large", skip this event altogether.
@@ -321,6 +367,8 @@ for current_event_id in eventIDs:
     model = mod.SpectrumModeler(
         data.num_freq,
         len(times_windowed),
+        factor_freq_upsample=factor_freq_upsample,
+        factor_time_upsample=factor_time_upsample,
         freq_model=freq_model,
         is_dedispersed=False,
         is_folded=False,
@@ -357,8 +405,16 @@ for current_event_id in eventIDs:
         with open(f"results_fitburst_{current_event_id}.json", "w") as out:
             json.dump(
                 {
-                    "model_parameters": model.get_parameters_dict(), 
+                    "model_parameters": model.get_parameters_dict(),
                     "fit_statistics": fitter.fit_statistics,
+                    "fit_logistics" : {
+                        "factor_freq_upsample" : factor_freq_upsample,
+                        "factor_time_upsample" : factor_time_upsample,
+                        "normalize_variance" : normalize_variance,
+                        "spectrum_window": window,
+                        "variance_range" : variance_range,
+                        "variance_weight" : variance_weight
+                    }
                 },
                 out, 
                 indent=4
