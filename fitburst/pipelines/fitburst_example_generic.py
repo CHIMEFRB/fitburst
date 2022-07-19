@@ -63,6 +63,16 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--dm_index",
+    action="store",
+    dest="dm_index",
+    default=None,
+    nargs="+",
+    type=float,
+    help="Initial guess for index DM time delay, in units of dex."
+)
+
+parser.add_argument(
     "--downsample_freq",
     action="store",
     dest="factor_freq_downsample",
@@ -160,6 +170,13 @@ parser.add_argument(
     default=False,
     help="If set, then use substring to uniquely label output " + 
         "filenamese based on input filenames."
+)
+
+parser.add_argument(
+    "--preprocess",
+    action="store_true",
+    dest="preprocess_data",
+    help="If set, the run preprocessing return to normalize data and mask bad frequencies."
 )
 
 parser.add_argument(
@@ -273,6 +290,7 @@ input_file = args.file
 amplitude = args.amplitude
 arrival_time = args.arrival_time
 dm = args.dm
+dm_index = args.dm_index
 factor_freq_downsample = args.factor_freq_downsample
 factor_time_downsample = args.factor_time_downsample
 factor_freq_upsample = args.factor_freq_upsample
@@ -284,6 +302,7 @@ is_folded = args.is_folded
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
+preprocess_data = args.preprocess_data
 remove_dispersion_smearing = args.remove_dispersion_smearing
 use_outfile_substring = args.use_outfile_substring
 scattering_timescale = args.scattering_timescale
@@ -325,15 +344,23 @@ if use_outfile_substring:
 # read in input data.
 data = DataReader(input_file)
 
-# load data into memory and pre-process.
+# load spectrum data into memory and pre-process, and load in parameter data..
 data.load_data()
-data.downsample(factor_freq_downsample, factor_time_downsample)
-#data.preprocess_data(normalize_variance=True, variance_range=variance_range)
+data.good_freq = np.sum(data.data_weights, axis=1) != 0.
 
-# get parameters and configure initial guesses.
-initial_parameters = {
+if preprocess_data:
+    data.preprocess_data(normalize_variance=True, variance_range=variance_range)
+
+print(f"There are {data.good_freq.sum()} good frequencies...")
+
+# now downsample after preprocessing, if desired.
+data.downsample(factor_freq_downsample, factor_time_downsample)
+
+# check if any initial guesses are missing, and overload 'basic' guess value if so.
+initial_parameters = data.burst_parameters
+basic_parameters = {
     "amplitude"        : [-2.0],
-    "arrival_time"     : [0.5],
+    "arrival_time"     : [np.mean(data.times)],
     "burst_width"      : [0.05],
     "dm"               : [0.0],
     "dm_index"         : [-2.0],
@@ -342,7 +369,14 @@ initial_parameters = {
     "spectral_index"   : [0.0],
     "spectral_running" : [0.0],
 }
-initial_parameters = data.burst_parameters
+
+for current_parameter in initial_parameters.keys():
+    current_list = initial_parameters[current_parameter]
+
+    if len(current_list) == 0:
+        print(f"WARNING: parameter '{current_parameter}' has no value in data file, overloading a basic guess...")
+        initial_parameters[current_parameter] = basic_parameters[current_parameter]
+
 current_parameters = deepcopy(initial_parameters)
 
 # update DM value to use ("full" or DM offset) for dedispersion if 
@@ -361,14 +395,6 @@ if not remove_dispersion_smearing:
 if existing_results is not None:
     current_parameters = existing_results["model_parameters"]
 
-else:
-    # assume some basic guesses.
-    current_parameters["arrival_time"] = [np.mean(data.times)]
-    current_parameters["burst_width"] = [0.05]
-    current_parameters["scattering_timescale"] = [0.0]
-    current_parameters["spectral_index"] = [-1.0]
-    current_parameters["spectral_running"] = [1.0]
-
 # if values are supplied at command line, then overload those here.
 if amplitude is not None:
     current_parameters["amplitude"] = amplitude
@@ -378,6 +404,9 @@ if arrival_time is not None:
 
 if dm is not None:
     current_parameters["dm"] = dm
+
+if dm is not None:
+    current_parameters["dm_index"] = dm_index
 
 if freq_mean is not None:
     current_parameters["freq_mean"] = freq_mean
@@ -431,7 +460,7 @@ print("INFO: computing dedispersion-index matrix")
 data.dedisperse(
     initial_parameters["dm"][0],
     current_parameters["arrival_time"][0],
-    reference_freq=initial_parameters["ref_freq"][0],
+    ref_freq=initial_parameters["ref_freq"][0],
     dm_offset=0.0
 )
 
@@ -461,7 +490,7 @@ model.update_parameters(current_parameters)
 
 # now set up fitter and execute least-squares fitting
 for current_iteration in range(num_iterations):
-    fitter = LSFitter(model)
+    fitter = LSFitter(model, data.good_freq)
     fitter.fix_parameter(parameters_to_fix)
     fitter.weighted_fit = True
     fitter.fit(times_windowed, data.freqs, data_windowed)
@@ -489,10 +518,14 @@ for current_iteration in range(num_iterations):
             # now create plots.
             filename_elems = input_file.split(".")
             output_string = ".".join(filename_elems[:len(filename_elems)-1])
+            data_grouped = ut.plotting.compute_downsampled_data(
+                times_windowed, data.freqs, data_windowed, data.good_freq,
+                spectrum_model = bestfit_model, factor_freq = factor_freq_downsample,
+                factor_time = factor_time_downsample
+            )
 
             ut.plotting.plot_summary_triptych(
-                times_windowed, data.freqs, data_windowed, fitter.good_freq, model = bestfit_model,
-                residuals = bestfit_residuals, output_name = f"summary_plot{outfile_substring}.png", 
+                data_grouped, output_name = f"summary_plot{outfile_substring}.png", 
                 show = False
             )
 
