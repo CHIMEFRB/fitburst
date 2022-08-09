@@ -1,6 +1,5 @@
 from scipy.special import erf, erfc
 import numpy as np
-from DM_phase import get_dm 
 from statsmodels.nonparametric.smoothers_lowess import lowess
 import matplotlib.pyplot as plt
 import pathlib
@@ -143,52 +142,6 @@ def get_signal(profile: np.ndarray, ds: int = 1) -> tuple:
     #print(start,end)
     return int(start), int(end)
     
-def get_structure_max_DM(wfall: np.ndarray, freq: np.ndarray, DM_range: float = 3., 
-    t_res: float = 2.56e-6, ref_freq: str = "bottom", diagnostic_plots: bool = True) -> tuple:
-    """
-    Applies structure maximising DM correction using the DM_phase module.
-
-    Parameters
-    ----------
-    wfall : np.ndarray
-        2D numpy array containing the spectrum / waterfall (S/N array with shape (nfreqs, ntime)).
-    freq : np.ndarray
-        1D array of the frequency in MHz of each frequency channel in the waterfall.
-	len(freq) should be = wfall.shape[0]
-    DM_range : float, optional
-        The structure-maximising DM correction will be searched for in this range.
-        i.e. the best DM is in [DM0 - DM_range/2., DM0 + DM_range/2.], where DM0 is DM of wfall.
-    t_res : float, optional
-        Time resolution of the waterfall data.
-    ref_freq : str, optional
-        Reference frequency is "bottom" (400 MHz), "top" (800 MHz), or "center" (600 MHz).
-    diagnostic_plots : bool, optional
-        Plot diagnostic plots from DM_phase de-dispersion (True), no plots (False).
-
-    Returns
-    -------
-    opt_dm : float 
-        Best structure-maximising DM correction.
-    opt_dm_e : float
-        One sigma error on the structure-maximising DM correction. 
-    """
-    if len(wfall.shape) > 2:
-        snr = []
-        for i in range(wfall.shape[1]):
-            snr.append(np.nanmax(get_profile(wfall[:,i,:])))
-        #Pick brightest beam:
-        wfall = wfall[:,np.where(snr == np.nanmax(snr))[0][0],:]
-    trials = 256
-    dms = np.linspace(- DM_range/2., DM_range/2., trials)
-    # Flip waterfall and freq array so that diagnostic plots show frequencies in the right order
-    # i.e. without this, diagnostic plot waterfall is 800 - 400 MHz.
-    if freq[0] > freq[-1]:
-        freq = np.flip(freq)
-        wfall = np.flip(wfall, axis = 0)
-    opt_dm, opt_dm_e = get_dm(wfall,dms, t_res,freq,blackonwhite=True, 
-                            manual_cutoff=False, manual_bandwidth=False,ref_freq=ref_freq, no_plots= not diagnostic_plots)
-    return opt_dm, opt_dm_e
-
 def exponorm(x: np.ndarray, lam : float, mu: float, sigma: float) -> np.ndarray:
     """
     Calculate the exponentially modified gaussian (EMG) for the given
@@ -214,6 +167,26 @@ def exponorm(x: np.ndarray, lam : float, mu: float, sigma: float) -> np.ndarray:
     I = lam/2*np.exp(lam/2*(2*mu + lam*sigma**2 - 2*x))
     II = erfc((mu + lam*sigma**2 - x)/(2**0.5 * sigma))
     return I * II
+
+def get_profile(power : np.ndarray) -> np.ndarray:
+    """
+    Compute burst profile.
+    
+    Parameters
+    ----------
+    power : np.ndarray
+        Spectrum of pulse (nfreq, ntime)
+    
+    Returns
+    -------
+    prof : 1-D pulse profile
+
+    """
+    prof = np.nansum(power, axis=0) / np.sqrt(
+        np.count_nonzero(~np.isnan(np.nansum(power, axis=-1)))
+    )
+    prof[prof == np.inf] = np.nan
+    return prof
 
 def sum_emg(x : np.ndarray, *args) -> np.ndarray:
     """

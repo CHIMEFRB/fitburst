@@ -165,11 +165,12 @@ parser.add_argument(
 
 parser.add_argument(
     "--outfile",
-    action="store_true",
+    action="store",
     dest="use_outfile_substring",
     default=False,
+    type=str,
     help="If set, then use substring to uniquely label output " + 
-        "filenamese based on input filenames."
+        "filenames based on input filenames."
 )
 
 parser.add_argument(
@@ -208,10 +209,9 @@ parser.add_argument(
 
 parser.add_argument(
     "--show", 
-    action="store", 
+    action="store_true",
     default=False, 
-    dest="show", 
-    type=str,
+    dest="show",
     help="If True, show plot of fit result."
 )
 
@@ -360,9 +360,11 @@ else:
 # also create filename substring if desired.
 outfile_substring = ""
 
-if use_outfile_substring:
+if use_outfile_substring or use_outfile_substring is None:
     elems = input_file.split(".")
     outfile_substring = "_" + ".".join(elems[0:len(elems)-1])
+if use_outfile_substring is not None:
+    outfile_substring = use_outfile_substring
 
 # read in input data.
 data = DataReader(input_file)
@@ -379,11 +381,12 @@ if scintillation is not None:
         print('Before applying scintillation mask:')
         import matplotlib.pyplot as plt
         plt.figure(figsize = (12,10))
-        plt.imshow(data.data_full * data.data_weights, 
+        plt.imshow(data.data_full * data.data_weights, aspect = 'auto',
                    extent = [0, data.data_full.shape[-1] * data.res_time, 400., 800.], vmin = -1, vmax = 10, origin = 'lower')
         plt.hlines(data.freqs[~data.good_freq], xmin = 0, xmax = data.data_full.shape[-1] * data.res_time, colors = 'white')
         plt.show()
-    from baseband_analysis.core.signal import get_profile, get_spectrum
+    from fitburst.routines.profile import get_profile
+    from fitburst.routines.spectrum import get_spectrum
     spect = get_spectrum(data.data_full)
     med, std = np.nanmedian(spect), np.nanstd(data.data_full)
     print('Removing channels with median below: max(0, ', med - scintillation * std, ')')
@@ -405,7 +408,7 @@ if scintillation is not None:
     print('Scintillation mask removed: ', before - after, ' frequency channels')
     print('After applying scintillation mask:')
     plt.figure(figsize = (12,10))
-    plt.imshow(data.data_full * data.data_weights, 
+    plt.imshow(data.data_full * data.data_weights,  aspect = 'auto',
                extent = [0, data.data_full.shape[-1] * data.res_time, 400., 800.], vmin = -1, vmax = 10, origin = 'lower')
     plt.hlines(data.freqs[~data.good_freq], xmin = 0, xmax = data.data_full.shape[-1] * data.res_time, colors = 'white')
     plt.show()            

@@ -1,0 +1,68 @@
+{
+    "initial_dm": 164.29990700419495,
+    "initial_time": 0.0,
+    "model_parameters": {
+        "amplitude": [
+            -1.9208338576862225
+        ],
+        "arrival_time": [
+            0.004754021881119141
+        ],
+        "burst_width": [
+            0.00022333360362961497
+        ],
+        "dm": [
+            0.0
+        ],
+        "dm_index": [
+            -2
+        ],
+        "scattering_timescale": [
+            1.6566920825053437e-15
+        ],
+        "scattering_index": [
+            -4
+        ],
+        "spectral_index": [
+            0.3165895842585497
+        ],
+        "spectral_running": [
+            -3.2649849066826344
+        ],
+        "ref_freq": [
+            600.0
+        ]
+    },
+    "fit_statistics": {
+        "num_freq_good": 148,
+        "num_fit_parameters": 6,
+        "num_observations": 295994,
+        "num_time": 2000,
+        "chisq_initial": 295999.99999999994,
+        "chisq_final": 108558.06281453243,
+        "chisq_final_reduced": 0.36675764648787623,
+        "snr": 432.94565153777387,
+        "bestfit_parameters": {
+            "amplitude": [
+                -1.9208338576862225
+            ],
+            "arrival_time": [
+                0.004754021881119141
+            ],
+            "burst_width": [
+                0.00022333360362961497
+            ],
+            "scattering_timescale": [
+                1.6566920825053437e-15
+            ],
+            "spectral_index": [
+                0.3165895842585497
+            ],
+            "spectral_running": [
+                -3.2649849066826344
+            ]
+        },
+        "bestfit_uncertainties": null,
+        "bestfit_covariance": null
+    }
+}

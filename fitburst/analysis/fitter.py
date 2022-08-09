@@ -1,10 +1,10 @@
 from scipy.optimize import least_squares, curve_fit
-from fitburst.backend.baseband import *
 import numpy as np
 import matplotlib.pyplot as plt
 from . import model
 from . import fitter_plotting
-from baseband_analysis.core.signal import get_profile, get_spectrum
+from fitburst.routines.profile import *
+from fitburst.routines.spectrum import *
 class LSFitter(object):
     """
     A Python object that defines methods and configurations for 
