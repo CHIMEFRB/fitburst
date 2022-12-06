@@ -41,11 +41,20 @@ class LSFitter:
         """
 
         # load in model into fitter class.
+        self.fit_parameters = []
         self.fit_statistics = {}
         self.model = model_class
 
         # initialize fit-parameter list.
-        self.fit_parameters = self.model.parameters.copy()
+        if self.model.scintillation:
+            all_parameters = self.model.parameters.copy()
+
+            for current_parameter in self.model.parameters:
+                if current_parameter not in ["amplitude", "spectral_index", "spectral_running"]:
+                    self.fit_parameters += [current_parameter]
+
+        else:
+            self.fit_parameters = self.model.parameters.copy()
 
         # set parameters for fitter configuration.
         self.good_freq = good_freq
@@ -82,7 +91,7 @@ class LSFitter:
         # define base model with given parameters.
         parameter_dict = self.load_fit_parameters_list(parameter_list)
         self.model.update_parameters(parameter_dict)
-        model = self.model.compute_model(times, freqs)
+        model = self.model.compute_model(data=spectrum_observed)
 
         # now compute resids and return.
         resid = spectrum_observed - model
@@ -91,7 +100,7 @@ class LSFitter:
 
         return resid
 
-    def fit(self, times: float, freqs: float, spectrum_observed: float) -> None:
+    def fit(self, spectrum_observed: float) -> None:
         """
         Executes least-squares fitting of the model spectrum to data, and stores
         results to child class.
@@ -129,7 +138,7 @@ class LSFitter:
             results = least_squares(
                 self.compute_residuals,
                 parameter_list,
-                args = (times, freqs, spectrum_observed)
+                args = (self.model.times, self.model.freqs, spectrum_observed)
             )
 
             self.success = results.success
