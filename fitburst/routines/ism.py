@@ -1,5 +1,5 @@
 """
-Routines for Dispersion and Scattering Delays
+Routines for Effects from Dispersion, Scattering, and Scintillation
 
 This module contains functions that return temporal quantities
 associated with physical delays arising from pulse dispersion
@@ -7,6 +7,26 @@ and broadening.
 """
 
 import numpy as np
+
+def compute_amplitude_per_channel(data: float, model: float) -> float:
+    """
+    Computes the per-channel amplitude of a model dynamic spectrum using an observed spectrum.
+
+    Parameters
+    ----------
+    data : float
+        An array of intensity values from an observed dynamic spectrum at a specific frequency.
+
+    model : float
+        An array of intensity values from a model of the dynamic spectrum at a specific frequency.
+
+    Returns
+    -------
+    amplitude : float
+        The value of the amplitude in the given frequency channel.
+    """
+
+    return np.sum(data * model) / np.sum(model**2)
 
 def compute_time_dm_delay(dm_value: float, dm_const: float, dm_idx: float,
     freq1: float, freq2: float = np.inf) -> float:

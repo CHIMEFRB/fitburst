@@ -123,38 +123,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--freqmean",
-    action="store",
-    dest="freq_mean",
-    default=None,
-    nargs="+",
-    type=float,
-    help="Initial guess for mean of (Gaussian) spectral energy " + 
-        "distribution, in units of MHz."
-)
-
-parser.add_argument(
-    "--freqwidth",
-    action="store",
-    dest="freq_width",
-    default=None,
-    nargs="+",
-    type=float,
-    help="Initial guess for width of (Gaussian) spectral energy " + 
-        "distribution, in units of MHz."
-)
-
-parser.add_argument(
-    "--freqmodel",
-    action="store",
-    dest="freq_model",
-    default="powerlaw",
-    type=str,
-    help="Type of model for spectral energy distribution " + 
-        "('gaussian' or 'powerlaw')."
-)
-
-parser.add_argument(
     "--iterations", 
     action="store", 
     dest="num_iterations", 
@@ -194,6 +162,13 @@ parser.add_argument(
     nargs="+", 
     type=float,
     help="Initial guess for scattering timescale, in units of seconds."
+)
+
+parser.add_argument(
+    "--scintillation",
+    action="store_true",
+    dest="scintillation",
+    help="If set, then allow amplitude-independent modelling to account for scintillation."
 )
 
 parser.add_argument(
@@ -295,9 +270,6 @@ factor_freq_downsample = args.factor_freq_downsample
 factor_time_downsample = args.factor_time_downsample
 factor_freq_upsample = args.factor_freq_upsample
 factor_time_upsample = args.factor_time_upsample
-freq_mean = args.freq_mean
-freq_model = args.freq_model
-freq_width = args.freq_width
 is_folded = args.is_folded
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
@@ -306,6 +278,7 @@ preprocess_data = args.preprocess_data
 remove_dispersion_smearing = args.remove_dispersion_smearing
 use_outfile_substring = args.use_outfile_substring
 scattering_timescale = args.scattering_timescale
+scintillation = args.scintillation
 spectral_index = args.spectral_index
 spectral_running = args.spectral_running
 solution_file = args.solution_file
@@ -347,6 +320,7 @@ data = DataReader(input_file)
 # load spectrum data into memory and pre-process, and load in parameter data..
 data.load_data()
 data.good_freq = np.sum(data.data_weights, axis=1) != 0.
+data.good_freq = np.sum(data.data_full, axis=1) != 0.
 
 if preprocess_data:
     data.preprocess_data(normalize_variance=True, variance_range=variance_range)
@@ -408,12 +382,6 @@ if dm is not None:
 if dm is not None:
     current_parameters["dm_index"] = dm_index
 
-if freq_mean is not None:
-    current_parameters["freq_mean"] = freq_mean
-
-if freq_width is not None:
-    current_parameters["freq_width"] = freq_width
-
 if scattering_timescale is not None:
     current_parameters["scattering_timescale"] = scattering_timescale
 
@@ -425,26 +393,6 @@ if spectral_running is not None:
 
 if width is not None:
     current_parameters["burst_width"] = width
-
-# before proceeding further, ensure that SED parameters match desired model.
-if freq_model == "gaussian":
-    
-    # if power-law parameters reside in dictionary, remove them.
-    if "spectral_index" in current_parameters:
-        current_parameters.pop("spectral_index", None)
-
-    if "spectral_running" in current_parameters:
-        current_parameters.pop("spectral_running", None)
-
-    # now check that Gaussian-model parameters are initialized.
-    if "freq_mean" not in current_parameters or "freq_width" not in current_parameters:
-        sys.exit("ERROR: missing Gaussian SED parameters in parameter dictionary.")
-
-elif freq_model == "powerlaw":
-    pass
-
-else:
-    sys.exit(f"ERROR: cannot recognize SED model of type '{freq_model}.'")
 
 # print parameter info if desired.
 if verbose:
@@ -476,14 +424,14 @@ if window is not None:
 # now create initial model.
 print("INFO: initializing model")
 model = SpectrumModeler(
-    data.num_freq,
-    len(times_windowed),
+    data.freqs,
+    times_windowed,
     dm_incoherent = dm_incoherent,
     factor_freq_upsample = factor_freq_upsample,
     factor_time_upsample = factor_time_upsample,
-    freq_model = freq_model,
     is_dedispersed = data.is_dedispersed,
     is_folded = is_folded,
+    scintillation = scintillation,
     verbose = verbose
 )
 model.update_parameters(current_parameters)
@@ -493,7 +441,7 @@ for current_iteration in range(num_iterations):
     fitter = LSFitter(model, data.good_freq)
     fitter.fix_parameter(parameters_to_fix)
     fitter.weighted_fit = True
-    fitter.fit(times_windowed, data.freqs, data_windowed)
+    fitter.fit(data_windowed)
 
     # extract best-fit data for next loop.
     if fitter.success:
@@ -504,7 +452,7 @@ for current_iteration in range(num_iterations):
             bestfit_parameters = fitter.fit_statistics["bestfit_parameters"]
             bestfit_uncertainties = fitter.fit_statistics["bestfit_uncertainties"]
             model.update_parameters(bestfit_parameters)
-            bestfit_model = model.compute_model(times_windowed, data.freqs)
+            bestfit_model = model.compute_model(data=data_windowed)
             bestfit_residuals = data_windowed - bestfit_model
 
             if verbose:
