@@ -70,7 +70,6 @@ class SpectrumModeler:
         # pylint: disable=too-many-arguments,too-many-locals
 
         # first define model-configuration parameters that are not fittable.
-        self.dedispersion_idx = None
         self.dm_incoherent = dm_incoherent
         self.factor_freq_upsample = factor_freq_upsample
         self.factor_time_upsample = factor_time_upsample
@@ -166,58 +165,33 @@ class SpectrumModeler:
                     self.factor_freq_upsample
                 )
 
-                # compute dispersion-corrected timeseries.
-                # first, check if model is for dispersed data.
-                if not self.is_dedispersed and self.dedispersion_idx is not None:
-                    current_arrival_idx = self.dedispersion_idx[current_freq]
-                    current_delay = current_arrival_time + rt.ism.compute_time_dm_delay(
-                        current_dm,
-                        general["constants"]["dispersion"],
-                        current_dm_index,
-                        current_freq_arr,
-                        freq2=current_ref_freq,
-                    )
+                # first, compute "full" delays for all upsampled frequency labels.
+                relative_delay = rt.ism.compute_time_dm_delay(
+                    self.dm_incoherent + current_dm,
+                    general["constants"]["dispersion"],
+                    current_dm_index,
+                    current_freq_arr,
+                    freq2=current_ref_freq,
+                )
 
-                    # NOTE: the .copy() below is important!
-                    current_times = self.times[
-                        current_arrival_idx - num_window_bins: current_arrival_idx + num_window_bins
-                    ].copy()
-                    current_times_arr, _ = np.meshgrid(current_times, current_freq_arr)
-                    current_times_arr -= current_delay[:, None]
+                # then compute "relative" delays with respect to central frequency.
+                relative_delay -= rt.ism.compute_time_dm_delay(
+                    self.dm_incoherent,
+                    general["constants"]["dispersion"],
+                    current_dm_index,
+                    self.freqs[current_freq],
+                    freq2=current_ref_freq,
+                )
 
-                # if data is already dedipsersed, then compute "relative" DM delay.
-                elif self.is_dedispersed:
+                # now compute current-times array corrected for relative delay.
+                current_times = rt.manipulate.upsample_1d(
+                    self.times.copy() - current_arrival_time,
+                    self.res_time,
+                    self.factor_time_upsample
+                )
 
-                    # first, compute "full" delays for all upsampled frequency labels.
-                    relative_delay = rt.ism.compute_time_dm_delay(
-                        self.dm_incoherent + current_dm,
-                        general["constants"]["dispersion"],
-                        current_dm_index,
-                        current_freq_arr,
-                        freq2=current_ref_freq,
-                    )
-
-                    # then compute "relative" delays with respect to central frequency.
-                    relative_delay -= rt.ism.compute_time_dm_delay(
-                        self.dm_incoherent,
-                        general["constants"]["dispersion"],
-                        current_dm_index,
-                        self.freqs[current_freq],
-                        freq2=current_ref_freq,
-                    )
-
-                    # now compute current-times array corrected for relative delay.
-                    current_times = rt.manipulate.upsample_1d(
-                        self.times.copy() - current_arrival_time,
-                        self.res_time,
-                        self.factor_time_upsample
-                    )
-
-                    current_times_arr, _ = np.meshgrid(current_times, current_freq_arr)
-                    current_times_arr -= relative_delay[:, None]
-
-                else:
-                    sys.exit("ERROR: type of dedispersion plan is ambiguous!")
+                current_times_arr, _ = np.meshgrid(current_times, current_freq_arr)
+                current_times_arr -= relative_delay[:, None]
 
                 # first, adjust scattering timescale to current frequency label(s).
                 current_sc_time_scaled = rt.ism.compute_time_scattering(
@@ -365,27 +339,6 @@ class SpectrumModeler:
         parameter_dict["ref_freq"] = getattr(self, "ref_freq")
 
         return parameter_dict
-
-    def set_dedispersion_idx(self, dedispersion_idx: int) -> None:
-        """
-        Creates or overloads an array of time bins where the dispersed pulse is observed.
-        This method is meant to separate an eventual 'legacy' method of dedispersion that
-        is current used by CHIME/FRB.
-
-        Parameters
-        ----------
-        dedispersion_idx : int
-            An array of integers that represent indeces where a dipsersed signal is
-            expected in filterbank data
-
-        Returns
-        -------
-        None : None
-            this method overloads class attributes.
-        """
-
-        self.dedispersion_idx = dedispersion_idx
-        print("INFO: array of dedispersion indices loaded successfully")
 
     def update_parameters(self, model_parameters: dict) -> None:
         """
