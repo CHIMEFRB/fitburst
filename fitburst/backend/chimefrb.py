@@ -16,7 +16,7 @@ class DataReader(bases.ReaderBaseClass):
     structure defined in ReaderBaseClass().
     """
 
-    def __init__(self, eventid, data_location="/data/frb-archiver"):
+    def __init__(self, eventid, beam_id: int = 0, data_location: str = "/data/frb-archiver"):
 
         # before anything else, initialize superclass.
         super().__init__()
@@ -27,18 +27,19 @@ class DataReader(bases.ReaderBaseClass):
         print("CHIMEFRBReader executed:")
 
         # define CHIME/FRB-specific parameters to be updated by data-retrieval method.
-        self.files = []
-        self.frbmaster_request_status = None
+        self.beam_id = beam_id
         self.downsample_factor = None
+        self.files = []
         self.fpga_count_start = None
         self.fpga_count_total = None
         self.fpga_frame0_nano = None
+        self.frbmaster_request_status = None
         self.rfi_freq_count = None
         self.rfi_mask = None
 
         # as a default, grab data from FRBMaster.
         print("... grabbing metadata for eventID {0}".format(self.eventid))
-        self._retrieve_metadata_frbmaster(self.eventid)
+        self._retrieve_metadata_frbmaster(self.eventid, beam_id=self.beam_id)
 
     def get_parameters(self, pipeline: str = "L1") -> dict:
         """
@@ -77,8 +78,8 @@ class DataReader(bases.ReaderBaseClass):
             parameter_dict["ref_freq"] = parameter_dict["ref_freq"] * num_components
 
             # add parameters that are not reported in FRBMaster here.
-            parameter_dict["dm_index"] = [-2.0] * num_components
-            parameter_dict["scattering_index"] = [-4.0] * num_components
+            parameter_dict["dm_index"] = [-2.0] #* num_components
+            parameter_dict["scattering_index"] = [-4.0] #* num_components
             
 
         ### if instead the DM-pipeline results exist and are desired, grab those.
@@ -185,7 +186,7 @@ class DataReader(bases.ReaderBaseClass):
         self.res_time = self.times[1] - self.times[0]
 
     def _retrieve_metadata_frbmaster(
-        self, eventid: str, beam_id:int = 0, mountpoint: str = "/data/chime"
+        self, eventid: str, beam_id: int = 0, mountpoint: str = "/data/chime"
     ) -> None:
         """
         This internal methods executes CHIME/FRB-specific actions for retrieving the necessary 
@@ -220,67 +221,44 @@ class DataReader(bases.ReaderBaseClass):
             print(err)
 
         # perform a GET to retrieve FRBMaster data.
-        url = "https://frb.chimenet.ca/chimefrb/astro_events/fetch_event_header/{0}/"
-        url_get = url.format(eventid)
-        response = requests.request("GET", url_get, auth=("frb", "flub raw burden"))
+        master = FRBMaster()
+        event = master.events.get_event(eventid)
+        beam_no = int(event["beam_numbers"][beam_id])
+        entry_realtime = None
 
-        # if event is not found in database, then exit.
-        self.frbmaster_request_status = response.status_code
+        for current_entry in event["measured_parameters"]:
+            if current_entry["pipeline"]["name"] == "realtime":
+                entry_realtime = current_entry
 
-        if self.frbmaster_request_status == 500:
-            raise (
-                requests.exceptions.ConnectionError(
-                    "unable to find event {0} in FRBMaster.".format(eventid)
-                )
-            )
+        print("realtime entry:", entry_realtime)
 
-        elif self.frbmaster_request_status == 400:
-            raise (
-                requests.exceptions.ConnectionError(
-                    "unable to connect to FRBMaster.".format(eventid)
-                )
-            )
+        # grab l1 data of basic properties, stash into parameter attribute.
+        timestamp_substr = entry_realtime["datetime"]
 
-        # now start by first grabbing bean and S/N data.
-        data = response.json()
-        beam_list_dict = data["event_no"][str(eventid)]["event_beam_header"]
+        if "UTC" in timestamp_substr:
+            elems = timestamp_substr.split()
+            timestamp_substr = " ".join(elems[:len(elems)-1])
 
-        snrs = []
-        for beam_data in beam_list_dict:
-            snrs += [beam_data["snr"]]
-
-        print("... there are {0} beams for this event".format(len(snrs)))
-
-        # sort beam data in descending order of S/N.
-        snr_ord_idx = np.argsort(snrs)[::-1]
-        beam_data = beam_list_dict[snr_ord_idx[beam_id]]
-        beam_no = int(beam_data["beam_no"])
-
-        # grab L1 data of basic properties, stash into parameter attribute.
         self.burst_parameters["L1"] = {}
-        self.burst_parameters["L1"]["dm"] = beam_data["dm"]
-        self.burst_parameters["L1"]["dm_range"] = beam_data["dm_error"]
-        self.burst_parameters["L1"]["time_range"] = beam_data["time_error"]
-        self.burst_parameters["L1"]["timestamp_fpga"] = beam_data["timestamp_fpga"]
+        self.burst_parameters["L1"]["dm"] = entry_realtime["dm"]
+        self.burst_parameters["L1"]["dm_range"] = entry_realtime["dm_error"]
+        self.burst_parameters["L1"]["time_range"] = 0.01
+        self.burst_parameters["L1"]["timestamp_fpga"] = event["fpga_time"]
         self.burst_parameters["L1"]["timestamp_utc"] = datetime.datetime.strptime(
-            beam_data["timestamp_utc"], "%Y%m%d%H%M%S.%f"
+            timestamp_substr, "%Y-%m-%d %H:%M:%S.%f"
         )
 
         # try getting data from frb-vsop.chime.
         print(
-            "... trying to grab CHIME/FRB data from fitburst/DM-pipeline results...",
+            "... trying to grab chime/frb data from fitburst/dm-pipeline results...",
             end="",
         )
 
-        # establish connection to FRBMaster.
-        url_get = "http://frb-vsop.chime:8001"
-        master = FRBMaster()
-        event = master.events.get_event(eventid)
+        # establish connection to fRBMaster.
         locked_id_dm = None
         locked_id_fitburst = None
         self.burst_parameters["dm-pipeline"] = {}
         self.burst_parameters["fitburst"] = {}
-
 
         try:
             if "intensity-dm-pipeline" in event["locked"].keys():
@@ -307,12 +285,20 @@ class DataReader(bases.ReaderBaseClass):
                     self.burst_parameters["dm-pipeline"]["width"] = [
                         current_measurement["width"]
                     ]
+
+                    # get timestamp and avoid error with UTC substring.
+                    timestamp_substr = current_measurement["datetime"]
+
+                    if "UTC" in timestamp_substr:
+                        elems = timestamp_substr.split()
+                        timestamp_substr = " ".join(elems[:len(elems)-1])
+
                     self.burst_parameters["dm-pipeline"]["timestamp_utc"] = \
                         [datetime.datetime.strptime(
-                            str(current_measurement["datetime"])[:26],
-                            "%Y-%m-%d %H:%M:%S.%f",
-                        )
-                    ]
+                            str(timestamp_substr), "%Y-%m-%d %H:%M:%S.%f")
+                        ]
+
+                    
 
         except Exception as exc:
             print(
