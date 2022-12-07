@@ -42,7 +42,7 @@ class FindPeak:
     """
 
     #This is for creating the name of output files same as the input files.
-    name_of_file=str(input_file).replace('.npz','')
+    #name_of_file=str(input_file).replace('.npz','')
     
     def __init__(self,data,time,freq,rms=None):    
         """
@@ -79,7 +79,7 @@ class FindPeak:
         """
         self.mean_intensity_freq=self.data.mean(axis=0)
         plt.plot(self.time*1000,self.mean_intensity_freq)
-        peaks_location=find_peaks(self.mean_intensity_freq)
+        peaks_location=find_peaks(self.mean_intensity_freq, distance=5)
         
         self.peak_times=self.time[peaks_location[0]]
         self.peak_mean_intensities=self.mean_intensity_freq[peaks_location[0]]
@@ -162,7 +162,7 @@ class FindPeak:
         panel_1d.scatter(self.times_peaks_greater_rms*1000,self.peaks_greater_rms,c='green',s=45)
         plt.savefig(f"{self.name_of_file}_peaks.png")
     
-    def get_parameters_dict(self):
+    def get_parameters_dict(self, original_dict: dict, update_width=False):
         """
         This method returns peak values and burst width in dictionary which is compatible with fitburst.
 
@@ -171,20 +171,30 @@ class FindPeak:
         """
         self.find_peak()
         mul_factor=len(self.time_of_arrivals)
-        burst_parameters={
-            "amplitude"             :   [0.0]*mul_factor,
-            "arrival_time"          :   [self.time_of_arrivals],
-            "burst_width"           :   [self.burst_widths],
-            "dm"                    :   [557.0]*mul_factor,
-            "dm_index"              :   [-2.0]*mul_factor,
-            "ref_freq"              :   [600.0]*mul_factor,
-            "scattering_index"      :   [-4.0]*mul_factor,
-            "scattering_timescale"  :   [0.0]*mul_factor,
-            "freq_mean"             :   [450.0]*mul_factor,
-            "freq_width"            :   [43.0]*mul_factor,
+        burst_parameters = {}
 
-        }
+        for current_key in original_dict.keys():
+            if current_key == "arrival_time":
+                burst_parameters[current_key] = (self.time_of_arrivals / 1000.).tolist()
 
+            elif current_key == "burst_width" and update_width:
+                burst_parameters[current_key] = (self.burst_widths / 1000.).tolist()
+
+            else:
+                burst_parameters[current_key] = original_dict[current_key] * mul_factor
+
+        #burst_parameters={
+        #    "amplitude"             :   original_dict*mul_factor,
+        #    "arrival_time"          :   [self.time_of_arrivals],
+        #    "burst_width"           :   [self.burst_widths],
+        #    "dm"                    :   [557.0]*mul_factor,
+        #    "dm_index"              :   [-2.0]*mul_factor,
+        #    "ref_freq"              :   [600.0]*mul_factor,
+        #    "scattering_index"      :   [-4.0]*mul_factor,
+        #    "scattering_timescale"  :   [0.0]*mul_factor,
+        #    "freq_mean"             :   [450.0]*mul_factor,
+        #    "freq_width"            :   [43.0]*mul_factor,
+        #}
 
         return burst_parameters
         
