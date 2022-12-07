@@ -70,7 +70,6 @@ class SpectrumModeler:
         # pylint: disable=too-many-arguments,too-many-locals
 
         # first define model-configuration parameters that are not fittable.
-        self.dedispersion_idx = None
         self.dm_incoherent = dm_incoherent
         self.factor_freq_upsample = factor_freq_upsample
         self.factor_time_upsample = factor_time_upsample
@@ -340,27 +339,6 @@ class SpectrumModeler:
         parameter_dict["ref_freq"] = getattr(self, "ref_freq")
 
         return parameter_dict
-
-    def set_dedispersion_idx(self, dedispersion_idx: int) -> None:
-        """
-        Creates or overloads an array of time bins where the dispersed pulse is observed.
-        This method is meant to separate an eventual 'legacy' method of dedispersion that
-        is current used by CHIME/FRB.
-
-        Parameters
-        ----------
-        dedispersion_idx : int
-            An array of integers that represent indeces where a dipsersed signal is
-            expected in filterbank data
-
-        Returns
-        -------
-        None : None
-            this method overloads class attributes.
-        """
-
-        self.dedispersion_idx = dedispersion_idx
-        print("INFO: array of dedispersion indices loaded successfully")
 
     def update_parameters(self, model_parameters: dict) -> None:
         """
