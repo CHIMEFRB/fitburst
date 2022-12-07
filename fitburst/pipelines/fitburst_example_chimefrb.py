@@ -1,5 +1,6 @@
 #! /user/bin/env python
 
+from fitburst.analysis.peak_finder import FindPeak
 from fitburst.analysis.fitter import LSFitter
 import fitburst.backend.chimefrb as chimefrb
 import fitburst.analysis.model as mod
@@ -48,8 +49,23 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--beam", action="store", dest="beam", default=0, type=int,
+    help="Index of beam list.."
+)
+
+parser.add_argument(
     "--dm", action="store", dest="dm", default=None, nargs="+", type=float,
     help="Initial guess for dispersion measure (DM), in pc/cc."
+)
+
+parser.add_argument(
+    "--downsample_freq", action="store", dest="factor_freq_downsample", default=64, type=int,
+    help="Downsample the raw spectrum along the frequency axis by a specified integer."
+)
+
+parser.add_argument(
+    "--downsample_time", action="store", dest="factor_time_downsample", default=1, type=int,
+    help="Downsample the raw spectrum along the time axis by a specified integer."
 )
 
 parser.add_argument(
@@ -60,21 +76,6 @@ parser.add_argument(
 parser.add_argument(
     "--fix", action="store", dest="parameters_to_fix", default=[], nargs="+", type=str,
     help="A list of model parameters to hold fixed to initial values."
-)
-
-parser.add_argument(
-    "--freqmean", action="store", dest="freq_mean", default=None, nargs="+", type=float,
-    help="Initial guess for mean of (Gaussian) spectral energy distribution, in units of MHz."
-)
-
-parser.add_argument(
-    "--freqwidth", action="store", dest="freq_width", default=None, nargs="+", type=float,
-    help="Initial guess for width of (Gaussian) spectral energy distribution, in units of MHz."
-)
-
-parser.add_argument(
-    "--freqmodel", action="store", dest="freq_model", default="powerlaw", type=str,
-    help="Type of model for spectral energy distribution ('gaussian' or 'powerlaw')."
 )
 
 parser.add_argument(
@@ -115,6 +116,11 @@ parser.add_argument(
 parser.add_argument(
     "--scattering_timescale", action="store", dest="scattering_timescale", default=None, nargs="+", type=float,
     help="Initial guess for scattering index."
+)
+
+parser.add_argument(
+    "--scintillation", action="store_true", dest="scintillation",
+    help="If set, then enable per-channel amplitude estimation in cases of scintillation."
 )
 
 parser.add_argument(
@@ -166,13 +172,13 @@ parser.add_argument(
 args = parser.parse_args()
 amplitude = args.amplitude
 arrival_time = args.arrival_time
+beam = args.beam
 dm = args.dm
 eventIDs = args.eventIDs
+factor_freq_downsample = args.factor_freq_downsample
+factor_time_downsample = args.factor_time_downsample
 factor_freq_upsample = args.factor_freq_upsample
 factor_time_upsample = args.factor_time_upsample
-freq_mean = args.freq_mean
-freq_model = args.freq_model
-freq_width = args.freq_width
 latest_solution_location = args.latest_solution_location
 normalize_variance = args.normalize_variance
 num_iterations = args.num_iterations
@@ -183,6 +189,7 @@ parameters_to_fix = args.parameters_to_fix
 pipeline = args.pipeline
 save_results = args.save_results
 scattering_timescale = args.scattering_timescale
+scintillation = args.scintillation
 spectral_index = args.spectral_index
 spectral_running = args.spectral_running
 variance_range = args.variance_range
@@ -202,7 +209,7 @@ for current_fit_parameter in parameters_to_fit:
 for current_event_id in eventIDs:
 
     # grab initial parameters to check if pipeline-specific parameters exist.
-    data = chimefrb.DataReader(current_event_id)
+    data = chimefrb.DataReader(current_event_id, beam_id=beam)
     print(data.burst_parameters)
     initial_parameters = data.get_parameters(pipeline=pipeline)
         
@@ -280,12 +287,6 @@ for current_event_id in eventIDs:
     if dm is not None:
         initial_parameters["dm"] = dm
 
-    if freq_mean is not None:
-        initial_parameters["freq_mean"] = freq_mean
-
-    if freq_width is not None:
-        initial_parameters["freq_width"] = freq_width
-   
     if scattering_timescale is not None:
         initial_parameters["scattering_timescale"] = scattering_timescale
 
@@ -320,11 +321,11 @@ for current_event_id in eventIDs:
             np.min(data.freqs), np.max(data.freqs)
         )
     )
-    params = initial_parameters#data.burst_parameters["fitburst"]["round_2"]
+    params = initial_parameters.copy()#data.burst_parameters["fitburst"]["round_2"]
     data.dedisperse(
         params["dm"][0],
         params["arrival_time"][0],
-        reference_freq=params["ref_freq"][0]
+        ref_freq=params["ref_freq"][0]
     )
 
     # before doing anything, check if window size doesn't extend beyond data set.
@@ -336,54 +337,46 @@ for current_event_id in eventIDs:
         print("INFO: window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
 
     data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=window)
+    #plt.plot(data_windowed.sum(axis=0))
+    #plt.savefig("test.png")
+    #sys.exit()
 
-    # before proceeding further, ensure that SED parameters match desired model.
-    if freq_model == "gaussian":
+    # before defining model, adjust model parameters with peak-finding algorithm.
+    #peaks = FindPeak(data_windowed, times_windowed, data.freqs, rms=105.)
+    #peaks.find_peak() 
+    #initial_parameters = peaks.get_parameters_dict(initial_parameters)
 
-        # if power-law parameters reside in dictionary, remove them.
-        if "spectral_index" in initial_parameters:
-            initial_parameters.pop("spectral_index", None)
-
-        if "spectral_running" in initial_parameters:
-            initial_parameters.pop("spectral_running", None)
-
-        # now check that Gaussian-model parameters are initialized.
-        if "freq_mean" not in initial_parameters or "freq_width" not in initial_parameters:
-            sys.exit("ERROR: missing SED parameters for Gaussian model in parameter dictionary.")
-
-        elif freq_model == "powerlaw":
-            pass
-
-    elif freq_model == "powerlaw":
-        pass
-
-    else:
-        sys.exit(f"ERROR: cannot recognize SED model of type '{freq_model}.'")
+    #print(initial_parameters)
+    #sys.exit()
 
     # now create initial model.
     # since CHIME/FRB data are in msgpack format, define a few things 
     # so that this version of fitburst works similar to the original version on site.
     print("INFO: initializing model")
+    num_components = len(initial_parameters["amplitude"])
+    initial_parameters["dm"] = [0.] * num_components
+
     model = mod.SpectrumModeler(
-        data.num_freq,
-        len(times_windowed),
+        data.freqs,
+        times_windowed,
+        dm_incoherent=params["dm"][0],
         factor_freq_upsample=factor_freq_upsample,
         factor_time_upsample=factor_time_upsample,
-        freq_model=freq_model,
-        is_dedispersed=False,
+        num_components=num_components,
+        is_dedispersed=True,
         is_folded=False,
+        scintillation=scintillation,
         verbose=verbose,
     )
-    model.set_dedispersion_idx(data.dedispersion_idx)
+
     model.update_parameters(initial_parameters)
 
     ### now set up fitter and execute least-squares fitting.
     for current_iteration in range(num_iterations):
         print(f"INFO: fitting model, loop #{current_iteration + 1}")
-        fitter = LSFitter(model)
+        fitter = LSFitter(model, good_freq=data.good_freq, weighted_fit=True)
         fitter.fix_parameter(parameters_to_fix)
-        fitter.weighted_fit = True
-        fitter.fit(data.times, data.freqs, data_windowed)
+        fitter.fit(data_windowed)
     
         # before executing the fitting loop, overload model class with best-fit parameters.
         if fitter.success:
@@ -391,25 +384,33 @@ for current_event_id in eventIDs:
 
     ### now compute best-fit model of spectrum and plot.
     if fitter.success:
-        bestfit_model = model.compute_model(data.times, data.freqs) * data.good_freq[:, None]
+        bestfit_model = model.compute_model(data=data_windowed) * data.good_freq[:, None]
+        bestfit_params = model.get_parameters_dict()
+        bestfit_params["dm"] = [params["dm"][0] + x for x in bestfit_params["dm"]]
         bestfit_residuals = data_windowed - bestfit_model
 
         # create summary plot.
+        data_grouped = ut.plotting.compute_downsampled_data(
+            times_windowed, data.freqs, data_windowed, data.good_freq,
+            spectrum_model = bestfit_model, factor_freq = factor_freq_downsample,
+            factor_time = factor_time_downsample
+        )
+
         ut.plotting.plot_summary_triptych(
-            data.times, data.freqs, data_windowed, data.good_freq, model = bestfit_model, 
-            residuals = bestfit_residuals, output_name = f"summary.{current_event_id}.png",
-            factor_freq = 64
+            data_grouped, output_name = f"summary.{current_event_id}.png", show=False
         )
 
         # create JSON file contain burst parameters and statistics.
         with open(f"results_fitburst_{current_event_id}.json", "w") as out:
             json.dump(
                 {
-                    "model_parameters": model.get_parameters_dict(),
+                    "model_parameters": bestfit_params,
                     "fit_statistics": fitter.fit_statistics,
                     "fit_logistics" : {
+                        "dm_incoherent" : params["dm"],
                         "factor_freq_upsample" : factor_freq_upsample,
                         "factor_time_upsample" : factor_time_upsample,
+                        "is_repeater": True,
                         "normalize_variance" : normalize_variance,
                         "spectrum_window": window,
                         "variance_range" : variance_range,
@@ -424,7 +425,7 @@ for current_event_id in eventIDs:
         if save_results:
             np.savez(
                 f"test_data_CHIMEFRB_{current_event_id}.npz",
-                burst_parameters = model.get_parameters_dict(),
+                burst_parameters = bestfit_params,
                 data_full = data_windowed,
                 metadata = {
                     "bad_chans" : [],
