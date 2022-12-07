@@ -79,6 +79,21 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--freqmean", action="store", dest="freq_mean", default=None, nargs="+", type=float,
+    help="Initial guess for mean of (Gaussian) spectral energy distribution, in units of MHz."
+)
+
+parser.add_argument(
+    "--freqwidth", action="store", dest="freq_width", default=None, nargs="+", type=float,
+    help="Initial guess for width of (Gaussian) spectral energy distribution, in units of MHz."
+)
+
+parser.add_argument(
+    "--freqmodel", action="store", dest="freq_model", default="powerlaw", type=str,
+    help="Type of model for spectral energy distribution ('gaussian' or 'powerlaw')."
+)
+
+parser.add_argument(
     "--iterations", action="store", dest="num_iterations", default=1, type=int,
     help="Integer number of fit iterations."
 )
@@ -348,6 +363,29 @@ for current_event_id in eventIDs:
 
     #print(initial_parameters)
     #sys.exit()
+
+    # before proceeding further, ensure that SED parameters match desired model.
+    if freq_model == "gaussian":
+
+        # if power-law parameters reside in dictionary, remove them.
+        if "spectral_index" in initial_parameters:
+            initial_parameters.pop("spectral_index", None)
+
+        if "spectral_running" in initial_parameters:
+            initial_parameters.pop("spectral_running", None)
+
+        # now check that Gaussian-model parameters are initialized.
+        if "freq_mean" not in initial_parameters or "freq_width" not in initial_parameters:
+            sys.exit("ERROR: missing SED parameters for Gaussian model in parameter dictionary.")
+
+        elif freq_model == "powerlaw":
+            pass
+
+    elif freq_model == "powerlaw":
+        pass
+
+    else:
+        sys.exit(f"ERROR: cannot recognize SED model of type '{freq_model}.'")
 
     # now create initial model.
     # since CHIME/FRB data are in msgpack format, define a few things 

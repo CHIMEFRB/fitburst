@@ -78,8 +78,8 @@ class DataReader(bases.ReaderBaseClass):
             parameter_dict["ref_freq"] = parameter_dict["ref_freq"] * num_components
 
             # add parameters that are not reported in FRBMaster here.
-            parameter_dict["dm_index"] = [-2.0] #* num_components
-            parameter_dict["scattering_index"] = [-4.0] #* num_components
+            parameter_dict["dm_index"] = [-2.0] * num_components
+            parameter_dict["scattering_index"] = [-4.0] * num_components
             
 
         ### if instead the DM-pipeline results exist and are desired, grab those.
