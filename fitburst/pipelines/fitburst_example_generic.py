@@ -438,13 +438,14 @@ model.update_parameters(current_parameters)
 
 # now set up fitter and execute least-squares fitting
 for current_iteration in range(num_iterations):
-    fitter = LSFitter(model, data.good_freq)
+    fitter = LSFitter(data_windowed, model, data.good_freq)
     fitter.fix_parameter(parameters_to_fix)
-    fitter.weighted_fit = True
-    fitter.fit(data_windowed)
+    fitter.fit()
+
+    print(fitter.results)
 
     # extract best-fit data for next loop.
-    if fitter.success:
+    if fitter.results.success:
         model.update_parameters(fitter.fit_statistics["bestfit_parameters"])
  
         # if this is the last iteration, create best-fit model and plot windowed data.
