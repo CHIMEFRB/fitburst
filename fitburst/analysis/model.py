@@ -105,8 +105,12 @@ class SpectrumModeler:
         for current_parameter in self.parameters:
             setattr(self, current_parameter, None)
  
-        # now instantiate the structure for per-component model.
+        # now instantiate the structures for per-component models and time differences.
         self.spectrum_per_component = np.zeros(
+            (self.num_freq, self.num_time, self.num_components), dtype=float
+        )
+
+        self.timediff_per_component = np.zeros(
             (self.num_freq, self.num_time, self.num_components), dtype=float
         )
 
@@ -192,6 +196,13 @@ class SpectrumModeler:
 
                 current_times_arr, _ = np.meshgrid(current_times, current_freq_arr)
                 current_times_arr -= relative_delay[:, None]
+
+                # before proceeding, compute and save the per-component time difference map.
+                self.timediff_per_component[current_freq, :, current_component] = \
+                    rt.manipulate.downsample_1d(
+                        current_times_arr.mean(axis=0),
+                        self.factor_time_upsample
+                    )
 
                 # first, adjust scattering timescale to current frequency label(s).
                 current_sc_time_scaled = rt.ism.compute_time_scattering(

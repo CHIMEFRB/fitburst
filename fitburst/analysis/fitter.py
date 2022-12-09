@@ -8,6 +8,7 @@ of one or more parameters.
 """
 
 from scipy.optimize import least_squares
+import fitburst.routines.derivative as deriv
 import numpy as np
 
 class LSFitter:
@@ -16,14 +17,14 @@ class LSFitter:
     least-squares fitting of radio dynamic spectra.
     """
 
-    def __init__(self, model_class: object, good_freq: bool, weighted_fit: bool = True):
+    def __init__(self, data: float, model: object, good_freq: bool, weighted_fit: bool = True):
         """
         Initializes object with methods and attributes defined in
         the model.SpectrumModeler() class.
 
         Parameters
         ----------
-        model_class : object
+        model : object
             An instantiation of the SpectrumModeler() object
 
         good_freq : bool
@@ -41,9 +42,10 @@ class LSFitter:
         """
 
         # load in model into fitter class.
+        self.data = data
         self.fit_parameters = []
         self.fit_statistics = {}
-        self.model = model_class
+        self.model = model
 
         # initialize fit-parameter list.
         if self.model.scintillation:
@@ -58,12 +60,61 @@ class LSFitter:
 
         # set parameters for fitter configuration.
         self.good_freq = good_freq
-        self.weighted_fit = weighted_fit
-        self.weights = None
+        self.global_parameters = ["dm", "scattering_timescale"]
         self.success = None
+        self.weights = None
+        self.weighted_fit = weighted_fit
 
-    def compute_residuals(self, parameter_list: list, times: float,
-        freqs: float, spectrum_observed: float) -> float:
+        # before running fit, determine per-channel weights.
+        self._set_weights()
+
+
+    def compute_jacobian(self, parameter_list: list) -> float:
+        """
+        Computes the Jacobian matrix for the scipy.optimize.least_squares solver.
+
+        Parameters
+        ----------
+        parameter_list : list
+            A list of names for fit parameters.
+        
+        Returns
+        -------
+        jacobian : float
+            The Jacobian matrix for the residuals vector supplied to least_squares()
+
+        Notes
+        -----
+        The parameter_list argument is not actually used in this method, but is 
+        supplied in order to conform to the definition of the callable needed by 
+        least_squares() for exact calculation of the Jacobian in terms of derivatives.
+        """
+
+        # load all parameter values into a dictionary.
+        parameter_dict = self.model.get_parameters_dict()
+
+        # define the scale of the Jacobian matrix.
+        num_points = len(self.model.times) * len(self.model.freqs)
+        jacobian = np.zeros((num_points, len(parameter_list)), dtype=float)
+        current_parameter_idx = 0
+
+        # now loop over all fit parameters and compute derivatives.
+        for current_parameter in self.fit_parameters:
+            current_deriv = getattr(deriv, f"deriv_model_wrt_{current_parameter}")
+
+            # also compute a given derivative for all burst components.
+            for current_component in range(self.model.num_components):
+                current_jac = -current_deriv(
+                    parameter_dict, self.model, component=current_component
+                )
+                jacobian[:, current_parameter_idx] = (current_jac * self.weights[:, None]).flat[:]
+
+                # increment parameter index so that jacobian matrix can be filled correctly.
+                current_parameter_idx += 1
+
+        return jacobian
+
+    def compute_residuals(self, parameter_list: list) -> float:
         """
         Computes the chi-squared statistic used for least-squares fitting.
 
@@ -91,31 +142,25 @@ class LSFitter:
         # define base model with given parameters.
         parameter_dict = self.load_fit_parameters_list(parameter_list)
         self.model.update_parameters(parameter_dict)
-        model = self.model.compute_model(data=spectrum_observed)
+        model = self.model.compute_model(data=self.data)
 
         # now compute resids and return.
-        resid = spectrum_observed - model
+        resid = self.data - model
         resid *= self.weights[:, None]
         resid = resid.flat[:]
 
         return resid
 
-    def fit(self, spectrum_observed: float) -> None:
+    def fit(self, exact_jacobian: bool = True) -> None:
         """
         Executes least-squares fitting of the model spectrum to data, and stores
         results to child class.
 
         Parameters
         ----------
-        times: np.ndarray
-            An array of values corresponding to observing times
-
-        freqs : np.ndarray
-            An array of observing frequencies at which to evaluate spectrum
-
-        spectrum_observed : np.ndarray
-            A matrix of spectrum data, with dimenions that match those of the times
-            and freqs arrays
+        exact_jacobian : bool, optional
+            If set, then use the exact formulation of the Jacobian and supply it 
+            as method for the solver to use.
 
         Returns
         -------
@@ -130,27 +175,30 @@ class LSFitter:
         # convert loaded parameter dictionary/entries into a list for scipy object.
         parameter_list = self.get_fit_parameters_list()
 
-        # before running fit, determine per-channel weights.
-        self._set_weights(spectrum_observed)
+        # if desired, use exact formulation of Jacobian.
+        jac = "2-point"
+
+        if exact_jacobian:
+            jac = self.compute_jacobian
 
         # do fit!
         try:
             results = least_squares(
-                self.compute_residuals,
+                self.compute_residuals, 
                 parameter_list,
-                args = (self.model.times, self.model.freqs, spectrum_observed)
+                jac = jac
             )
 
-            self.success = results.success
+            self.results = results
 
-            if self.success:
+            if self.results.success:
                 print("INFO: fit successful!")
 
             else:
                 print("INFO: fit didn't work!")
 
             # now try computing uncertainties and fit statistics.
-            self._compute_fit_statistics(spectrum_observed, results)
+            self._compute_fit_statistics(self.data, results)
 
             if self.success:
                 print("INFO: derived uncertainties and fit statistics")
@@ -188,8 +236,7 @@ class LSFitter:
 
         print("INFO: new list of fit parameters:", ", ".join(self.fit_parameters))
 
-    def get_fit_parameters_list(self, global_parameters: list = ["dm", "scattering_timescale"]
-        ) -> list:
+    def get_fit_parameters_list(self) -> list:
         """
         Determines a list of values corresponding to fit parameters.
 
@@ -214,7 +261,7 @@ class LSFitter:
             if current_parameter in self.fit_parameters:
                 current_sublist = getattr(self.model, current_parameter)
 
-                if current_parameter in global_parameters:
+                if current_parameter in self.global_parameters:
                     parameter_list += [current_sublist[0]]
 
                 else:
@@ -222,8 +269,7 @@ class LSFitter:
 
         return parameter_list
 
-    def load_fit_parameters_list(self, parameter_list: list,
-        global_parameters: list = ["dm", "scattering_timescale"]) -> dict:
+    def load_fit_parameters_list(self, parameter_list: list) -> dict:
         """
         Determines a dictionary where keys are fit-parameter names and values
         are lists (with length self.model.num_components) contain the per-burst
@@ -255,7 +301,7 @@ class LSFitter:
             if current_parameter in self.fit_parameters:
 
                 # if global parameter, load list of length == 1 into dictionary.
-                if current_parameter in global_parameters:
+                if current_parameter in self.global_parameters:
                     parameter_dict[current_parameter] = [parameter_list[current_idx]]
                     current_idx += 1
 
@@ -291,7 +337,7 @@ class LSFitter:
         # pylint: disable=broad-except
 
         # compute various statistics of input data used for fit.
-        num_freq, num_time = spectrum_observed.shape
+        num_freq, num_time = self.model.num_freq, self.model.num_time
         num_freq_good = int(np.sum(self.good_freq))
         num_fit_parameters = len(fit_result.x)
 
@@ -302,7 +348,7 @@ class LSFitter:
         self.fit_statistics["num_time"] = num_time
 
         # compute chisq values and the fitburst S/N.
-        chisq_initial = float(np.sum((spectrum_observed * self.weights[:, None])**2))
+        chisq_initial = float(np.sum((self.data * self.weights[:, None])**2))
         chisq_final = float(np.sum(fit_result.fun**2))
         chisq_final_reduced = chisq_final / self.fit_statistics["num_observations"]
 
@@ -330,7 +376,7 @@ class LSFitter:
             print(f"ERROR: {exc}; designating fit as unsuccessful...")
             self.success = False
 
-    def _set_weights(self, spectrum_observed: float) -> None:
+    def _set_weights(self) -> None:
         """
         Sets an attribute containing weights to be applied during least-squares fitting.
 
@@ -346,7 +392,7 @@ class LSFitter:
         """
 
         # compute RMS deviation for each channel.
-        variance = np.mean(spectrum_observed**2, axis=1)
+        variance = np.mean(self.data**2, axis=1)
         std = np.sqrt(variance)
         bad_freq = np.logical_not(self.good_freq)
 
