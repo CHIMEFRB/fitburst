@@ -220,10 +220,22 @@ class DataReader(bases.ReaderBaseClass):
             print("Please ensure thoses packagea are installed.")
             print(err)
 
-        # perform a GET to retrieve FRBMaster data.
+        # perform an initial get of data from the L4 database in order to
         master = FRBMaster()
+        event_L4 =  master.events.get_event(eventid, full_header=True)
+        ids, snrs = [], []
+
+        for current_entry_L4 in event_L4["event_beam_header"]:
+            ids += [int(current_entry_L4["beam_no"])]
+            snrs += [float(current_entry_L4["snr"])]
+
+        # now order id list in descending order based on S/N values.
+        snrs = np.array(snrs)
+        ids_sorted = [ids[idx] for idx in np.argsort(-snrs).tolist()]
+        beam_no = ids_sorted[beam_id]
+
+        # next, perform a GET to retrieve FRBMaster data.
         event = master.events.get_event(eventid)
-        beam_no = int(event["beam_numbers"][beam_id])
         entry_realtime = None
 
         for current_entry in event["measured_parameters"]:
