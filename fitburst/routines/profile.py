@@ -48,8 +48,8 @@ def compute_profile_gaussian(values: float, mean: float, width: float,
 
     return profile
 
-def compute_profile_pbf(times: np.ndarray, toa: np.float, width: np.float,
-                        sc_time: np.float) -> np.ndarray:
+def compute_profile_pbf(times: np.ndarray, toa: float, width: float,
+                        sc_time: float) -> float:
     """
     Computes a one-dimensional pulse broadening function (PBF) using the
     analytical solution of a Gaussian profile convolved with a one-side

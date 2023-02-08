@@ -140,7 +140,7 @@ class DataReader(bases.ReaderBaseClass):
         """
 
         try:
-            from cfod.chime_intensity import unpack_datafiles
+            from cfod.analysis.intensity.chime_intensity import unpack_datafiles
 
         except ImportError as err:
             print("Unable to import from cfod")
@@ -158,7 +158,7 @@ class DataReader(bases.ReaderBaseClass):
 
         # derive time information from loaded data.
         n_freqs, n_times = self.data_full.shape
-        times = np.arange(n_times, dtype=np.int64) + (self.downsample_factor // 2)
+        times = np.arange(n_times, dtype=int) + (self.downsample_factor // 2)
         times *= (
             telescopes["chimefrb"]["num_frames_per_sample"]
             * telescopes["chimefrb"]["num_factor_upchannel"]
@@ -212,7 +212,7 @@ class DataReader(bases.ReaderBaseClass):
         """
 
         try:
-            from cfod.chime_intensity import natural_keys
+            from cfod.analysis.intensity.chime_intensity import natural_keys
             from chime_frb_api.backends.frb_master import FRBMaster
 
         except ImportError as err:
