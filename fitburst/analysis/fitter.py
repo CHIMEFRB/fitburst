@@ -68,6 +68,70 @@ class LSFitter:
         # before running fit, determine per-channel weights.
         self._set_weights()
 
+    def compute_hessian(self, data: float, parameter_list: list) -> float:
+        """
+        Computes the Jacobian matrix for the scipy.optimize.least_squares solver.
+
+        Parameters
+        ----------
+        parameter_list : list
+            A list of names for fit parameters.
+        
+        Returns
+        -------
+        jacobian : float
+            The Jacobian matrix for the residuals vector supplied to least_squares()
+
+        Notes
+        -----
+        The parameter_list argument is not actually used in this method, but is 
+        supplied in order to conform to the definition of the callable needed by 
+        least_squares() for exact calculation of the Jacobian in terms of derivatives.
+        """
+
+        # load all parameter values into a dictionary.
+        parameter_dict = self.model.get_parameters_dict()
+
+        # before calculating, compute residual.
+        residual = data - self.model.compute_model(data = data)
+
+        # define the scale of the Hessian matrix.
+        num_par = len(parameter_list)
+        hessian = np.zeros((num_par, num_par), dtype=float)
+        current_parameter_idx = 0
+
+        # now loop over all fit parameters and compute derivatives.
+        for current_par_idx_1 in range(num_par):
+            current_par_1 = self.fit_parameters[current_par_idx_1]
+            current_par_deriv_1 = getattr(deriv, f"deriv_model_wrt_{current_par_1}")
+
+            for current_par_idx_2 in range(num_par):
+                current_par_2 = self.fit_parameters[current_par_idx_2]
+                current_par_deriv_2 = getattr(deriv, f"deriv_model_wrt_{current_par_2}")
+
+                # correct name ordering of mixed partial derivative, if necessary.
+                try:
+                    current_mixed_deriv = getattr(deriv, f"deriv2_model_wrt_{current_par_1}_{current_par_2}")
+
+                except AttributeError:
+                    current_mixed_deriv = getattr(deriv, f"deriv2_model_wrt_{current_par_2}_{current_par_1}")
+            
+                # also compute a given derivative for all burst components.
+                for current_component in range(self.model.num_components):
+                    current_deriv_1 = current_par_deriv_1(
+                        parameter_dict, self.model, component=current_component
+                    )
+                    current_deriv_2 = current_par_deriv_2(
+                        parameter_dict, self.model, component=current_component
+                    )
+                    current_deriv_mixed = current_mixed_deriv(
+                        parameter_dict, self.model, component=current_component
+                    )
+
+                    current_hes = 2 * current_deriv_1 * current_deriv_2 - residual * current_deriv_mixed
+                    hessian[current_par_idx_1, current_par_idx_2] = np.sum(current_hes * self.weights[:, None])
+
+        return hessian
 
     def compute_jacobian(self, parameter_list: list) -> float:
         """
@@ -368,6 +432,7 @@ class LSFitter:
             covariance = np.linalg.inv(hessian) * chisq_final_reduced
             uncertainties = [float(x) for x in np.sqrt(np.diag(covariance)).tolist()]
 
+            self.covariance = covariance
             self.fit_statistics["bestfit_uncertainties"] = self.load_fit_parameters_list(
                 uncertainties)
             self.fit_statistics["bestfit_covariance"] = None # return the full matrix at some point?
