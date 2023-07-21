@@ -10,6 +10,7 @@ of one or more parameters.
 from scipy.optimize import least_squares
 import fitburst.routines.derivative as deriv
 import numpy as np
+import sys
 
 class LSFitter:
     """
@@ -60,7 +61,7 @@ class LSFitter:
 
         # set parameters for fitter configuration.
         self.good_freq = good_freq
-        self.global_parameters = ["dm", "scattering_timescale"]
+        self.global_parameters = ["dm", "dm_index", "scattering_timescale", "scattering_index"]
         self.success = None
         self.weights = None
         self.weighted_fit = weighted_fit
@@ -95,19 +96,40 @@ class LSFitter:
         # before calculating, compute residual.
         residual = data - self.model.compute_model(data = data)
 
-        # define the scale of the Hessian matrix.
-        num_par = len(parameter_list)
+        # define the scale of the Hessian matrix and its labels.
+        par_labels_output = []
+        par_labels = []
+        num_par = 0
+        print("here are the fit parameters:", self.fit_parameters)
+
+        for current_par in self.fit_parameters:
+            if np.any([current_par == x for x in self.global_parameters]):
+                par_labels_output += [current_par]
+                par_labels += [current_par]
+                num_par += 1
+
+            else:
+                par_labels_output += [f"{current_par}{idx+1}" for idx in range(self.model.num_components)]
+                par_labels += ([current_par] * self.model.num_components)
+                num_par += (self.model.num_components)
+
         hessian = np.zeros((num_par, num_par), dtype=float)
-        current_parameter_idx = 0
 
         # now loop over all fit parameters and compute derivatives.
-        for current_par_idx_1 in range(num_par):
-            current_par_1 = self.fit_parameters[current_par_idx_1]
+        for current_par_idx_1, current_par_1 in zip(range(num_par), par_labels):
             current_par_deriv_1 = getattr(deriv, f"deriv_model_wrt_{current_par_1}")
+            current_deriv_1 = current_par_deriv_1(
+                parameter_dict, self.model, component=(current_par_idx_1 % self.model.num_components)
+            )
 
-            for current_par_idx_2 in range(num_par):
-                current_par_2 = self.fit_parameters[current_par_idx_2]
+            # for efficient calculation, only compute one half of the matrix and fill the other half appropriately.
+            for current_par_idx_2, current_par_2 in zip(range(current_par_idx_1, num_par), par_labels[current_par_idx_1:]):
+
+                # also compute a given derivative for all burst components.
                 current_par_deriv_2 = getattr(deriv, f"deriv_model_wrt_{current_par_2}")
+                current_deriv_2 = current_par_deriv_2(
+                    parameter_dict, self.model, component=(current_par_idx_2 % self.model.num_components)
+                )
 
                 # correct name ordering of mixed partial derivative, if necessary.
                 try:
@@ -115,23 +137,21 @@ class LSFitter:
 
                 except AttributeError:
                     current_mixed_deriv = getattr(deriv, f"deriv2_model_wrt_{current_par_2}_{current_par_1}")
-            
-                # also compute a given derivative for all burst components.
-                for current_component in range(self.model.num_components):
-                    current_deriv_1 = current_par_deriv_1(
-                        parameter_dict, self.model, component=current_component
-                    )
-                    current_deriv_2 = current_par_deriv_2(
-                        parameter_dict, self.model, component=current_component
-                    )
+ 
+                # only computed mixed derivative for parameters that describe the same component.
+                current_deriv_mixed = 0
+
+                if (current_par_idx_1 % self.model.num_components) == (current_par_idx_2 % self.model.num_components):
                     current_deriv_mixed = current_mixed_deriv(
-                        parameter_dict, self.model, component=current_component
+                        parameter_dict, self.model, component=(current_par_idx_2 % self.model.num_components)
                     )
 
-                    current_hes = 2 * current_deriv_1 * current_deriv_2 - residual * current_deriv_mixed
-                    hessian[current_par_idx_1, current_par_idx_2] = np.sum(current_hes * self.weights[:, None])
+                # finally, compute the hessian here.
+                current_hes = 2 * current_deriv_1 * current_deriv_2 - residual * current_deriv_mixed
+                hessian[current_par_idx_1, current_par_idx_2] = np.sum(current_hes * self.weights[:, None])
+                hessian[current_par_idx_2, current_par_idx_1] = hessian[current_par_idx_1, current_par_idx_2]
 
-        return hessian
+        return hessian, par_labels_output
 
     def compute_jacobian(self, parameter_list: list) -> float:
         """
@@ -166,8 +186,14 @@ class LSFitter:
         for current_parameter in self.fit_parameters:
             current_deriv = getattr(deriv, f"deriv_model_wrt_{current_parameter}")
 
+            # before computing derivatives, account for global parameters.
+            num_derivs = self.model.num_components
+
+            if current_parameter in self.global_parameters:
+                num_derivs = 1
+
             # also compute a given derivative for all burst components.
-            for current_component in range(self.model.num_components):
+            for current_component in range(num_derivs):
                 current_jac = -current_deriv(
                     parameter_dict, self.model, component=current_component
                 )
@@ -269,7 +295,7 @@ class LSFitter:
 
         except Exception as exc:
             print("ERROR: solver encountered a failure! Debug!")
-            print(exc)
+            print(sys.exc_info()[2])
 
     def fix_parameter(self, parameter_list: list) -> None:
         """
