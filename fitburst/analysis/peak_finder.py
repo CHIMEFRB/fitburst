@@ -44,7 +44,7 @@ class FindPeak:
     #This is for creating the name of output files same as the input files.
     #name_of_file=str(input_file).replace('.npz','')
     
-    def __init__(self,data,time,freq,rms=None):    
+    def __init__(self, data: float, time: float, freq : float, rms: float = None):
         """
         Initializes FindPeak class with data(data is input file provided),time,freq as a parameters.
 
@@ -64,12 +64,12 @@ class FindPeak:
             this is the percentage by which we want to shift(increase) the original rms value 
 
         """     
-        self.data=data
-        self.freq=freq
-        self.time=time
-        self.rms=rms
+        self.data = data
+        self.freq = freq
+        self.time = time
+        self.rms = rms
         
-    def find_peak(self):
+    def find_peak(self, distance: int = 5):
         """
         Finds peak positions in a spectrum and the approximate temporal width of each peak. Prints out
         the peak positions and corresponding temporal width in a data frame.
@@ -79,7 +79,7 @@ class FindPeak:
         """
         self.mean_intensity_freq=self.data.mean(axis=0)
         plt.plot(self.time*1000,self.mean_intensity_freq)
-        peaks_location=find_peaks(self.mean_intensity_freq, distance=5)
+        peaks_location=find_peaks(self.mean_intensity_freq, distance=distance)
         
         self.peak_times=self.time[peaks_location[0]]
         self.peak_mean_intensities=self.mean_intensity_freq[peaks_location[0]]
@@ -91,7 +91,8 @@ class FindPeak:
         #Shift RMS line by given percentage if asked in the input.
         if self.rms is not None:
             #Increase the value of rms intensity by given rms shift percent.
-            shifted_rms_intensity=self.rms_intensity+(self.rms/100)*self.rms_intensity
+            #shifted_rms_intensity=self.rms_intensity+(self.rms/100)*self.rms_intensity
+            shifted_rms_intensity = self.rms * np.max(self.mean_intensity_freq)
 
             #Find the peaks greater than shifted_rms values.
             index_peaks_greater_rms=np.where(self.peak_mean_intensities>shifted_rms_intensity)
@@ -169,7 +170,8 @@ class FindPeak:
         Returns: Dictionary with values in List
         --------
         """
-        self.find_peak()
+
+        #self.find_peak()
         mul_factor=len(self.time_of_arrivals)
         burst_parameters = {}
 
