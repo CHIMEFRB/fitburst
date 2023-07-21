@@ -90,6 +90,11 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--no_fit", action="store_true", dest="no_fit",
+    help="If set, then skip fit and create state file using input parameters."
+)
+
+parser.add_argument(
     "--normalize_variance", action="store_true", dest="normalize_variance", 
     help="If set, then normalize variance during preprocessing of spectrum."
 )
@@ -105,8 +110,23 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--peakfind_dist", action="store", dest="peakfind_dist", default=5, type=int,
+    help="Separation used for peak-finding algorithm (for multi-component fitting)."
+)
+
+parser.add_argument(
+    "--peakfind_rms", action="store", dest="peakfind_rms", default=None, type=float,
+    help="RMS used for peak-finding algorithm (for multi-component fitting)."
+)
+
+parser.add_argument(
     "--pipeline", action="store", dest="pipeline", default="L1", type=str,
     help="Name of CHIME/FRB pipeline whose results will be used as initial guesses."
+)
+
+parser.add_argument(
+    "--ref_freq", action="store", dest="ref_freq_override", default=None, type=float,
+    help="Override of reference frequency."
 )
 
 parser.add_argument(
@@ -182,12 +202,16 @@ factor_freq_upsample = args.factor_freq_upsample
 factor_time_upsample = args.factor_time_upsample
 latest_solution_location = args.latest_solution_location
 normalize_variance = args.normalize_variance
+no_fit = args.no_fit
 num_iterations = args.num_iterations
 offset_dm = args.offset_dm
 offset_time = args.offset_time
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
+peakfind_rms = args.peakfind_rms
+peakfind_dist = args.peakfind_dist
 pipeline = args.pipeline
+ref_freq_override = args.ref_freq_override
 save_results = args.save_results
 scattering_timescale = args.scattering_timescale
 scintillation = args.scintillation
@@ -241,8 +265,10 @@ for current_event_id in eventIDs:
     # now that frame0-nano value is available after loading of data, grab parameters 
     # to obtain timestamp info.
     initial_parameters = data.get_parameters(pipeline=pipeline)
+
     # if a JSON file containing results already exists, then read that in.
     latest_solution_file = f"{latest_solution_location}/results_fitburst_{current_event_id}.json"
+    results = None
 
     if (
         latest_solution_location is not None and os.path.isfile(latest_solution_file)
@@ -260,12 +286,6 @@ for current_event_id in eventIDs:
 
         log.info("window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
 
-    elif (
-        latest_solution_location is not None and os.path.isfile(latest_solution_file)
-    ):
-        log.info(f"results already obtained and saved for {current_event_id}; ignoring fit and moving on...")
-        continue
-
     else: 
         pass
         #initial_parameters["burst_width"] = [window / 10.]
@@ -276,7 +296,7 @@ for current_event_id in eventIDs:
         "scattering_timescale" not in parameters_to_fix
     ):
         initial_parameters["scattering_timescale"] = copy.deepcopy(
-            (np.fabs(np.array(initial_parameters["burst_width"])) * 1.0).tolist()
+            (np.fabs(np.array(initial_parameters["burst_width"])) * 3.).tolist()
         )
         initial_parameters["burst_width"] = (np.array(initial_parameters["burst_width"]) / 1.5).tolist()
 
@@ -330,19 +350,20 @@ for current_event_id in eventIDs:
     params = initial_parameters.copy()#data.burst_parameters["fitburst"]["round_2"]
     data.dedisperse(
         params["dm"][0],
-        params["arrival_time"][0],
+        np.mean(params["arrival_time"]),
         ref_freq=params["ref_freq"][0]
     )
 
     # before doing anything, check if window size doesn't extend beyond data set.
     # if it does, adjust down by an appropriate amount.
-    window_max = data.times[-1] - initial_parameters["arrival_time"][0]
+    print("INFO: window size set to +/- {0:.1f} ms".format(window * 1e3))
+    window_max = data.times[-1] - initial_parameters["arrival_time"][-1]
 
     if window > window_max:
-        window = window_max - 0.001
+        window = window_max - 0.005
         print("INFO: window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
 
-    data_windowed, times_windowed = data.window_data(params["arrival_time"][0], window=window)
+    data_windowed, times_windowed = data.window_data(np.mean(params["arrival_time"]), window=window)
 
     # check if there are any lingering zero-weighted channels.
     weird_chan = 0
@@ -353,14 +374,16 @@ for current_event_id in eventIDs:
                 weird_chan += 1
 
     log.warning(f"WARNING: there are {weird_chan} weird channels")
-    #plt.plot(data_windowed.sum(axis=0))
-    #plt.savefig("test.png")
+    plt.pcolormesh(rt.manipulate.downsample_2d(data_windowed * data.good_freq[:, None], 64, 1))
+    plt.savefig("test.png")
     #sys.exit()
 
     # before defining model, adjust model parameters with peak-finding algorithm.
-    #peaks = FindPeak(data_windowed, times_windowed, data.freqs, rms=105.)
-    #peaks.find_peak() 
-    #initial_parameters = peaks.get_parameters_dict(initial_parameters)
+    if peakfind_rms is not None:
+        print("INFO: running FindPeak to isolate burst components...")
+        peaks = FindPeak(data_windowed, times_windowed, data.freqs, rms=peakfind_rms)
+        peaks.find_peak(distance=peakfind_dist) 
+        initial_parameters = peaks.get_parameters_dict(initial_parameters)
 
     #print(initial_parameters)
     #sys.exit()
@@ -371,6 +394,18 @@ for current_event_id in eventIDs:
     print("INFO: initializing model")
     num_components = len(initial_parameters["amplitude"])
     initial_parameters["dm"] = [0.] * num_components
+
+    if ref_freq_override is not None:
+        initial_parameters["ref_freq"] = [ref_freq_override]
+        initial_parameters["arrival_time"][0] = initial_parameters["arrival_time"][0] +\
+            rt.ism.compute_time_dm_delay(
+                initial_parameters["dm"][0], 
+                4149.3775,
+                -2.,
+                ref_freq_override,
+                freq2 = initial_parameters["ref_freq"][0],
+            )
+        
 
     model = mod.SpectrumModeler(
         data.freqs,
@@ -385,29 +420,52 @@ for current_event_id in eventIDs:
         verbose=verbose,
     )
 
+    print(initial_parameters)
     model.update_parameters(initial_parameters)
+    bestfit_model = model.compute_model(data=data_windowed) * data.good_freq[:, None]
+    bestfit_params = model.get_parameters_dict()
+    bestfit_params["dm"] = [params["dm"][0] + x for x in bestfit_params["dm"] * model.num_components]
+    bestfit_residuals = data_windowed - bestfit_model
+    fit_is_successful = False
+    fit_statistics = None
 
-    ### now set up fitter and execute least-squares fitting.
-    for current_iteration in range(num_iterations):
-        print(f"INFO: fitting model, loop #{current_iteration + 1}")
-        fitter = LSFitter(data_windowed, model, good_freq=data.good_freq, weighted_fit=True)
-        fitter.fix_parameter(parameters_to_fix)
-        time_start = time.clock()
-        fitter.fit(exact_jacobian=True)
+    ### now set up fitter and execute least-squares fitting, if desired.
+    if not no_fit:
+
+        for current_iteration in range(num_iterations):
+            print(f"INFO: fitting model, loop #{current_iteration + 1}")
+            fitter = LSFitter(data_windowed, model, good_freq=data.good_freq, weighted_fit=True)
+            fitter.fix_parameter(parameters_to_fix)
+            fitter.fit(exact_jacobian=True)
     
-        # before executing the fitting loop, overload model class with best-fit parameters.
-        if fitter.results.success:
-            model.update_parameters(fitter.fit_statistics["bestfit_parameters"])
+            # before executing the fitting loop, overload model class with best-fit parameters.
+            if fitter.results.success:
+                model.update_parameters(fitter.fit_statistics["bestfit_parameters"])
+                bestfit_model = model.compute_model(data=data_windowed) * data.good_freq[:, None]
+                bestfit_params = model.get_parameters_dict()
+                bestfit_params["dm"] = [params["dm"][0] + x for x in bestfit_params["dm"] * model.num_components]
+                bestfit_residuals = data_windowed - bestfit_model
+                fit_is_successful = True
+                fit_statistics = fitter.fit_statistics
+
+                # save covariance matricies for offline comparison.
+                hessian_exact, par_labels = fitter.compute_hessian(data_windowed, fitter.fit_parameters)
+                covariance_exact = np.linalg.inv(hessian_exact)
+                print(par_labels)
+     
+                np.savez(
+                    f"covariance_matrices_{current_event_id}.npz",
+                    covariance_approx = fitter.covariance,
+                    covariance_exact = covariance_exact,
+                    covariance_labels = par_labels
+                )
+
+    else:
+        fit_statistics = results["fit_statistics"]
+        log.warning("skipping fit and creating state file using input parameters.")
 
     ### now compute best-fit model of spectrum and plot.
-    if fitter.results.success:
-        time_stop = time.clock()
-        print(f"time taken to fit: {time_stop - time_start}")
-
-        bestfit_model = model.compute_model(data=data_windowed) * data.good_freq[:, None]
-        bestfit_params = model.get_parameters_dict()
-        bestfit_params["dm"] = [params["dm"][0] + x for x in bestfit_params["dm"]]
-        bestfit_residuals = data_windowed - bestfit_model
+    if fit_is_successful or no_fit:
 
         # create summary plot.
         data_grouped = ut.plotting.compute_downsampled_data(
@@ -421,20 +479,28 @@ for current_event_id in eventIDs:
         )
 
         # create JSON file contain burst parameters and statistics.
+        timestamp = None
+        
+        if data.fpga_frame0_nano is not None:
+            timestamp = rt.times.compute_arrival_times(initial_parameters, data.fpga_frame0_nano * 1e-9)
+
         with open(f"results_fitburst_{current_event_id}.json", "w") as out:
             json.dump(
                 {
                     "model_parameters": bestfit_params,
-                    "fit_statistics": fitter.fit_statistics,
+                    "fit_statistics": fit_statistics,
                     "fit_logistics" : {
                         "dm_incoherent" : params["dm"],
                         "factor_freq_upsample" : factor_freq_upsample,
                         "factor_time_upsample" : factor_time_upsample,
-                        "is_repeater": True,
+                        "is_repeater": None,
                         "normalize_variance" : normalize_variance,
                         "spectrum_window": window,
                         "variance_range" : variance_range,
                         "variance_weight" : variance_weight
+                    },
+                    "derived_parameters" : {
+                        "arrival_time_UTC" : timestamp
                     }
                 },
                 out, 
