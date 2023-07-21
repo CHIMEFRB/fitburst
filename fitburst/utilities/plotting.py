@@ -55,8 +55,8 @@ def compute_downsampled_data(times: float, freqs: float, spectrum_data: float,
 
     # downsample spectrum data to desired number of subbands.
     good_freq_downsampled = manip.downsample_1d(good_freq, factor_freq, boolean=True)
-    spectrum_data_downsampled = manip.downsample_2d(spectrum_data, factor_freq, factor_time)
-    spectrum_data_downsampled *= good_freq_downsampled[:, None]
+    spectrum_data_downsampled = manip.downsample_2d(spectrum_data * good_freq[:, None], factor_freq, factor_time)
+    #spectrum_data_downsampled *= good_freq_downsampled[:, None]
 
     # if a model is supplied, then compute the downsampled model and residuals.
     residuals_downsampled = None
