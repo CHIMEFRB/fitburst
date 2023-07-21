@@ -351,7 +351,7 @@ class SpectrumModeler:
 
         return parameter_dict
 
-    def update_parameters(self, model_parameters: dict) -> None:
+    def update_parameters(self, model_parameters: dict, global_parameters: list = ["dm", "scattering_timescale"]) -> None:
         """
         Overloads parameter values stored in object with those supplied by the user.
 
@@ -373,4 +373,8 @@ class SpectrumModeler:
 
             # if number of components is 2 or greater, update num_components attribute.
             if len(model_parameters[current_parameter]) > 1:
-                setattr(self, "num_components", len(model_parameters[current_parameter]))
+                num_components = len(model_parameters[current_parameter])
+                setattr(self, "num_components", num_components)
+
+                if current_parameter in global_parameters:
+                    setattr(self, current_parameter, [model_parameters[current_parameter][0]] * num_components)

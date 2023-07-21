@@ -235,7 +235,7 @@ class ReaderBaseClass:
 
         # normalize data and remove baseline.
         mean_spectrum = np.sum(self.data_full * self.data_weights, -1)
-        good_freq[np.where(mean_spectrum == 0.)] = False
+        #good_freq[np.where(mean_spectrum == 0.)] = False
         mean_spectrum[good_freq] /= mask_freq[good_freq]
         self.data_full[good_freq] /= mean_spectrum[good_freq][:, None]
         self.data_full[good_freq] -= 1
@@ -295,8 +295,8 @@ class ReaderBaseClass:
         """
 
         idx_arrival_time = np.fabs(self.times - arrival_time).argmin()
-        num_window_bins = np.around(window / self.res_time).astype(np.int)
-        data_windowed = np.zeros((self.num_freq, num_window_bins * 2), dtype=np.float)
+        num_window_bins = np.around(window / self.res_time).astype(int)
+        data_windowed = np.zeros((self.num_freq, num_window_bins * 2), dtype=float)
 
         # compute indeces of min/max window values along time axis.
         for idx_freq in range(self.num_freq):
