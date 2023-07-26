@@ -295,7 +295,7 @@ class LSFitter:
 
         except Exception as exc:
             print("ERROR: solver encountered a failure! Debug!")
-            print(sys.exc_info()[2])
+            print(sys.exc_info())
 
     def fix_parameter(self, parameter_list: list) -> None:
         """

@@ -183,7 +183,7 @@ class FindPeak:
                 burst_parameters[current_key] = (self.burst_widths / 1000.).tolist()
 
             else:
-                burst_parameters[current_key] = original_dict[current_key] * mul_factor
+                burst_parameters[current_key] = [original_dict[current_key][0]] * mul_factor
 
         #burst_parameters={
         #    "amplitude"             :   original_dict*mul_factor,

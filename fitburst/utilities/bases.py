@@ -233,6 +233,13 @@ class ReaderBaseClass:
         mask_freq = np.sum(self.data_weights, -1)
         good_freq = mask_freq != 0
 
+        # just to be sure, loop over data and ensure channels aren't "bad".
+        for idx_freq in range(self.num_freq):
+            if good_freq[idx_freq]:
+                if self.data_full[idx_freq, :].min() == self.data_full[idx_freq, :].max():
+                    print(f"ERROR: bad data value of {self.data_full[idx_freq, :].min()} in channel {idx_freq}!")
+                    good_freq[idx_freq] = False
+
         # normalize data and remove baseline.
         mean_spectrum = np.sum(self.data_full * self.data_weights, -1)
         #good_freq[np.where(mean_spectrum == 0.)] = False
@@ -242,14 +249,15 @@ class ReaderBaseClass:
         self.data_full[np.logical_not(self.data_weights)] = 0
 
         # compute variance and skewness of data.
-        variance = np.sum(self.data_full**2, -1)
+        variance = np.sum(self.data_full ** 2, -1)
         variance[good_freq] /= mask_freq[good_freq]
-        skewness = np.sum(self.data_full**3, -1)
+        skewness = np.sum(self.data_full ** 3, -1)
         skewness[good_freq] /= mask_freq[good_freq]
         skewness_mean = np.mean(skewness[good_freq])
         skewness_std = np.std(skewness[good_freq])
 
         # if desired, normalize variance relative to maximum value.
+
         if normalize_variance:
             variance[good_freq] /= np.max(variance[good_freq])
 
