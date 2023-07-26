@@ -5,9 +5,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from fitburst.analysis.model import SpectrumModeler
+from fitburst.analysis.peak_finder import FindPeak
 from fitburst.backend.generic import DataReader
 from fitburst.analysis.fitter import LSFitter
+from fitburst.analysis.model import SpectrumModeler
 from copy import deepcopy
 import fitburst.routines.manipulate as manip
 import fitburst.utilities as ut
@@ -138,6 +139,23 @@ parser.add_argument(
     default=False,
     help="If set, then use substring to uniquely label output " + 
         "filenamese based on input filenames."
+)
+
+parser.add_argument(
+    "--peakfind_dist", 
+    action="store", 
+    dest="peakfind_dist", default=5, 
+    type=int,
+    help="Separation used for peak-finding algorithm (for multi-component fitting)."
+)
+
+parser.add_argument(
+    "--peakfind_rms", 
+    action="store", 
+    dest="peakfind_rms", 
+    default=None, 
+    type=float,
+    help="RMS used for peak-finding algorithm (for multi-component fitting)."
 )
 
 parser.add_argument(
@@ -274,6 +292,8 @@ is_folded = args.is_folded
 num_iterations = args.num_iterations
 parameters_to_fit = args.parameters_to_fit
 parameters_to_fix = args.parameters_to_fix
+peakfind_rms = args.peakfind_rms
+peakfind_dist = args.peakfind_dist
 preprocess_data = args.preprocess_data
 remove_dispersion_smearing = args.remove_dispersion_smearing
 use_outfile_substring = args.use_outfile_substring
@@ -322,8 +342,15 @@ data.load_data()
 data.good_freq = np.sum(data.data_weights, axis=1) != 0.
 data.good_freq = np.sum(data.data_full, axis=1) != 0.
 
+# just to be sure, loop over data and ensure channels aren't "bad".
+for idx_freq in range(data.num_freq):
+    if data.good_freq[idx_freq]:
+        if data.data_full[idx_freq, :].min() == data.data_full[idx_freq, :].max():
+            print(f"ERROR: bad data value of {data.data_full[idx_freq, :].min()} in channel {idx_freq}!")
+            data.good_freq[idx_freq] = False
+
 if preprocess_data:
-    data.preprocess_data(normalize_variance=True, variance_range=variance_range)
+    data.preprocess_data(normalize_variance=False, variance_range=variance_range)
 
 print(f"There are {data.good_freq.sum()} good frequencies...")
 
@@ -332,6 +359,7 @@ data.downsample(factor_freq_downsample, factor_time_downsample)
 
 # check if any initial guesses are missing, and overload 'basic' guess value if so.
 initial_parameters = data.burst_parameters
+num_components = len(initial_parameters["dm"])
 basic_parameters = {
     "amplitude"        : [-2.0],
     "arrival_time"     : [np.mean(data.times)],
@@ -349,9 +377,15 @@ for current_parameter in initial_parameters.keys():
 
     if len(current_list) == 0:
         print(f"WARNING: parameter '{current_parameter}' has no value in data file, overloading a basic guess...")
-        initial_parameters[current_parameter] = basic_parameters[current_parameter]
+        initial_parameters[current_parameter] = basic_parameters[current_parameter] * num_components
+
+# now see if any parameters are missing in the dictionary.
+for current_parameter in basic_parameters.keys():
+    if current_parameter not in initial_parameters:
+        initial_parameters[current_parameter] = basic_parameters[current_parameter] * num_components
 
 current_parameters = deepcopy(initial_parameters)
+print(f"INFO: current parameters = {current_parameters}")
 
 # update DM value to use ("full" or DM offset) for dedispersion if 
 # input data are already dedispersed or not.
@@ -360,7 +394,7 @@ dm_incoherent = initial_parameters["dm"][0]
 if data.is_dedispersed:
     print("INFO: input data cube is already dedispersed!")
     print("INFO: setting 'dm' entry to 0, now considered a dm-offset parameter...")
-    current_parameters["dm"][0] = 0.0
+    current_parameters["dm"] = [0.0] * len(initial_parameters["dm"])
 
 if not remove_dispersion_smearing:
     dm_incoherent = 0.
@@ -368,6 +402,7 @@ if not remove_dispersion_smearing:
 # if an existing solution is supplied in a JSON file, then read it or use basic guesses.
 if existing_results is not None:
     current_parameters = existing_results["model_parameters"]
+    num_components = len(current_parameters["dm"])
 
 # if values are supplied at command line, then overload those here.
 if amplitude is not None:
@@ -421,6 +456,14 @@ if window is not None:
         window=window
     )
 
+# before instantiating model, run peak-finding algorithm if desired.
+if peakfind_rms is not None:
+    print("INFO: running FindPeak to isolate burst components...")
+    peaks = FindPeak(data_windowed, times_windowed, data.freqs, rms=peakfind_rms)
+    peaks.find_peak(distance=peakfind_dist)
+    current_parameters = peaks.get_parameters_dict(current_parameters)
+    num_components = len(current_parameters["dm"])
+
 # now create initial model.
 print("INFO: initializing model")
 model = SpectrumModeler(
@@ -429,6 +472,7 @@ model = SpectrumModeler(
     dm_incoherent = dm_incoherent,
     factor_freq_upsample = factor_freq_upsample,
     factor_time_upsample = factor_time_upsample,
+    num_components = num_components,
     is_dedispersed = data.is_dedispersed,
     is_folded = is_folded,
     scintillation = scintillation,
