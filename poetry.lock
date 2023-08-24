@@ -86,6 +86,34 @@ files = [
 ]
 
 [[package]]
+name = "cfod"
+version = "2021.6.4"
+description = "CHIME FRB Open Data"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = []
+develop = false
+
+[package.dependencies]
+click = "^8.0"
+h5py = "^3.2"
+healpy = "^1.14"
+matplotlib = "^3.4"
+msgpack-python = "^0.5"
+numpy = "^1.20"
+scipy = "^1.6"
+
+[package.extras]
+pandas = ["pandas (>=1.2,<2.0)"]
+
+[package.source]
+type = "git"
+url = "https://github.com/chime-frb-open-data/chime-frb-open-data.git"
+reference = "HEAD"
+resolved_reference = "fd488ed8dc1c81c9571dc9595569f096e94c5602"
+
+[[package]]
 name = "charset-normalizer"
 version = "3.2.0"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
@@ -202,7 +230,7 @@ docs = ["mkdocs-material (>=8)", "mkdocstrings-python (>=0.8.3,<0.9.0)", "pytkdo
 name = "click"
 version = "8.1.7"
 description = "Composable command line interface toolkit"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
@@ -217,7 +245,7 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
-category = "dev"
+category = "main"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 files = [
@@ -371,6 +399,72 @@ python-dateutil = ">=2.8.1"
 
 [package.extras]
 dev = ["flake8", "markdown", "twine", "wheel"]
+
+[[package]]
+name = "h5py"
+version = "3.9.0"
+description = "Read and write HDF5 files from Python"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "h5py-3.9.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:eb7bdd5e601dd1739698af383be03f3dad0465fe67184ebd5afca770f50df9d6"},
+    {file = "h5py-3.9.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:78e44686334cbbf2dd21d9df15823bc38663f27a3061f6a032c68a3e30c47bf7"},
+    {file = "h5py-3.9.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f68b41efd110ce9af1cbe6fa8af9f4dcbadace6db972d30828b911949e28fadd"},
+    {file = "h5py-3.9.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:12aa556d540f11a2cae53ea7cfb94017353bd271fb3962e1296b342f6550d1b8"},
+    {file = "h5py-3.9.0-cp310-cp310-win_amd64.whl", hash = "sha256:d97409e17915798029e297a84124705c8080da901307ea58f29234e09b073ddc"},
+    {file = "h5py-3.9.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:551e358db05a874a0f827b22e95b30092f2303edc4b91bb62ad2f10e0236e1a0"},
+    {file = "h5py-3.9.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:6822a814b9d8b8363ff102f76ea8d026f0ca25850bb579d85376029ee3e73b93"},
+    {file = "h5py-3.9.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:54f01202cdea754ab4227dd27014bdbd561a4bbe4b631424fd812f7c2ce9c6ac"},
+    {file = "h5py-3.9.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:64acceaf6aff92af091a4b83f6dee3cf8d3061f924a6bb3a33eb6c4658a8348b"},
+    {file = "h5py-3.9.0-cp311-cp311-win_amd64.whl", hash = "sha256:804c7fb42a34c8ab3a3001901c977a5c24d2e9c586a0f3e7c0a389130b4276fc"},
+    {file = "h5py-3.9.0-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:8d9492391ff5c3c80ec30ae2fe82a3f0efd1e750833739c25b0d090e3be1b095"},
+    {file = "h5py-3.9.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:9da9e7e63376c32704e37ad4cea2dceae6964cee0d8515185b3ab9cbd6b947bc"},
+    {file = "h5py-3.9.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a4e20897c88759cbcbd38fb45b507adc91af3e0f67722aa302d71f02dd44d286"},
+    {file = "h5py-3.9.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:dbf5225543ca35ce9f61c950b73899a82be7ba60d58340e76d0bd42bf659235a"},
+    {file = "h5py-3.9.0-cp38-cp38-win_amd64.whl", hash = "sha256:36408f8c62f50007d14e000f9f3acf77e103b9e932c114cbe52a3089e50ebf94"},
+    {file = "h5py-3.9.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:23e74b878bbe1653ab34ca49b83cac85529cd0b36b9d625516c5830cc5ca2eac"},
+    {file = "h5py-3.9.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:3f457089c5d524b7998e3649bc63240679b8fb0a3859ea53bbb06841f3d755f1"},
+    {file = "h5py-3.9.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a6284061f3214335e1eec883a6ee497dbe7a79f19e6a57fed2dd1f03acd5a8cb"},
+    {file = "h5py-3.9.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:95f7a745efd0d56076999b52e8da5fad5d30823bac98b59c68ae75588d09991a"},
+    {file = "h5py-3.9.0-cp39-cp39-win_amd64.whl", hash = "sha256:79bbca34696c6f9eeeb36a91776070c49a060b2879828e2c8fa6c58b8ed10dd1"},
+    {file = "h5py-3.9.0.tar.gz", hash = "sha256:e604db6521c1e367c6bd7fad239c847f53cc46646f2d2651372d05ae5e95f817"},
+]
+
+[package.dependencies]
+numpy = ">=1.17.3"
+
+[[package]]
+name = "healpy"
+version = "1.16.5"
+description = "Healpix tools package for Python"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "healpy-1.16.5-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:a6bd59a2d1fd6ec24a7ddf409b027b31a7b6dedbbb82866142249983a3056ca4"},
+    {file = "healpy-1.16.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f87784a3912fd6253c9aa8118ed0d55c224564e1b94875a1a213feed0395aa1e"},
+    {file = "healpy-1.16.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:666bf645caf813f53393d60ef388e5daf19d9b0d81bd8a133793b7f61d1c61dd"},
+    {file = "healpy-1.16.5-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:ec39b58daf8303f7df125fb4fa690b70a6edf88e5644990d940edf656e9e984a"},
+    {file = "healpy-1.16.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:40b0363b781b8c471b2fe40fa54f8b82810b8a80d19c1e86f2e4114c0118ee55"},
+    {file = "healpy-1.16.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ba99a0c262ae389db2bc9a78b107e1d33944608ca492767f636a94144156f464"},
+    {file = "healpy-1.16.5-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:2d72f2468d9ffee1d78db0bffb6a75b09cfd5064c05c4b17a08fe579a1bbd81d"},
+    {file = "healpy-1.16.5-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e7611cbb5d085a1d579d773c7922ac72a67e22686fe5167417ae9c9807b85ed6"},
+    {file = "healpy-1.16.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e9fc6a94aaeee154630e09b9857890d8eed7e839f740c67c94095d42c8253a51"},
+    {file = "healpy-1.16.5-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:f988b3505e950e0d63b59d1e0b344e5c0e905f28848309ef3ff51cf5672841d0"},
+    {file = "healpy-1.16.5-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:dca8842bec5c35d793edc8aa3757a57ed32c55c9e175340125fd68cfa4d67086"},
+    {file = "healpy-1.16.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b7b70298346f09382fae55b8b44d338e214239e634f8b3afbf23842f8967e475"},
+    {file = "healpy-1.16.5.tar.gz", hash = "sha256:9f99cd5ed2d8791dbfcefe1552a73e550ec85b87637127938756280008d0ed29"},
+]
+
+[package.dependencies]
+astropy = "*"
+matplotlib = "*"
+numpy = ">=1.13"
+scipy = "*"
+
+[package.extras]
+test = ["pytest", "pytest-cython", "pytest-doctestplus", "requests"]
 
 [[package]]
 name = "idna"
@@ -777,6 +871,17 @@ watchdog = ">=2.0"
 [package.extras]
 i18n = ["babel (>=2.9.0)"]
 min-versions = ["babel (==2.9.0)", "click (==7.0)", "colorama (==0.4)", "ghp-import (==1.0)", "importlib-metadata (==4.3)", "jinja2 (==2.11.1)", "markdown (==3.2.1)", "markupsafe (==2.0.1)", "mergedeep (==1.3.4)", "packaging (==20.5)", "pathspec (==0.11.1)", "platformdirs (==2.2.0)", "pyyaml (==5.1)", "pyyaml-env-tag (==0.1)", "typing-extensions (==3.10)", "watchdog (==2.0)"]
+
+[[package]]
+name = "msgpack-python"
+version = "0.5.6"
+description = "MessagePack (de)serializer."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "msgpack-python-0.5.6.tar.gz", hash = "sha256:378cc8a6d3545b532dfd149da715abae4fda2a3adb6d74e525d0d5e51f46909b"},
+]
 
 [[package]]
 name = "numpy"
@@ -1401,4 +1506,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "6b7202663b67f4f1a011f22e6d6b7b7a3a33ef988d0a09336999abf74f6b9457"
+content-hash = "b898c7d6c9668cf1d5252b09c95e15138fff74345a5315e867201ff8e79a177e"

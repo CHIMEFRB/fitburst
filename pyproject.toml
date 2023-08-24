@@ -6,7 +6,12 @@ authors = ["Emmanuel Fonseca <emmanuel.fonseca@mail.wvu.edu>"]
 license = "MIT"
 readme = "README.md"
 keywords = ["frb", "radio burst", "pulsar", "dispersion measure"]
-url = "https://github.com/CHIMEFRB/fitburst"
+homepage = "https://github.com/CHIMEFRB/fitburst"
+documentation = "https://chimefrb.github.io/fitburst/"
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/CHIMEFRB/fitburst/issues"
+"Source" = "https://github.com/CHIMEFRB/fitburst"
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -17,6 +22,7 @@ pytz = "^2023.3"
 pyyaml = ">=5.3"
 requests = ">=2.0"
 scipy = ">=1.5"
+cfod = {git = "https://github.com/chime-frb-open-data/chime-frb-open-data.git"}
 
 
 [tool.poetry.group.chimefrb.dependencies]
