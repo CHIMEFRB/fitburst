@@ -1,3 +1,31 @@
+[tool.poetry]
+name = "fitburst"
+version = "0.1.0"
+description = "fitburst - A Codebase for Direct Modeling of Radio Dynamic Spectra"
+authors = ["Emmanuel Fonseca <emmanuel.fonseca@mail.wvu.edu>"]
+license = "MIT"
+readme = "README.md"
+keywords = ["frb", "radio burst", "pulsar", "dispersion measure"]
+url = "https://github.com/CHIMEFRB/fitburst"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+astropy = ">=4.0"
+matplotlib = ">=3.1"
+numpy = ">=1.17"
+pytz = "^2023.3"
+pyyaml = ">=5.3"
+requests = ">=2.0"
+scipy = ">=1.5"
+
+
+[tool.poetry.group.chimefrb.dependencies]
+chime-frb-api = "^3.2.1"
+
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = "^1.5.2"
+
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

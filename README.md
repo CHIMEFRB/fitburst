@@ -1,13 +1,13 @@
 fitburst
 ========
 
-This repo contains functions and objects for modeling dynamic spectra of dispersed astrophysical signals at radio frequencies.  
+This repo contains functions and objects for modeling dynamic spectra of dispersed astrophysical signals at radio frequencies.
 
 ## Installation
 
 Currently, `fitburst` can be installed by cloning the repo and running `pip` in the following way:
 
-``` 
+```
 pc> git clone git@github.com:CHIMEFRB/fitburst.git
 pc> cd fitburst
 pc/fitburst> pip install . # add the --user option if you're looking to install in your local environment.
