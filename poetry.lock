@@ -89,7 +89,7 @@ files = [
 name = "cfod"
 version = "2021.6.4"
 description = "CHIME FRB Open Data"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = []
@@ -230,7 +230,7 @@ docs = ["mkdocs-material (>=8)", "mkdocstrings-python (>=0.8.3,<0.9.0)", "pytkdo
 name = "click"
 version = "8.1.7"
 description = "Composable command line interface toolkit"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
@@ -245,7 +245,7 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
-category = "main"
+category = "dev"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 files = [
@@ -404,7 +404,7 @@ dev = ["flake8", "markdown", "twine", "wheel"]
 name = "h5py"
 version = "3.9.0"
 description = "Read and write HDF5 files from Python"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
@@ -438,7 +438,7 @@ numpy = ">=1.17.3"
 name = "healpy"
 version = "1.16.5"
 description = "Healpix tools package for Python"
-category = "main"
+category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
@@ -876,7 +876,7 @@ min-versions = ["babel (==2.9.0)", "click (==7.0)", "colorama (==0.4)", "ghp-imp
 name = "msgpack-python"
 version = "0.5.6"
 description = "MessagePack (de)serializer."
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 files = [
@@ -1506,4 +1506,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "b898c7d6c9668cf1d5252b09c95e15138fff74345a5315e867201ff8e79a177e"
+content-hash = "d4c940e32e517fdc08fb50e641bb13bf4125ec41094f020c127fb82824e9cc41"
