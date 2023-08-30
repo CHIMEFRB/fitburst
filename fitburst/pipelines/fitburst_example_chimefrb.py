@@ -278,7 +278,8 @@ for current_event_id in eventIDs:
         initial_parameters = results["model_parameters"]
 
         try:
-            window = results["fit_logistics"]["spectrum_window"]
+            if window_orig == 0.08:
+                window = results["fit_logistics"]["spectrum_window"]
 
         except:
             log.warning(f"window size not found in file '{latest_solution_file}'")
@@ -447,17 +448,13 @@ for current_event_id in eventIDs:
                 bestfit_residuals = data_windowed - bestfit_model
                 fit_is_successful = True
                 fit_statistics = fitter.fit_statistics
-
-                # save covariance matricies for offline comparison.
-                hessian_exact, par_labels = fitter.compute_hessian(data_windowed, fitter.fit_parameters)
-                covariance_exact = np.linalg.inv(hessian_exact)
-                print(par_labels)
-     
+                
+                # TODO: for now, stash covariance data for offline comparison; remove at some point.
                 np.savez(
                     f"covariance_matrices_{current_event_id}.npz",
-                    covariance_approx = fitter.covariance,
-                    covariance_exact = covariance_exact,
-                    covariance_labels = par_labels
+                    covariance_approx = fitter.covariance_approx,
+                    covariance_exact = fitter.covariance,
+                    covariance_labels = fitter.covariance_labels
                 )
 
     else:

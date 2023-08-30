@@ -454,11 +454,15 @@ class LSFitter:
         self.fit_statistics["bestfit_covariance"] = None
 
         try:
-            hessian = fit_result.jac.T.dot(fit_result.jac)
+            hessian_approx = fit_result.jac.T.dot(fit_result.jac)
+            covariance_approx = np.linalg.inv(hessian_approx) * chisq_final_reduced
+            hessian, par_labels = self.compute_hessian(self.data, self.fit_parameters)
             covariance = np.linalg.inv(hessian) * chisq_final_reduced
             uncertainties = [float(x) for x in np.sqrt(np.diag(covariance)).tolist()]
 
+            self.covariance_approx = covariance_approx
             self.covariance = covariance
+            self.covariance_labels = par_labels
             self.fit_statistics["bestfit_uncertainties"] = self.load_fit_parameters_list(
                 uncertainties)
             self.fit_statistics["bestfit_covariance"] = None # return the full matrix at some point?

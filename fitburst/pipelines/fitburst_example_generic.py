@@ -490,8 +490,13 @@ for current_iteration in range(num_iterations):
 
     # extract best-fit data for next loop.
     if fitter.results.success:
-        model.update_parameters(fitter.fit_statistics["bestfit_parameters"])
- 
+        bestfit_params = fitter.fit_statistics["bestfit_parameters"]
+        model.update_parameters(bestfit_params)
+        current_params = model.get_parameters_dict()
+        current_params["dm"] = [x for x in bestfit_params["dm"] * num_components]
+        current_params["scattering_timescale"] = [x for x in 
+                                                  bestfit_params["scattering_timescale"] * num_components] 
+
         # if this is the last iteration, create best-fit model and plot windowed data.
         if current_iteration == (num_iterations - 1):
             bestfit_parameters = fitter.fit_statistics["bestfit_parameters"]
@@ -527,7 +532,7 @@ for current_iteration in range(num_iterations):
                     {
                         "initial_dm": initial_parameters["dm"][0],
                         "initial_time": data.times_bin0,
-                        "model_parameters": model.get_parameters_dict(),
+                        "model_parameters": current_params,
                         "fit_statistics": fitter.fit_statistics,
                     },
                     out,
