@@ -104,13 +104,17 @@ class FindPeak:
             self.peaks_greater_rms=self.peak_mean_intensities[index_peaks_greater_rms]
             self.times_peaks_greater_rms=self.peak_times[index_peaks_greater_rms]
         
-  
-        
         #Now find the width of each burst
-        for each_peak in index_peaks_greater_rms:
+        for each_peak in index_peaks_greater_rms[0]:
 
             # These are the indices of times just below and just above the peaks.
-            below_peak_index,above_peak_index=each_peak-2,each_peak+2
+            below_peak_index, above_peak_index = each_peak - 1, each_peak + 1
+
+            if below_peak_index < 0:
+                below_peak_index = 0
+
+            if above_peak_index >= len(self.peak_times):
+                above_peak_index = each_peak
             
             # Now find the times for above and below peak
             below_peak_time=self.peak_times[below_peak_index]*1000
