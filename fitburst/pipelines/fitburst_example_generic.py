@@ -166,6 +166,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--ref_freq",
+    action="store",
+    default=None,
+    type=float,
+    help="If set, then replace reference frequency with command-line value."
+)
+
+parser.add_argument(
     "--remove_smearing",
     action="store_true",
     dest="remove_dispersion_smearing",
@@ -295,6 +303,7 @@ parameters_to_fix = args.parameters_to_fix
 peakfind_rms = args.peakfind_rms
 peakfind_dist = args.peakfind_dist
 preprocess_data = args.preprocess_data
+ref_freq = args.ref_freq
 remove_dispersion_smearing = args.remove_dispersion_smearing
 use_outfile_substring = args.use_outfile_substring
 scattering_timescale = args.scattering_timescale
@@ -339,6 +348,8 @@ data = DataReader(input_file)
 
 # load spectrum data into memory and pre-process, and load in parameter data..
 data.load_data()
+print(f"INFO: there are {data.num_freq} frequencies and {data.num_time} time samples.")
+
 data.good_freq = np.sum(data.data_weights, axis=1) != 0.
 data.good_freq = np.sum(data.data_full, axis=1) != 0.
 
@@ -429,6 +440,10 @@ if spectral_running is not None:
 if width is not None:
     current_parameters["burst_width"] = width
 
+# now replace ref_freq value, if desired.
+if ref_freq is not None:
+    current_parameters["ref_freq"] = [ref_freq] * num_components
+
 # print parameter info if desired.
 if verbose:
     print(f"INFO: initial guess for {len(current_parameters['dm'])}-component model:")
@@ -482,9 +497,9 @@ model.update_parameters(current_parameters)
 
 # now set up fitter and execute least-squares fitting
 for current_iteration in range(num_iterations):
-    fitter = LSFitter(data_windowed, model, data.good_freq)
+    fitter = LSFitter(data_windowed, model, data.good_freq, weighted_fit=True)
     fitter.fix_parameter(parameters_to_fix)
-    fitter.fit()
+    fitter.fit(exact_jacobian=True)
 
     print(fitter.results)
 
@@ -493,9 +508,13 @@ for current_iteration in range(num_iterations):
         bestfit_params = fitter.fit_statistics["bestfit_parameters"]
         model.update_parameters(bestfit_params)
         current_params = model.get_parameters_dict()
-        current_params["dm"] = [x for x in bestfit_params["dm"] * num_components]
-        current_params["scattering_timescale"] = [x for x in 
-                                                  bestfit_params["scattering_timescale"] * num_components] 
+
+        if not any([x == "dm" for x in parameters_to_fix]):
+            current_params["dm"] = [x for x in bestfit_params["dm"] * num_components]
+
+        if "scattering_timescale" not in parameters_to_fix:
+            current_params["scattering_timescale"] = [x for x in 
+                                                      bestfit_params["scattering_timescale"] * num_components] 
 
         # if this is the last iteration, create best-fit model and plot windowed data.
         if current_iteration == (num_iterations - 1):
