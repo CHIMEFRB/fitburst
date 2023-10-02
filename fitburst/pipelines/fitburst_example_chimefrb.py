@@ -1,5 +1,17 @@
 #! /user/bin/env python
 
+### import and configure logger to only report warnings or worse for non-fitburst packages.
+import datetime
+import logging
+right_now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+logging.basicConfig(filename=f"fitburst_run_{right_now}.log", level=logging.DEBUG)
+logging.getLogger('cfod').setLevel(logging.WARNING)
+logging.getLogger('chime_frb_api').setLevel(logging.WARNING)
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
+logging.getLogger('numpy').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+log = logging.getLogger("fitburst")
+
 from fitburst.analysis.peak_finder import FindPeak
 from fitburst.analysis.fitter import LSFitter
 import fitburst.backend.chimefrb as chimefrb
@@ -19,18 +31,11 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-### import and configure logger.
-import datetime
-import logging
-right_now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-logging.basicConfig(filename=f"fitburst_run_{right_now}.log", level=logging.DEBUG)
-log = logging.getLogger("fitburst")
-
 ### import and configure argparse.
 import argparse
 
 parser = argparse.ArgumentParser(description=
-    "A Python3 script that uses fitburst API to read, preprocess, window, and fit CHIME/FRB data " + 
+    "A Python3 script that uses fitburst API to read, pre-process, window, and fit CHIME/FRB data " + 
     "against a model of the dynamic spectrum." 
 )
 
@@ -229,16 +234,18 @@ parameters_to_fix += ["dm_index", "scattering_index", "scattering_timescale"]
 for current_fit_parameter in parameters_to_fit:
     if current_fit_parameter in parameters_to_fix:
         parameters_to_fix.remove(current_fit_parameter)
+        log.info(f"the parameter '{current_fit_parameter}' is now a fit parameter")
 
 # loop over all CHIME/FRB events supplied at command line.
 for current_event_id in eventIDs:
+    log.info(f"now preparing to fit spectrum for {current_event_id}")
 
     # grab initial parameters to check if pipeline-specific parameters exist.
     try:
         data = chimefrb.DataReader(current_event_id, beam_id=beam)
 
     except:
-        log.error(f"ERROR: {current_event_id} fails, moving on to next event...")
+        log.error(f"ERROR: {current_event_id} fails at DB-parsing stage, moving on to next event...")
         continue
 
     initial_parameters = data.get_parameters(pipeline=pipeline)
@@ -285,7 +292,7 @@ for current_event_id in eventIDs:
             log.warning(f"window size not found in file '{latest_solution_file}'")
             
 
-        log.info("window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
+        log.info(f"window size for {current_event_id} adjusted to +/- {0:.1f} ms, from input JSON data".format(window * 1e3))
 
     else: 
         pass
@@ -333,6 +340,10 @@ for current_event_id in eventIDs:
         variance_weight=variance_weight
     )
 
+    # if desired, downsample data prior to extraction.
+    data.downsample(factor_freq_downsample, factor_time_upsample)
+    log.info(f"downsampled raw data by factors of (ds_freq, ds_time) = ({factor_freq_downsample}, {factor_time_downsample})")
+
     # if the number of RFI-flagged channels is "too large", skip this event altogether.
     num_bad_freq = data.num_freq - np.sum(data.good_freq)
 
@@ -343,11 +354,11 @@ for current_event_id in eventIDs:
         continue
 
     # now compute dedisperse matrix for data, given initial DM, and grab windowed data.
-    print("INFO: computing dedispersion-index matrix")
-    print("INFO: dedispersing over freq range ({0:.3f}, {1:.3f}) MHz".format(
-            np.min(data.freqs), np.max(data.freqs)
-        )
-    )
+    freq_min = min(data.freqs)
+    freq_max = max(data.freqs)
+
+    log.info(f"computing dedispersion-index matrix for {current_event_id}")
+    log.info(f"dedispersing data for {current_event_id} over freq range ({freq_min}, {freq_max}) MHz")
     params = initial_parameters.copy()#data.burst_parameters["fitburst"]["round_2"]
     data.dedisperse(
         params["dm"][0],
@@ -357,12 +368,15 @@ for current_event_id in eventIDs:
 
     # before doing anything, check if window size doesn't extend beyond data set.
     # if it does, adjust down by an appropriate amount.
-    print("INFO: window size set to +/- {0:.1f} ms".format(window * 1e3))
-    window_max = data.times[-1] - initial_parameters["arrival_time"][-1]
+    window_max = data.times[-1] - np.mean(initial_parameters["arrival_time"])
 
     if window > window_max:
         window = window_max - 0.005
-        print("INFO: window size adjusted to +/- {0:.1f} ms".format(window * 1e3))
+        log.warning(f"window size for {current_event_id} adjusted to +/- {window * 1e3} ms")
+
+    if window_max < 0.:
+        log.error(f"{current_event_id} has a negative widnow size, initial guess for TOA is too far off...")
+        continue
 
     data_windowed, times_windowed = data.window_data(np.mean(params["arrival_time"]), window=window)
 
@@ -374,25 +388,23 @@ for current_event_id in eventIDs:
                 data.good_freq[current_chan] = False 
                 weird_chan += 1
 
-    log.warning(f"WARNING: there are {weird_chan} weird channels")
-    plt.pcolormesh(rt.manipulate.downsample_2d(data_windowed * data.good_freq[:, None], 64, 1))
-    plt.savefig("test.png")
-    #sys.exit()
+    if weird_chan > 0:
+        log.warning(f"WARNING: there are {weird_chan} weird channels")
+
+    #plt.pcolormesh(rt.manipulate.downsample_2d(data_windowed * data.good_freq[:, None], 64, 1))
+    #plt.savefig("test.png")
 
     # before defining model, adjust model parameters with peak-finding algorithm.
     if peakfind_rms is not None:
-        print("INFO: running FindPeak to isolate burst components...")
+        log.info(f"running FindPeak on {current_event_id} to isolate burst components...")
         peaks = FindPeak(data_windowed, times_windowed, data.freqs, rms=peakfind_rms)
         peaks.find_peak(distance=peakfind_dist) 
         initial_parameters = peaks.get_parameters_dict(initial_parameters)
 
-    #print(initial_parameters)
-    #sys.exit()
-
     # now create initial model.
     # since CHIME/FRB data are in msgpack format, define a few things 
     # so that this version of fitburst works similar to the original version on site.
-    print("INFO: initializing model")
+    log.info(f"initializing spectrum model for {current_event_id}")
     num_components = len(initial_parameters["amplitude"])
     initial_parameters["dm"] = [0.] * num_components
 
@@ -434,13 +446,16 @@ for current_event_id in eventIDs:
     if not no_fit:
 
         for current_iteration in range(num_iterations):
-            print(f"INFO: fitting model, loop #{current_iteration + 1}")
+            log.info(f"fitting model for {current_event_id}, loop #{current_iteration + 1}")
             fitter = LSFitter(data_windowed, model, good_freq=data.good_freq, weighted_fit=True)
             fitter.fix_parameter(parameters_to_fix)
+            start = time.time()
             fitter.fit(exact_jacobian=True)
     
             # before executing the fitting loop, overload model class with best-fit parameters.
             if fitter.results.success:
+                stop = time.time()
+                log.info(f"LSFitter.fit() took {stop - start} seconds to run.")
                 model.update_parameters(fitter.fit_statistics["bestfit_parameters"])
                 bestfit_model = model.compute_model(data=data_windowed) * data.good_freq[:, None]
                 bestfit_params = model.get_parameters_dict()
@@ -448,6 +463,8 @@ for current_event_id in eventIDs:
                 bestfit_residuals = data_windowed - bestfit_model
                 fit_is_successful = True
                 fit_statistics = fitter.fit_statistics
+                plt.pcolormesh(bestfit_model)
+                plt.savefig("test2.png")
                 
                 # TODO: for now, stash covariance data for offline comparison; remove at some point.
                 np.savez(
@@ -464,11 +481,10 @@ for current_event_id in eventIDs:
     ### now compute best-fit model of spectrum and plot.
     if fit_is_successful or no_fit:
 
-        # create summary plot.
+        # create summary plot using original data.
         data_grouped = ut.plotting.compute_downsampled_data(
             times_windowed, data.freqs, data_windowed, data.good_freq,
-            spectrum_model = bestfit_model, factor_freq = factor_freq_downsample,
-            factor_time = factor_time_downsample
+            spectrum_model = bestfit_model, factor_freq = int(64 / factor_freq_downsample), factor_time = 1
         )
 
         ut.plotting.plot_summary_triptych(

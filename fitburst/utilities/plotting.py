@@ -215,13 +215,13 @@ def plot_summary_triptych(data_dict: dict, num_std: int = 4, output_name: str = 
     # add data/model/residual labels.
     x_pos = (max_time - min_time) * 0.96 + min_time
     y_pos = (y_max - y_min) * 0.90 + y_min
-    panel1d_data.text(x_pos, y_pos, "D", ha="right", va="top", fontsize=8)
-    panel1d_model.text(x_pos, y_pos, "M", ha="right", va="top", fontsize=8)
-    panel1d_residual.text(x_pos, y_pos, "R", ha="right", va="top", fontsize=8)
-    panel2d_data.set_xlabel("Time [ms]")
-    panel2d_data.set_ylabel("Frequency [MHz]")
-    panel2d_model.set_xlabel("Time [ms]")
-    panel2d_residual.set_xlabel("Time [ms]")
+    panel1d_data.text(x_pos, y_pos, "D", ha="right", va="top", fontsize=14)
+    panel1d_model.text(x_pos, y_pos, "M", ha="right", va="top", fontsize=14)
+    panel1d_residual.text(x_pos, y_pos, "R", ha="right", va="top", fontsize=14)
+    panel2d_data.set_xlabel("Time [ms]", fontsize=14)
+    panel2d_data.set_ylabel("Frequency [MHz]", fontsize=14)
+    panel2d_model.set_xlabel("Time [ms]", fontsize=14)
+    panel2d_residual.set_xlabel("Time [ms]", fontsize=14)
 
     # now save figure.
     plt.savefig(output_name, dpi=150, bbox_inches="tight")

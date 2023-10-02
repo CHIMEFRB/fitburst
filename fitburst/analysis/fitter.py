@@ -90,6 +90,8 @@ class LSFitter:
         least_squares() for exact calculation of the Jacobian in terms of derivatives.
         """
 
+        print("INFO: computing hessian matrix with best-fit parameters.")
+
         # load all parameter values into a dictionary.
         parameter_dict = self.model.get_parameters_dict()
 
@@ -463,6 +465,9 @@ class LSFitter:
             self.covariance_approx = covariance_approx
             self.covariance = covariance
             self.covariance_labels = par_labels
+            self.hessian_approx = hessian_approx
+            self.hessian = hessian
+
             self.fit_statistics["bestfit_uncertainties"] = self.load_fit_parameters_list(
                 uncertainties)
             self.fit_statistics["bestfit_covariance"] = None # return the full matrix at some point?
