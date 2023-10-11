@@ -65,7 +65,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--downsample_freq", action="store", dest="factor_freq_downsample", default=64, type=int,
+    "--downsample_freq", action="store", dest="factor_freq_downsample", default=1, type=int,
     help="Downsample the raw spectrum along the frequency axis by a specified integer."
 )
 
@@ -341,7 +341,7 @@ for current_event_id in eventIDs:
     )
 
     # if desired, downsample data prior to extraction.
-    data.downsample(factor_freq_downsample, factor_time_upsample)
+    #data.downsample(factor_freq_downsample, factor_time_upsample)
     log.info(f"downsampled raw data by factors of (ds_freq, ds_time) = ({factor_freq_downsample}, {factor_time_downsample})")
 
     # if the number of RFI-flagged channels is "too large", skip this event altogether.
