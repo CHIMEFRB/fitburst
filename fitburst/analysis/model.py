@@ -216,8 +216,11 @@ class SpectrumModeler:
                 current_profile = self.compute_profile(
                     current_times_arr,
                     0.0, # since 'current_times' is already corrected for DM.
-                    current_sc_time_scaled,
+                    current_sc_time,
+                    current_sc_idx,
                     current_width,
+                    current_freq_arr,
+                    current_ref_freq,
                     is_folded = self.is_folded,
                 )
 
@@ -258,8 +261,8 @@ class SpectrumModeler:
        
         return np.sum(self.spectrum_per_component, axis=2)
 
-    def compute_profile(self, times: float, arrival_time: float, sc_time: float,
-        width: float, is_folded: bool = False) -> float:
+    def compute_profile(self, times: float, arrival_time: float, sc_time_ref: float, sc_index: float,
+        width: float, freqs: float, ref_freq: float, is_folded: bool = False) -> float:
         """
         Returns the temporal profile, depending on input values of width
         and scattering timescale.
@@ -272,11 +275,20 @@ class SpectrumModeler:
         arrival_time : float
             The arrival time of the burst
 
-        sc_time : float
+        sc_time_ref : float
             The scattering timescale of the burst (which depends on frequency label)
+
+        sc_index : float
+            The index of frequency dependence on the scattering timescale
 
         width : float
             The intrinsic temporal width of the burst
+
+        freqs : float
+            The index of frequency dependence on the scattering timescale
+
+        ref_freq : float
+            The index of frequency dependence on the scattering timescale
 
         is_folded : bool, optional
             If true, then the temporal profile is computed over two realizations and then
@@ -304,6 +316,7 @@ class SpectrumModeler:
         
         # compute either Gaussian or pulse-broadening function, depending on inputs.
         profile = np.zeros(times_copy.shape, dtype=float)
+        sc_time = sc_time_ref * (freqs / ref_freq) ** sc_index
 
         if np.any(sc_time < np.fabs(0.15 * width)):
             profile = rt.profile.compute_profile_gaussian(times_copy, arrival_time, width)
@@ -313,7 +326,9 @@ class SpectrumModeler:
             # floating-point overlow in the exp((-times - toa) / sc_time) term in the
             # PBF call. TODO: use a better, more transparent method for avoiding this.
             times_copy[times_copy < -5 * width] = -5 * width
-            profile = rt.profile.compute_profile_pbf(times_copy, arrival_time, width, sc_time)
+            profile = rt.profile.compute_profile_pbf(
+                times_copy, arrival_time, width, freqs, ref_freq, sc_time_ref, sc_index=sc_index
+            )
 
         # if data are folded and time/profile data contain two realizations, then
         # average along the appropriate axis to obtain a single realization.
