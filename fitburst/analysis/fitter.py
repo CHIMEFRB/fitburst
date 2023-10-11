@@ -10,6 +10,7 @@ of one or more parameters.
 from scipy.optimize import least_squares
 import fitburst.routines.derivative as deriv
 import numpy as np
+import traceback
 import sys
 
 class LSFitter:
@@ -297,7 +298,7 @@ class LSFitter:
 
         except Exception as exc:
             print("ERROR: solver encountered a failure! Debug!")
-            print(sys.exc_info())
+            print(traceback.format_exc())
 
     def fix_parameter(self, parameter_list: list) -> None:
         """
@@ -474,6 +475,7 @@ class LSFitter:
 
         except Exception as exc:
             print(f"ERROR: {exc}; designating fit as unsuccessful...")
+            print(traceback.format_exc())
             self.success = False
 
     def _set_weights(self) -> None:
