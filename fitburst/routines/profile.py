@@ -48,8 +48,8 @@ def compute_profile_gaussian(values: float, mean: float, width: float,
 
     return profile
 
-def compute_profile_pbf(times: np.ndarray, toa: float, width: float,
-                        sc_time: float) -> float:
+def compute_profile_pbf(time: float, toa: float, width: float, freq: float, ref_freq: float,
+                        sc_time_ref: float, sc_index: float = -4.) -> float:
     """
     Computes a one-dimensional pulse broadening function (PBF) using the
     analytical solution of a Gaussian profile convolved with a one-side
@@ -57,8 +57,8 @@ def compute_profile_pbf(times: np.ndarray, toa: float, width: float,
 
     Parameters
     ----------
-    times : array_like
-        an array of times at which to evaluate PBF
+    time : array_like
+        a value or array of times at which to evaluate PBF
 
     toa : float
         the time of arrival of the burst
@@ -66,8 +66,17 @@ def compute_profile_pbf(times: np.ndarray, toa: float, width: float,
     width : float
         the temporal width of the burst
 
-    sc_time : float
-        the scattering timescale quantifying the one-sided exponential tail
+    freq : float
+        the electromagnetic frequency at which to evaluate the PBF
+
+    ref_freq : float
+        the electromagnetic frequency at which to reference the PBF
+
+    sc_time_ref : float
+        the scattering timescale at the frequency 'ref_freq'
+
+    sc_index : float, optional
+        the exponent of the frequency dependence for the PBF
 
     Returns
     -------
@@ -78,10 +87,14 @@ def compute_profile_pbf(times: np.ndarray, toa: float, width: float,
     The PBF equation is taken from McKinnon et al. (2004).
     """
 
-    amp_term = 1. / 2. / sc_time
-    exp_term_1 = np.exp(width**2 / 2 / sc_time**2)
-    exp_term_2 = np.exp(-(times - toa) / sc_time[:, None])
-    erf_term = 1 + ss.erf((times - (toa + width**2 / sc_time[:, None])) / width / np.sqrt(2))
-    profile = amp_term[:, None] * exp_term_1[:, None] * exp_term_2 * erf_term
+    # evaluate the separate terms that define the PBF.
+    amp_term = (freq / ref_freq) ** (-sc_index) 
+    sc_time = sc_time_ref * (freq / ref_freq) ** sc_index
+    arg_exp = width ** 2 / 2 / sc_time ** 2 - (time - toa) / sc_time
+    exp_term = np.exp(arg_exp)
+    erf_term = 1 + ss.erf((time - (toa + width ** 2 / sc_time)) / width / np.sqrt(2))
+
+    # finally, compute the PBF.
+    profile = amp_term * exp_term * erf_term
 
     return profile

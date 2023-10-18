@@ -10,6 +10,7 @@ of one or more parameters.
 from scipy.optimize import least_squares
 import fitburst.routines.derivative as deriv
 import numpy as np
+import traceback
 import sys
 
 class LSFitter:
@@ -100,28 +101,30 @@ class LSFitter:
 
         # define the scale of the Hessian matrix and its labels.
         par_labels_output = []
+        par_labels_idxs = []
         par_labels = []
         num_par = 0
-        print("here are the fit parameters:", self.fit_parameters)
 
         for current_par in self.fit_parameters:
             if np.any([current_par == x for x in self.global_parameters]):
                 par_labels_output += [current_par]
+                par_labels_idxs += [0]
                 par_labels += [current_par]
                 num_par += 1
 
             else:
                 par_labels_output += [f"{current_par}{idx+1}" for idx in range(self.model.num_components)]
+                par_labels_idxs += [idx for idx in range(self.model.num_components)]
                 par_labels += ([current_par] * self.model.num_components)
                 num_par += (self.model.num_components)
 
+        # now loop over all fit parameters and compute derivatives.
         hessian = np.zeros((num_par, num_par), dtype=float)
 
-        # now loop over all fit parameters and compute derivatives.
         for current_par_idx_1, current_par_1 in zip(range(num_par), par_labels):
             current_par_deriv_1 = getattr(deriv, f"deriv_model_wrt_{current_par_1}")
             current_deriv_1 = current_par_deriv_1(
-                parameter_dict, self.model, component=(current_par_idx_1 % self.model.num_components)
+                parameter_dict, self.model, component=par_labels_idxs[current_par_idx_1]
             )
 
             # for efficient calculation, only compute one half of the matrix and fill the other half appropriately.
@@ -130,7 +133,7 @@ class LSFitter:
                 # also compute a given derivative for all burst components.
                 current_par_deriv_2 = getattr(deriv, f"deriv_model_wrt_{current_par_2}")
                 current_deriv_2 = current_par_deriv_2(
-                    parameter_dict, self.model, component=(current_par_idx_2 % self.model.num_components)
+                    parameter_dict, self.model, component=par_labels_idxs[current_par_idx_2]
                 )
 
                 # correct name ordering of mixed partial derivative, if necessary.
@@ -140,17 +143,28 @@ class LSFitter:
                 except AttributeError:
                     current_mixed_deriv = getattr(deriv, f"deriv2_model_wrt_{current_par_2}_{current_par_1}")
  
-                # only computed mixed derivative for parameters that describe the same component.
+                # only computed mixed derivative for *non-global* parameters that describe the same component,
+                # or any mixture of global/non-global or global-global pairs.
                 current_deriv_mixed = 0
 
-                if (current_par_idx_1 % self.model.num_components) == (current_par_idx_2 % self.model.num_components):
+                if (current_par_1 not in self.global_parameters) and (current_par_2 not in self.global_parameters) and \
+                    (par_labels_idxs[current_par_idx_1] != par_labels_idxs[current_par_idx_2]):
+                    pass
+
+                else:
+                    # suss out correct pulse component and take mixed-partial derivative.
+                    component = par_labels_idxs[current_par_idx_2]
+                    
+                    if current_par_2 in self.global_parameters:
+                        component = par_labels_idxs[current_par_idx_1]
+
                     current_deriv_mixed = current_mixed_deriv(
-                        parameter_dict, self.model, component=(current_par_idx_2 % self.model.num_components)
+                        parameter_dict, self.model, component=component
                     )
 
                 # finally, compute the hessian here.
-                current_hes = 2 * current_deriv_1 * current_deriv_2 - residual * current_deriv_mixed
-                hessian[current_par_idx_1, current_par_idx_2] = np.sum(current_hes * self.weights[:, None])
+                current_hes = 2 * (current_deriv_1 * current_deriv_2 - residual * current_deriv_mixed)
+                hessian[current_par_idx_1, current_par_idx_2] = np.sum(current_hes * self.weights[:, None] ** 2)
                 hessian[current_par_idx_2, current_par_idx_1] = hessian[current_par_idx_1, current_par_idx_2]
 
         return hessian, par_labels_output
@@ -297,7 +311,7 @@ class LSFitter:
 
         except Exception as exc:
             print("ERROR: solver encountered a failure! Debug!")
-            print(sys.exc_info())
+            print(traceback.format_exc())
 
     def fix_parameter(self, parameter_list: list) -> None:
         """
@@ -459,7 +473,7 @@ class LSFitter:
             hessian_approx = fit_result.jac.T.dot(fit_result.jac)
             covariance_approx = np.linalg.inv(hessian_approx) * chisq_final_reduced
             hessian, par_labels = self.compute_hessian(self.data, self.fit_parameters)
-            covariance = np.linalg.inv(hessian) * chisq_final_reduced
+            covariance = np.linalg.inv(0.5 * hessian) * chisq_final_reduced
             uncertainties = [float(x) for x in np.sqrt(np.diag(covariance)).tolist()]
 
             self.covariance_approx = covariance_approx
@@ -474,6 +488,7 @@ class LSFitter:
 
         except Exception as exc:
             print(f"ERROR: {exc}; designating fit as unsuccessful...")
+            print(traceback.format_exc())
             self.success = False
 
     def _set_weights(self) -> None:
