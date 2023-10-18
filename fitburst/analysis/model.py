@@ -219,7 +219,7 @@ class SpectrumModeler:
                     current_sc_time,
                     current_sc_idx,
                     current_width,
-                    current_freq_arr,
+                    current_freq_arr[:, None],
                     current_ref_freq,
                     is_folded = self.is_folded,
                 )
