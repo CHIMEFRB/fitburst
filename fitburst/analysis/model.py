@@ -105,12 +105,21 @@ class SpectrumModeler:
         for current_parameter in self.parameters:
             setattr(self, current_parameter, None)
  
-        # now instantiate the structures for per-component models and time differences.
+        # now instantiate the structures for per-component models, time differences, and temporal profiles.
+        # (the following are used for computing derivatives and/or per-channel amplitudes.)
+        self.amplitude_per_component = np.zeros(
+            (self.num_freq, self.num_time, self.num_components), dtype=float
+        )
+
         self.spectrum_per_component = np.zeros(
             (self.num_freq, self.num_time, self.num_components), dtype=float
         )
 
         self.timediff_per_component = np.zeros(
+            (self.num_freq, self.num_time, self.num_components), dtype=float
+        )
+
+        self.timeprof_per_component = np.zeros(
             (self.num_freq, self.num_time, self.num_components), dtype=float
         )
 
@@ -135,30 +144,32 @@ class SpectrumModeler:
         num_window_bins = self.num_time // 2
 
         # loop over all components.
-        for current_component in range(self.num_components):
-
-            # extract parameter values for current component.
-            current_amplitude = self.amplitude[current_component]
-            current_arrival_time = self.arrival_time[current_component]
-            current_dm = self.dm[0]
-            current_dm_index = self.dm_index[0]
-            current_ref_freq = self.ref_freq[current_component]
-            current_sc_idx = self.scattering_index[0]
-            current_sc_time = self.scattering_timescale[0]
-            current_width = self.burst_width[current_component]
-
-            if self.verbose:
-                if self.scintillation:
-                    print(
-                        f"{current_dm:.5f} {current_arrival_time:.5f} ",
-                        f"{current_sc_idx:.5f}  {current_sc_time:.5f}  {current_width:.5f}", end=" ")
-                else:
-                    print(
-                        f"{current_dm:.5f}  {current_amplitude:.5f}  {current_arrival_time:.5f}  ",
-                        f"{current_sc_idx:.5f}  {current_sc_time:.5f}  {current_width:.5f}", end=" ")
+        for current_freq in range(self.num_freq):
 
             # now loop over bandpass.
-            for current_freq in range(self.num_freq):
+            for current_component in range(self.num_components):
+
+                # extract parameter values for current component.
+                current_amplitude = self.amplitude[current_component]
+                current_arrival_time = self.arrival_time[current_component]
+                current_dm = self.dm[0]
+                current_dm_index = self.dm_index[0]
+                current_ref_freq = self.ref_freq[current_component]
+                current_sc_idx = self.scattering_index[0]
+                current_sc_time = self.scattering_timescale[0]
+                current_sp_idx = self.spectral_index[current_component]
+                current_sp_run = self.spectral_running[current_component]
+                current_width = self.burst_width[current_component]
+
+                if self.verbose and current_freq == 0:
+                    if self.scintillation:
+                         print(
+                            f"{current_dm:.5f} {current_arrival_time:.5f} ",
+                            f"{current_sc_idx:.5f}  {current_sc_time:.5f}  {current_width:.5f}", end=" ")
+                    else:
+                         print(
+                            f"{current_dm:.5f}  {current_amplitude:.5f}  {current_arrival_time:.5f}  ",
+                            f"{current_sc_idx:.5f}  {current_sc_time:.5f}  {current_width:.5f}", end=" ")
 
                 # create an upsampled version of the current frequency label.
                 # even if no upsampling is desired, this will return an array
@@ -224,17 +235,18 @@ class SpectrumModeler:
                     is_folded = self.is_folded,
                 )
 
-                # third, compute and scale profile by spectral energy distribution.
-                if not self.scintillation:
-                    current_sp_idx = self.spectral_index[current_component]
-                    current_sp_run = self.spectral_running[current_component]
+                self.timeprof_per_component[current_freq, :, current_component] = rt.manipulate.downsample_1d(
+                    current_profile.mean(axis=0),
+                    self.factor_time_upsample
+                )
 
-                    current_profile *= rt.spectrum.compute_spectrum_rpl(
-                        current_freq_arr,
-                        current_ref_freq,
-                        current_sp_idx,
-                        current_sp_run,
-                    )[:, None]
+                # third, compute and scale profile by spectral energy distribution.
+                current_profile *= rt.spectrum.compute_spectrum_rpl(
+                    current_freq_arr,
+                    current_ref_freq,
+                    current_sp_idx,
+                    current_sp_run,
+                )[:, None]
 
                 # before writing, downsize upsampled array to original size.
                 current_profile = rt.manipulate.downsample_1d(
@@ -242,23 +254,36 @@ class SpectrumModeler:
                     self.factor_time_upsample
                 )
 
-                # finally, add to approrpiate slice of model-spectrum matrix.
-                if self.scintillation:
-                    current_amplitude = rt.ism.compute_amplitude_per_channel(
-                        data[current_freq], current_profile
-                    )
-                    self.spectrum_per_component[current_freq, :, current_component] = current_amplitude * current_profile
-
-                else:
-                    self.spectrum_per_component[current_freq, :, current_component] = (10**current_amplitude) * current_profile
+                # before exiting the loop, save different snapshots of the model.
+                self.amplitude_per_component[current_freq, :, current_component] = rt.spectrum.compute_spectrum_rpl(
+                    self.freqs[current_freq],
+                    current_ref_freq,
+                    current_sp_idx,
+                    current_sp_run
+                ) * (10 ** current_amplitude)
+                self.spectrum_per_component[current_freq, :, current_component] = (10 ** current_amplitude) * current_profile 
 
             # print spectral index/running for current component.
-            if self.verbose and not self.scintillation:
-                print(f"{current_sp_idx:.5f}  {current_sp_run:.5f}")
+            if current_freq == 0:
+                if self.verbose and not self.scintillation:
+                    print(f"{current_sp_idx:.5f}  {current_sp_run:.5f}")
 
-            else:
-                print()
-       
+                else:
+                    print()
+
+        # if desired, then compute per-channel amplitudes in cases where scintillation is significant.
+        if self.scintillation:
+
+            for freq in range(self.num_freq):
+                current_amplitudes = rt.ism.compute_amplitude_per_channel(
+                    data[freq], self.timeprof_per_component[freq, :, :]
+                )
+                # now compute model with per-channel amplitudes determined.
+                for component in range(self.num_components):
+                    current_profile = self.timeprof_per_component[freq, :, component]
+                    self.amplitude_per_component[freq, :, component] = current_amplitudes[component] 
+                    self.spectrum_per_component[freq, :, component] = current_amplitudes[component] * current_profile
+
         return np.sum(self.spectrum_per_component, axis=2)
 
     def compute_profile(self, times: float, arrival_time: float, sc_time_ref: float, sc_index: float,
