@@ -10,7 +10,8 @@ import numpy as np
 
 def compute_amplitude_per_channel(data: float, model: float) -> float:
     """
-    Computes the per-channel amplitude of a model dynamic spectrum using an observed spectrum.
+    Computes the per-channel amplitude of a model dynamic spectrum using an observed spectrum. 
+    See Equation 10 of the fitburst paper for the expression that is numerically solved here.
 
     Parameters
     ----------
@@ -26,7 +27,25 @@ def compute_amplitude_per_channel(data: float, model: float) -> float:
         The value of the amplitude in the given frequency channel.
     """
 
-    return np.sum(data * model) / np.sum(model**2)
+    # get dimensions to define loops.
+    num_time, num_component = model.shape
+    amplitudes_matrix = np.zeros((num_component, num_component))
+    data_prof_vector = np.zeros(num_component)
+
+    # now calculate the coefficients of the terms in Equation 10.
+    for comp_1 in range(num_component):
+        prof_1 = model[:, comp_1]
+        data_1 = np.sum(data * prof_1)
+        data_prof_vector[comp_1] = data_1
+
+        for comp_2 in range(num_component):
+            prof_2 = model[:, comp_2]
+            amplitudes_matrix[comp_1, comp_2] = np.sum(prof_1 * prof_2) 
+
+    # now solve system of linear equations.
+    amplitudes = np.linalg.solve(amplitudes_matrix, data_prof_vector)
+
+    return amplitudes
 
 def compute_time_dm_delay(dm_value: float, dm_const: float, dm_idx: float,
     freq1: float, freq2: float = np.inf) -> float:
