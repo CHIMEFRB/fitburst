@@ -170,8 +170,6 @@ class LSFitter:
                         parameter_dict, self.model, component=component
                     )
 
-                print(f"mixed-deriv for {current_par_1}, {current_par_2}: {current_deriv_mixed.sum()}")
-
                 # finally, compute the hessian here.
                 current_hes = 2 * (current_deriv_1 * current_deriv_2 - residual * current_deriv_mixed)
                 hessian[current_par_idx_1, current_par_idx_2] = np.sum(current_hes * self.weights[:, None] ** 2)
