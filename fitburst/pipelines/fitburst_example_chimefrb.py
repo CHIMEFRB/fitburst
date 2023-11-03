@@ -304,9 +304,9 @@ for current_event_id in eventIDs:
         "scattering_timescale" not in parameters_to_fix
     ):
         initial_parameters["scattering_timescale"] = copy.deepcopy(
-            (np.fabs(np.array(initial_parameters["burst_width"])) * 3.).tolist()
+            (np.fabs(np.array(initial_parameters["burst_width"])) * 1.).tolist()
         )
-        initial_parameters["burst_width"] = (np.array(initial_parameters["burst_width"]) / 1.5).tolist()
+        initial_parameters["burst_width"] = (np.array(initial_parameters["burst_width"]) / 1.).tolist()
 
     # if guesses are provided through CLI, overload them into the initial-guess dictionary.
     initial_parameters["dm"][0] += offset_dm
@@ -433,11 +433,12 @@ for current_event_id in eventIDs:
         verbose=verbose,
     )
 
-    print(initial_parameters)
     model.update_parameters(initial_parameters)
     bestfit_model = model.compute_model(data=data_windowed) * data.good_freq[:, None]
     bestfit_params = model.get_parameters_dict()
-    bestfit_params["dm"] = [params["dm"][0] + x for x in bestfit_params["dm"] * model.num_components]
+    bestfit_params["dm"] = [params["dm"][0] + x for x in bestfit_params["dm"]]
+    #print(bestfit_params["dm"])
+    #sys.exit()
     bestfit_residuals = data_windowed - bestfit_model
     fit_is_successful = False
     fit_statistics = None
@@ -459,13 +460,11 @@ for current_event_id in eventIDs:
                 model.update_parameters(fitter.fit_statistics["bestfit_parameters"])
                 bestfit_model = model.compute_model(data=data_windowed) * data.good_freq[:, None]
                 bestfit_params = model.get_parameters_dict()
-                bestfit_params["dm"] = [params["dm"][0] + x for x in bestfit_params["dm"] * model.num_components]
+                bestfit_params["dm"] = [params["dm"][0] + x for x in bestfit_params["dm"]]
                 bestfit_residuals = data_windowed - bestfit_model
                 fit_is_successful = True
                 fit_statistics = fitter.fit_statistics
-                plt.pcolormesh(bestfit_model)
-                plt.savefig("test2.png")
-                
+
                 # TODO: for now, stash covariance data for offline comparison; remove at some point.
                 np.savez(
                     f"covariance_matrices_{current_event_id}.npz",
