@@ -263,13 +263,13 @@ class SpectrumModeler:
                 ) * (10 ** current_amplitude)
                 self.spectrum_per_component[current_freq, :, current_component] = (10 ** current_amplitude) * current_profile 
 
-            # print spectral index/running for current component.
-            if current_freq == 0:
-                if self.verbose and not self.scintillation:
-                    print(f"{current_sp_idx:.5f}  {current_sp_run:.5f}")
+                # print spectral index/running for current component.
+                if current_freq == 0:
+                    if self.verbose and not self.scintillation:
+                        print(f"{current_sp_idx:.5f}  {current_sp_run:.5f}")
 
-                else:
-                    print()
+                    else:
+                        print()
 
         # if desired, then compute per-channel amplitudes in cases where scintillation is significant.
         if self.scintillation:
