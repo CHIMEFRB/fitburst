@@ -267,6 +267,16 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--weight_range", 
+    action="store", 
+    dest="weight_range", 
+    default=None, 
+    nargs=2, 
+    type=int,
+    help="Indeces for timestamp array that represent region to evaluate RMS data weights."
+)
+
+parser.add_argument(
     "--width", 
     action="store", 
     dest="width", 
@@ -313,6 +323,7 @@ spectral_running = args.spectral_running
 solution_file = args.solution_file
 variance_range = args.variance_range
 verbose = args.verbose
+weight_range = args.weight_range
 width = args.width
 window = args.window
 
@@ -361,7 +372,7 @@ for idx_freq in range(data.num_freq):
             data.good_freq[idx_freq] = False
 
 if preprocess_data:
-    data.preprocess_data(normalize_variance=False, variance_range=variance_range)
+    data.preprocess_data(normalize_variance=True, variance_range=variance_range)
 
 print(f"There are {data.good_freq.sum()} good frequencies...")
 
@@ -497,10 +508,9 @@ model.update_parameters(current_parameters)
 
 # now set up fitter and execute least-squares fitting
 for current_iteration in range(num_iterations):
-    fitter = LSFitter(data_windowed, model, data.good_freq, weighted_fit=True)
+    fitter = LSFitter(data_windowed, model, data.good_freq, weighted_fit=True, weight_range=weight_range)
     fitter.fix_parameter(parameters_to_fix)
     fitter.fit(exact_jacobian=True)
-
     print(fitter.results)
 
     # extract best-fit data for next loop.

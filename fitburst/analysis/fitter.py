@@ -19,7 +19,8 @@ class LSFitter:
     least-squares fitting of radio dynamic spectra.
     """
 
-    def __init__(self, data: float, model: object, good_freq: bool, weighted_fit: bool = True):
+    def __init__(self, data: float, model: object, good_freq: bool, weighted_fit: bool = True, 
+                 weight_range: list = None):
         """
         Initializes object with methods and attributes defined in
         the model.SpectrumModeler() class.
@@ -36,6 +37,12 @@ class LSFitter:
         weighted_fit : bool, optional
             If set to true, then each channel will be weighted by its standard deviation (or,
             equivalently, the goodness of fit statistic will be a weighted chi-squared value.)
+
+        weight_range : list, optional
+            If set, then per-channel weights will be computed using a time range specified 
+            by indices of the time array (i.e., this option should receive a list of length 
+            two containing integers within the range 0 ... [num_time-1].) If not set, then 
+            the full range will be used.
 
         Returns
         -------
@@ -66,6 +73,7 @@ class LSFitter:
         self.success = None
         self.weights = None
         self.weighted_fit = weighted_fit
+        self.weight_range = weight_range
 
         # before running fit, determine per-channel weights.
         self._set_weights()
@@ -471,9 +479,9 @@ class LSFitter:
 
         try:
             hessian_approx = fit_result.jac.T.dot(fit_result.jac)
-            covariance_approx = np.linalg.inv(hessian_approx) * chisq_final_reduced
+            covariance_approx = np.linalg.inv(hessian_approx)
             hessian, par_labels = self.compute_hessian(self.data, self.fit_parameters)
-            covariance = np.linalg.inv(0.5 * hessian) * chisq_final_reduced
+            covariance = np.linalg.inv(0.5 * hessian)
             uncertainties = [float(x) for x in np.sqrt(np.diag(covariance)).tolist()]
 
             self.covariance_approx = covariance_approx
@@ -506,8 +514,14 @@ class LSFitter:
             Two object attributes are defined and used for masking and weighting data during fit.
         """
 
+        # before calculating, determine in the range must be set to the full timespan.
+        idx_range = self.weight_range
+
+        if self.weight_range is None:
+            idx_range = [0, len(self.data[0, :]) - 1]
+
         # compute RMS deviation for each channel.
-        variance = np.mean(self.data**2, axis=1)
+        variance = np.mean(self.data[:, idx_range[0] : idx_range[1]] ** 2, axis=1)
         std = np.sqrt(variance)
         bad_freq = np.logical_not(self.good_freq)
 
