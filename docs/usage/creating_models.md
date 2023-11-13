@@ -1,70 +1,120 @@
-We have developed a Python class, called the `SpectrumModeler`, for generating data models in a manner suitable for interaction with downstreaming fitting routines. The simplest version of a call to the model class is, 
+We have developed a Python class, called the `SpectrumModeler`, for generating models of dynamic spectra. The `SpectrumModeler` is designed for interaction with downstream fitting routines; however, it can nonetheless be used as a standalone object. The simplest version of a call to the `SpectrumModeler` is given here: 
 
 ``` python
->>> from fitburst.analysis.model import SpectrumModeler
->>> model = SpectrumModeler(num_freq, num_time)
+from fitburst.analysis.model import SpectrumModeler
+freqs = ... # array of frequency labels, in MHz
+times = ... # array of timestamps, in seconds
+model = SpectrumModeler(freqs, times)
 ```
 
-where the quantities (`num_freq`, `num_time`) define the dimensions of the model spectrum.
+where (`freqs`, `times`) define the centers of frequency channels and time bins, respectively.
 
 ## Parameters of the Model Object
-The exact list of parameters will depend on the assumed shape of the spectral energy distribution (SED). By default, the `SpectrumModeler` assumes a "running power-law" model for the SED, and so the spectral parameters will be the `spectral_index` and `spectral_running`. The full list of parameters can be retrieved as follows:
+As described in the `fitburst` paper, the `SpectrumModeler` is a function of nine fittable parameters. A tenth parameter, called `ref_freq` cannot be fitted as it serves as a frequency to which the amplitude and SED parameters are referenced. The full list of parameters can be retrieved as follows:
 
 ``` python
 >>> print(model.parameters)
-['amplitude', 'arrival_time', 'burst_width', 'dm', 'dm_index', 'scattering_timescale', 'scattering_index', 'spectral_index', 'spectral_running']
+['amplitude', 'arrival_time', 'burst_width', 'dm', 'dm_index', 'ref_freq', 'scattering_timescale', 'scattering_index', 'spectral_index', 'spectral_running']
 ```
 
-If a Gaussian SED is instead desired, then you can instantiate the `SpectrumModeler` and set the correct option to indicate this choice:
-
-``` python
->>> model = SpectrumModeler(num_freq, num_time, freq_model = "gaussian")
->>> print(model.parameters)
-['amplitude', 'arrival_time', 'burst_width', 'dm', 'dm_index', 'scattering_timescale', 'scattering_index', 'freq_mean', 'freq_width']
-```
-
-Notice that all but two parameters have changed, and that the `freq_mean` and `freq_width` now characterize the (Gaussian) shape of the SED. So far, only the `powerlaw` and `gaussian` SED models are available in `fitburst`.
+Please refer to Section 2 and Table 1 of the `fitburst` paper for a description of these parameters.
 
 ## Loading Parameter Values into the Model Object
 
-The above calls to the `SpectrumModeler` object yield an "empty" model object; the object is configured but contains no information on the model parameters. In order to load parameter values, we use the `update_parameters()` method of the `SpectrumModeler`:
+In order to load parameter values, we use the `update_parameters()` method of the `SpectrumModeler`:
 
 ``` python
 # define dictiomary containing parameter values.
 burst_parameters = {
-    "amplitude"            : [0.0],
-    "arrival_time"         : [0.5],
-    "burst_width"          : [0.005],
-    "dm"                   : [557.0],
-    "dm_index"             : [-2.0],
-    "ref_freq"             : [600.0],
-    "scattering_index"     : [-4.0],
-    "scattering_timescale" : [0.0],
-    "freq_mean"            : [450.0],
-    "freq_width"           : [43.0],
+    "amplitude"            : [0.],
+    "arrival_time"         : [0.04],
+    "burst_width"          : [0.003],
+    "dm"                   : [349.5],
+    "dm_index"             : [-2.],
+    "ref_freq"             : [1400.],
+    "scattering_index"     : [-4.],
+    "scattering_timescale" : [0.],
+    "spectral_index"       : [10.],
+    "spectral_running"     : [-100.],
 }
 
+# now instantiate the SpectrumModeler
+model = SpectrumModeler(freqs, times)
+
+# update the SpectrumModeler to use the above values.
+model.update_parameters(burst_parameters)
+
+# slightly adjust the DM only, leaving all others unchanged in the model object.
+model.update_parameters({"dm": [348.95]})
+```
+
+The `update_parameters()` method receives a dictionary with one or more parameters with values loaded in Python lists, as shown in the second method call above. This feature exists to allow for flexibility in generating models for fitting where one or more parameters are fixed to pre-determined values.
+
+## Generating Mulit-Component Models
+
+The `SpectrumModeler` is also capable of generating models of a multi-component spectrum, i.e., a dynamic spectrum with $N$ distinct pulses. Such models can be created with the same code above, but with values of the `burst_parameters` dicitionary that are lists of length $N$. For example, the following code will overwrite the above parameters to instantiate a model with 3 components:
+
+```python
+# define dictiomary containing parameter values.
+burst_parameters = {                                                     
+    "amplitude"            : [0., 0., 0.], 
+    "arrival_time"         : [0.03, 0.04, 0.05],
+    "burst_width"          : [0.001, 0.003, 0.0005],
+    "dm"                   : [349.5, 349.5, 349.5], 
+    "dm_index"             : [-2., -2., -2.],
+    "ref_freq"             : [1400., 1400., 1400.],
+    "scattering_index"     : [-4., -4., -4.],
+    "scattering_timescale" : [0., 0., 0.],
+    "spectral_index"       : [10., 0., -10.],
+    "spectral_running"     : [-100., -100., -100.],
+}
+
+# now instantiate the SpectrumModeler for a three-component model.
+num_components = len(burst_parameters["dm"])
+model = SpectrumModeler(freqs, times, num_components = num_components)
+                    
 # now update Gaussian-SED model object to use the above values.
 model.update_parameters(burst_parameters)
 
-# adjust the DM value while leaving all others unchanged in the model object.
-model.update_parameters({"DM": [557.5]})
-```
-
-The `update_parameters()` method is able to receive a dictionary that contains only one or a partial set of the full parameter list, as shown in the second method call above. This feature is important when fitting models to data where one or more model parameters are desired to be fixed to pre-determined values.
-
-The `SpectrumModeler` is also capable of generating models of a multi-component spectrum. The only changed needed for this to occur is for the values of the above `burst_parameters` dicitionary to be lists of length greater than 1, where the $i$th element for each list corresponds to parameters of "sub-burst" $i$.
+``` 
 
 ## Creating Models for De-dispersed Data
-Once the above configuration is done, we can then compute a model spectrum with the `compute_mode()` method within the `SpectrumModeler`. 
+Users will typically want to fit models of dynamic spectra against data that are already de-dispersed. The `SpectrumModeler` can be used as shown above, but with one caveat: the `dm` parameter is treated as a "DM offset" for de-dispersed spectra, instead of the "full" DM whose values are supplied in the above examples. Once this configuration is done, we can then compute a model spectrum with the `compute_mode()` method within the `SpectrumModeler`.
+
+The following code with use the latest example above and perform the adjustment needed for generating a de-dispersed dynamic spectum:
 
 ``` python
-freqs = ... # array of frequency labels, in MHz
-times = ... # array of timestamps, in seconds
+# indicate whether the spectrum is de-dispersed or not.
+is_dedispersed = True
 
-spectrum_model = model.compute_model(times, freqs)
+# define dictiomary containing parameter values.
+burst_parameters = {                                                     
+    "amplitude"            : [0., 0., 0.], 
+    "arrival_time"         : [0.03, 0.04, 0.05],
+    "burst_width"          : [0.001, 0.003, 0.0005],
+    "dm"                   : [349.5, 349.5, 349.5], 
+    "dm_index"             : [-2., -2., -2.],
+    "ref_freq"             : [1400., 1400., 1400.],
+    "scattering_index"     : [-4., -4., -4.],
+    "scattering_timescale" : [0., 0., 0.],
+    "spectral_index"       : [10., 0., -10.],
+    "spectral_running"     : [-100., -100., -100.],
+}
+
+# adjust DM value to zero offset, if necessary.
+num_components = len(burst_parameters["dm"])
+
+if is_dedispersed:
+    burst_parameters["dm"] = [0.] * num_components
+
+# now instantiate the SpectrumModeler for a three-component model.
+model = SpectrumModeler(freqs, times, num_components = num_components)
+
+# grab the model spectrum.
+spectrum_model = model.compute_model()
 ```
 
-If you're using a `DataReader` to load and prepare data, then the above arrays can be accessed through the `freqs` and `times` attributes.
+The above call with return a NumPy `ndarray` with shape `(num_freq, num_time)`.
 
 ## Creating Models for Dispersed Data
+In rare or simulation cases, it may be desired to create a dispersed dynamic spectrum. This spectrum can be generated using the latest example above, but instead setting `is_dedispersed = False`.
