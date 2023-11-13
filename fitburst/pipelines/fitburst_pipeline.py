@@ -374,7 +374,7 @@ for idx_freq in range(data.num_freq):
 if preprocess_data:
     data.preprocess_data(normalize_variance=True, variance_range=variance_range)
 
-print(f"There are {data.good_freq.sum()} good frequencies...")
+print(f"INFO: there are {data.good_freq.sum()} good frequencies...")
 
 # now downsample after preprocessing, if desired.
 data.downsample(factor_freq_downsample, factor_time_downsample)
@@ -407,7 +407,6 @@ for current_parameter in basic_parameters.keys():
         initial_parameters[current_parameter] = basic_parameters[current_parameter] * num_components
 
 current_parameters = deepcopy(initial_parameters)
-print(f"INFO: current parameters = {current_parameters}")
 
 # update DM value to use ("full" or DM offset) for dedispersion if 
 # input data are already dedispersed or not.
@@ -511,7 +510,6 @@ for current_iteration in range(num_iterations):
     fitter = LSFitter(data_windowed, model, data.good_freq, weighted_fit=True, weight_range=weight_range)
     fitter.fix_parameter(parameters_to_fix)
     fitter.fit(exact_jacobian=True)
-    print(fitter.results)
 
     # extract best-fit data for next loop.
     if fitter.results.success:
