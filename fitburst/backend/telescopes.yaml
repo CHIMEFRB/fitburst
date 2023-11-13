@@ -1,8 +1,10 @@
 # Configuration values for CHIME/FRB data.
-#
+# TODO: create module file to read CHIME/FRB total intensity data,
+#       which will use the values below.
 # Notes:
 #     - all time entries have units of seconds
 #     - all freq entires have units of MHz
+
 chimefrb:
     bandwidth: 400.0
     num_channels: 16384

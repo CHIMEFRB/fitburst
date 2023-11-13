@@ -1,4 +1,4 @@
-We have defined a `fitburst`-compliant ("generic") data format for loading all required data into the `fitburst` data-reading object. Users can adopt this generic format to ensure initialization of required variables and arrays. The generic-format data are stored in and read from a Python3 Numpy `.npz` file.
+For ease of use, we have defined a `fitburst`-compliant ("generic") data format for loading all required data into the `fitburst` data-reading object. Users can adopt this generic format to ensure initialization of required variables and arrays used within `fitburst`. The generic-format data are stored in and read from a Python3 Numpy `.npz` file.
 
 ## Concept of Generic Format
 A generic-compatible data file, e.g., "input\_data.npz", is assumed to contain three entries:

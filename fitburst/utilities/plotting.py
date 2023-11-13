@@ -10,7 +10,6 @@ as well as computing downsampled versions of data for plotting.
 # import and configure matplotlig for GUI-less node.
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
