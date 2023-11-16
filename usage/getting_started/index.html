@@ -1,0 +1,748 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Maestro Backend :: URL Prefix">
+      
+      
+        <meta name="author" content="Emmanuel Fonseca">
+      
+      
+      
+        <link rel="prev" href="../creating_models/">
+      
+      
+        <link rel="next" href="../../developer_guide/philosophy/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.2.7">
+    
+    
+      
+        <title>Getting Started - fitburst</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.046329b4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.85d0ee34.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#fitburst-as-a-python-package" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="fitburst" class="md-header__button md-logo" aria-label="fitburst" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            fitburst
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Getting Started
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/chimefrb/fitburst" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    chimefrb/fitburst
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="fitburst" class="md-nav__button md-logo" aria-label="fitburst" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    fitburst
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/chimefrb/fitburst" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.4.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    chimefrb/fitburst
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Usage
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Usage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ways to Use fitburst
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../formatting_data_generic/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Format of Input Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using_data_readers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with Data Readers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../creating_models/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Creating Models of Spectra
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#fitburst-as-a-python-package" class="md-nav__link">
+    fitburst as a Python package
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-fitburst-pipelines" class="md-nav__link">
+    Example fitburst Pipelines
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Developer Guide
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Developer Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer_guide/philosophy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Coding Philosophy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer_guide/package_structure/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Package Structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer_guide/readers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Writing Data Readers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#fitburst-as-a-python-package" class="md-nav__link">
+    fitburst as a Python package
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-fitburst-pipelines" class="md-nav__link">
+    Example fitburst Pipelines
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+  <h1>Getting Started</h1>
+
+<p>The <code>fitburst</code> codebase can be used in two different ways: as a Python package; or through Python3 scripts provided in the repository. This page describes how to interact with the two usage modes.</p>
+<h2 id="fitburst-as-a-python-package"><code>fitburst</code> as a Python package<a class="headerlink" href="#fitburst-as-a-python-package" title="Permanent link">&para;</a></h2>
+<p>Once properly installed, <code>fitburst</code> can be immediate accessed through a Python interpreter as an importable package:</p>
+<div class="highlight"><pre><span></span><code><span class="n">user</span><span class="nd">@pc</span> <span class="o">&gt;</span> <span class="n">python</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span> <span class="nn">fitburst</span>
+<span class="o">&gt;&gt;&gt;</span>
+</code></pre></div>
+<p>All underlying objects and functions can be accessed in this package format, with Python docstrings that emulate the <code>numpy</code> documentation format.</p>
+<h2 id="example-fitburst-pipelines">Example <code>fitburst</code> Pipelines<a class="headerlink" href="#example-fitburst-pipelines" title="Permanent link">&para;</a></h2>
+<p>Any "full <code>fitburst</code> pipeline" consists of the following major sections, in order of operation:</p>
+<ol>
+<li>command-line interface</li>
+<li>data I/O</li>
+<li>declaration of initial guess for burst parameters</li>
+<li>configuration of <code>fitburst</code> model object</li>
+<li>configuration of <code>fitburst</code> "fitter" object</li>
+<li>execution of fit</li>
+<li>generation of figures, fit-summary files, etc.</li>
+</ol>
+<p>Of course, some users may be interested in a "simulation pipeline" which simulates radio pulses with features they wish to model in the presence of controllable noise. We provide two scripts for interested users to get started in using <code>fitburst</code> under these conditions. Both scripts are located in the pipeline subdirectory of the <code>fitburst</code> codebase. </p>
+<p>One of these scripts will create a simulated, de-dispersed dynamic spectrum. For example, execute the following lines after compiling <code>fitburst</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">user</span><span class="nd">@pc</span><span class="o">&gt;</span> <span class="n">cd</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">fitburst</span><span class="o">/</span><span class="n">fitburst</span><span class="o">/</span><span class="n">pipelines</span><span class="o">/</span>
+<span class="n">user</span><span class="nd">@pc</span> <span class="o">|</span> <span class="n">pipelines</span><span class="o">&gt;</span> <span class="n">python</span> <span class="n">simulate_burst</span><span class="o">.</span><span class="n">py</span>
+</code></pre></div>
+<p>The output of this script is a plot printed to the screen for reference, and a file in the "fitburst-generic" format (<code>simulated_data.npz</code>), described in a separate documentation page, that is saved to the local area. This file contains the simulated spectrum shown in the plot, various parameters that describe the context of the spectrum, and an initial guess of model parameters.</p>
+<p>The second script is an example of a "full pipeline" version of fitburst that performs I/O, model instantiation, and least-squares fitting:</p>
+<div class="highlight"><pre><span></span><code><span class="n">user</span><span class="nd">@pc</span> <span class="o">|</span> <span class="n">pipelines</span><span class="o">&gt;</span> <span class="n">python</span> <span class="n">fitburst_pipeline</span><span class="o">.</span><span class="n">py</span> <span class="n">simulated_data</span><span class="o">.</span><span class="n">npz</span> <span class="o">--</span><span class="n">verbose</span>
+</code></pre></div>
+<p>The output of this second script consists of three items: a <code>.png</code> file contain a three-panel plot showing the data, best-fit model, and their difference; a JSON file that contains the best-fit parameters and statistics of the fit; and terminal output that shows similar information due to the use of the <code>--verbose</code> option:</p>
+<div class="highlight"><pre><span></span><code><span class="n">INFO</span><span class="p">:</span> <span class="n">no</span> <span class="n">solution</span> <span class="n">file</span> <span class="n">found</span> <span class="ow">or</span> <span class="n">provided</span><span class="p">;</span> <span class="n">proceeding</span> <span class="k">with</span> <span class="n">fit</span><span class="o">...</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">there</span> <span class="n">are</span> <span class="mi">256</span> <span class="n">frequencies</span> <span class="ow">and</span> <span class="mi">128</span> <span class="n">time</span> <span class="n">samples</span><span class="o">.</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">there</span> <span class="n">are</span> <span class="mi">256</span> <span class="n">good</span> <span class="n">frequencies</span><span class="o">...</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="nb">input</span> <span class="n">data</span> <span class="n">cube</span> <span class="ow">is</span> <span class="n">already</span> <span class="n">dedispersed</span><span class="err">!</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">setting</span> <span class="s1">&#39;dm&#39;</span> <span class="n">entry</span> <span class="n">to</span> <span class="mi">0</span><span class="p">,</span> <span class="n">now</span> <span class="n">considered</span> <span class="n">a</span> <span class="n">dm</span><span class="o">-</span><span class="n">offset</span> <span class="n">parameter</span><span class="o">...</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">initial</span> <span class="n">guess</span> <span class="k">for</span> <span class="mi">3</span><span class="o">-</span><span class="n">component</span> <span class="n">model</span><span class="p">:</span>
+    <span class="o">*</span> <span class="n">amplitude</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">arrival_time</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.03</span><span class="p">,</span> <span class="mf">0.04</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">burst_width</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.002</span><span class="p">,</span> <span class="mf">0.0005</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">dm</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">dm_index</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">2.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.0</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">ref_freq</span><span class="p">:</span> <span class="p">[</span><span class="mf">1500.0</span><span class="p">,</span> <span class="mf">1400.0</span><span class="p">,</span> <span class="mf">1300.0</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">scattering_index</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">4.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">4.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">4.0</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">scattering_timescale</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">spectral_index</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">spectral_running</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">300.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">300.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">300.0</span><span class="p">]</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">computing</span> <span class="n">dedispersion</span><span class="o">-</span><span class="n">index</span> <span class="n">matrix</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">initializing</span> <span class="n">model</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">removing</span> <span class="n">the</span> <span class="n">following</span> <span class="n">parameters</span><span class="p">:</span> <span class="n">dm_index</span><span class="p">,</span> <span class="n">scattering_index</span><span class="p">,</span> <span class="n">scattering_timescale</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">new</span> <span class="nb">list</span> <span class="n">of</span> <span class="n">fit</span> <span class="n">parameters</span><span class="p">:</span> <span class="n">amplitude</span><span class="p">,</span> <span class="n">arrival_time</span><span class="p">,</span> <span class="n">burst_width</span><span class="p">,</span> <span class="n">dm</span><span class="p">,</span> <span class="n">spectral_index</span><span class="p">,</span> <span class="n">spectral_running</span>
+<span class="mf">0.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.03000</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00100</span> <span class="mf">0.00000</span>  <span class="o">-</span><span class="mf">300.00000</span>
+<span class="mf">0.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.04000</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00200</span> <span class="mf">0.00000</span>  <span class="o">-</span><span class="mf">300.00000</span>
+<span class="mf">0.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.05000</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00050</span> <span class="mf">0.00000</span>  <span class="o">-</span><span class="mf">300.00000</span>
+<span class="mf">0.02077</span>  <span class="mf">0.00435</span>  <span class="mf">0.02999</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00096</span> <span class="o">-</span><span class="mf">0.06705</span>  <span class="o">-</span><span class="mf">301.05914</span>
+<span class="mf">0.02077</span>  <span class="o">-</span><span class="mf">0.01179</span>  <span class="mf">0.04000</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00204</span> <span class="mf">0.83079</span>  <span class="o">-</span><span class="mf">295.33102</span>
+<span class="mf">0.02077</span>  <span class="mf">0.02074</span>  <span class="mf">0.05001</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00045</span> <span class="mf">0.08439</span>  <span class="o">-</span><span class="mf">272.67249</span>
+<span class="mf">0.03633</span>  <span class="mf">0.00446</span>  <span class="mf">0.02999</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00096</span> <span class="o">-</span><span class="mf">0.06086</span>  <span class="o">-</span><span class="mf">301.33863</span>
+<span class="mf">0.03633</span>  <span class="o">-</span><span class="mf">0.01175</span>  <span class="mf">0.04000</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00204</span> <span class="mf">0.83347</span>  <span class="o">-</span><span class="mf">294.97891</span>
+<span class="mf">0.03633</span>  <span class="mf">0.02339</span>  <span class="mf">0.05001</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00046</span> <span class="o">-</span><span class="mf">0.00992</span>  <span class="o">-</span><span class="mf">275.70777</span>
+<span class="mf">0.03592</span>  <span class="mf">0.00446</span>  <span class="mf">0.02999</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00096</span> <span class="o">-</span><span class="mf">0.06146</span>  <span class="o">-</span><span class="mf">301.29372</span>
+<span class="mf">0.03592</span>  <span class="o">-</span><span class="mf">0.01178</span>  <span class="mf">0.04000</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00204</span> <span class="mf">0.83464</span>  <span class="o">-</span><span class="mf">294.98868</span>
+<span class="mf">0.03592</span>  <span class="mf">0.02348</span>  <span class="mf">0.05001</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00046</span> <span class="mf">0.00581</span>  <span class="o">-</span><span class="mf">275.27610</span>
+<span class="mf">0.03615</span>  <span class="mf">0.00446</span>  <span class="mf">0.02999</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00096</span> <span class="o">-</span><span class="mf">0.06141</span>  <span class="o">-</span><span class="mf">301.29554</span>
+<span class="mf">0.03615</span>  <span class="o">-</span><span class="mf">0.01178</span>  <span class="mf">0.04000</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00204</span> <span class="mf">0.83460</span>  <span class="o">-</span><span class="mf">294.98740</span>
+<span class="mf">0.03615</span>  <span class="mf">0.02349</span>  <span class="mf">0.05001</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00046</span> <span class="mf">0.00438</span>  <span class="o">-</span><span class="mf">275.31794</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">fit</span> <span class="n">successful</span><span class="err">!</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">computing</span> <span class="n">hessian</span> <span class="n">matrix</span> <span class="k">with</span> <span class="n">best</span><span class="o">-</span><span class="n">fit</span> <span class="n">parameters</span><span class="o">.</span>
+<span class="mf">0.03615</span>  <span class="mf">0.00446</span>  <span class="mf">0.02999</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00096</span> <span class="o">-</span><span class="mf">0.06141</span>  <span class="o">-</span><span class="mf">301.29554</span>
+<span class="mf">0.03615</span>  <span class="o">-</span><span class="mf">0.01178</span>  <span class="mf">0.04000</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00204</span> <span class="mf">0.83460</span>  <span class="o">-</span><span class="mf">294.98740</span>
+<span class="mf">0.03615</span>  <span class="mf">0.02349</span>  <span class="mf">0.05001</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00046</span> <span class="mf">0.00438</span>  <span class="o">-</span><span class="mf">275.31794</span>
+<span class="mf">0.03615</span>  <span class="mf">0.00446</span>  <span class="mf">0.02999</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00096</span> <span class="o">-</span><span class="mf">0.06141</span>  <span class="o">-</span><span class="mf">301.29554</span>
+<span class="mf">0.03615</span>  <span class="o">-</span><span class="mf">0.01178</span>  <span class="mf">0.04000</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00204</span> <span class="mf">0.83460</span>  <span class="o">-</span><span class="mf">294.98740</span>
+<span class="mf">0.03615</span>  <span class="mf">0.02349</span>  <span class="mf">0.05001</span>   <span class="o">-</span><span class="mf">4.00000</span>  <span class="mf">0.00000</span>  <span class="mf">0.00046</span> <span class="mf">0.00438</span>  <span class="o">-</span><span class="mf">275.31794</span>
+<span class="n">INFO</span><span class="p">:</span> <span class="n">best</span><span class="o">-</span><span class="n">fit</span> <span class="n">estimate</span> <span class="k">for</span> <span class="mi">3</span><span class="o">-</span><span class="n">component</span> <span class="n">model</span><span class="p">:</span>
+    <span class="o">*</span> <span class="n">amplitude</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.004458347857993017</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.01178052452614616</span><span class="p">,</span> <span class="mf">0.023488538876660896</span><span class="p">]</span> <span class="o">+/-</span> <span class="p">[</span><span class="mf">0.011361366063813588</span><span class="p">,</span> <span class="mf">0.0090246635765475</span><span class="p">,</span> <span class="mf">0.01652378379027083</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">arrival_time</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.029986353743391356</span><span class="p">,</span> <span class="mf">0.040002393748902666</span><span class="p">,</span> <span class="mf">0.050007330750880916</span><span class="p">]</span> <span class="o">+/-</span> <span class="p">[</span><span class="mf">2.443033563379835e-05</span><span class="p">,</span> <span class="mf">4.181234443170404e-05</span><span class="p">,</span> <span class="mf">1.518622689210296e-05</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">burst_width</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.0009574508453823643</span><span class="p">,</span> <span class="mf">0.002039008450473889</span><span class="p">,</span> <span class="mf">0.00045508475860427344</span><span class="p">]</span> <span class="o">+/-</span> <span class="p">[</span><span class="mf">2.403509547560637e-05</span><span class="p">,</span> <span class="mf">4.033352991181347e-05</span><span class="p">,</span> <span class="mf">1.906271029135856e-05</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">dm</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.036151607836687895</span><span class="p">]</span> <span class="o">+/-</span> <span class="p">[</span><span class="mf">0.09274487453599654</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">spectral_index</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.06141150018163158</span><span class="p">,</span> <span class="mf">0.8345952746331111</span><span class="p">,</span> <span class="mf">0.00437634181414019</span><span class="p">]</span> <span class="o">+/-</span> <span class="p">[</span><span class="mf">0.6464300408655368</span><span class="p">,</span> <span class="mf">0.4603917717520832</span><span class="p">,</span> <span class="mf">0.8428930404305951</span><span class="p">]</span>
+    <span class="o">*</span> <span class="n">spectral_running</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">301.2955381690263</span><span class="p">,</span> <span class="o">-</span><span class="mf">294.9873984865791</span><span class="p">,</span> <span class="o">-</span><span class="mf">275.31793520453783</span><span class="p">]</span> <span class="o">+/-</span> <span class="p">[</span><span class="mf">17.684251952258453</span><span class="p">,</span> <span class="mf">11.120116046037642</span><span class="p">,</span> <span class="mf">21.199888485781074</span><span class="p">]</span>
+</code></pre></div>
+<p>The <code>fitburst_pipeline.py</code> script comes with a variety of options that may be useful when working with "real" data, but aren't necessary to use for the data simulated above. This script will work with real data so long as the input file matches the "fitburst-generic" format of the simulated data; explore these options on real data as you see fit!</p>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2016 - 2020 CHIME/FRB Collaboration
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["tabs"], "search": "../../assets/javascripts/workers/search.dfff1995.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.dff1b7c8.min.js"></script>
+      
+        <script src="../../javascripts/config.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
