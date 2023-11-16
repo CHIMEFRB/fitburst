@@ -17,10 +17,10 @@ pc/fitburst> pip install . # add the --user option if you're looking to install 
 Please refer to the documentation linked above to find desciptions on the codebase and examples for interacting with it. 
 
 ## Publication
-The theory behind the modeling and analysis routines is presented in a paper currently under review, but available on the arXiv. This paper includes a variety of fitting examples and discussions on the treatment of biasing effects (e.g., intra-channel smearing from pulse dispersion) that can be accounted for within `fitburst`. If you use this codebase and publish results obtained with it, we ask that you cite the `fitburst` paper using the following BibTex citation:
+The theory behind the modeling and analysis routines is presented in a publication currently under review, [but available on the arXiv](https://arxiv.org/abs/2311.05829). This publication includes a variety of fitting examples and discussions on the treatment of biasing effects (e.g., intra-channel smearing from pulse dispersion) that can be accounted for within `fitburst`. If you use this codebase and publish results obtained with it, we ask that you cite the `fitburst` publication using the following BibTex entry:
 
 ``` python
-@ARTICLE{2023arXiv231105829F,
+@article{fpb+23,
        author = {{Fonseca}, Emmanuel and {Pleunis}, Ziggy and {Breitman}, Daniela and {Sand}, Ketan R. and {Kharel}, Bikash and {Boyle}, Patrick J. and {Brar}, Charanjot and {Giri}, Utkarsh and {Kaspi}, Victoria M. and {Masui}, Kiyoshi W. and {Meyers}, Bradley W. and {Patel}, Chitrang and {Scholz}, Paul and {Smith}, Kendrick},
         title = "{Modeling the Morphology of Fast Radio Bursts and Radio Pulsars with fitburst}",
       journal = {arXiv e-prints},
