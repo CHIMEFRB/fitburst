@@ -342,8 +342,9 @@ class SpectrumModeler:
         # compute either Gaussian or pulse-broadening function, depending on inputs.
         profile = np.zeros(times_copy.shape, dtype=float)
         sc_time = sc_time_ref * (freqs / ref_freq) ** sc_index
+        threshold = general["thresholds"]["pbf_or_gaussian"]
 
-        if np.any(sc_time < np.fabs(0.15 * width)):
+        if np.any(sc_time < np.fabs(threshold * width)):
             profile = rt.profile.compute_profile_gaussian(times_copy, arrival_time, width)
 
         else:
