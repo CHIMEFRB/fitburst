@@ -88,8 +88,8 @@ def compute_profile_pbf(time: float, toa: float, width: float, freq: float, ref_
     """
 
     # evaluate the separate terms that define the PBF.
-    amp_term = (freq / ref_freq) ** (-sc_index) 
     sc_time = sc_time_ref * (freq / ref_freq) ** sc_index
+    amp_term = (freq / ref_freq) ** (-sc_index) #np.sqrt(np.pi / 2) * width / sc_time
     arg_exp = width ** 2 / 2 / sc_time ** 2 - (time - toa) / sc_time
     exp_term = np.exp(arg_exp)
     erf_term = 1 + ss.erf((time - (toa + width ** 2 / sc_time)) / width / np.sqrt(2))
