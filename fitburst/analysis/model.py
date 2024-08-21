@@ -342,19 +342,15 @@ class SpectrumModeler:
         # compute either Gaussian or pulse-broadening function, depending on inputs.
         profile = np.zeros(times_copy.shape, dtype=float)
         sc_time = sc_time_ref * (freqs / ref_freq) ** sc_index
-        threshold = general["thresholds"]["pbf_or_gaussian"]
+        normalize = general["flags"]["normalize_pbf"]
 
-        if np.any(sc_time < np.fabs(threshold * width)):
-            profile = rt.profile.compute_profile_gaussian(times_copy, arrival_time, width)
-
-        else:
-            # the following times array manipulates the times array so that we avoid a
-            # floating-point overlow in the exp((-times - toa) / sc_time) term in the
-            # PBF call. TODO: use a better, more transparent method for avoiding this.
+        if np.any(sc_time > 0.0):
             times_copy[times_copy < -5 * width] = -5 * width
             profile = rt.profile.compute_profile_pbf(
-                times_copy, arrival_time, width, freqs, ref_freq, sc_time_ref, sc_index=sc_index
+                times_copy, arrival_time, width, freqs, ref_freq, sc_time_ref, sc_index=sc_index, normalize=normalize
             )
+        else:
+            profile = rt.profile.compute_profile_gaussian(times_copy, arrival_time, width)
 
         # if data are folded and time/profile data contain two realizations, then
         # average along the appropriate axis to obtain a single realization.

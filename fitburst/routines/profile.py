@@ -49,7 +49,7 @@ def compute_profile_gaussian(values: float, mean: float, width: float,
     return profile
 
 def compute_profile_pbf(time: float, toa: float, width: float, freq: float, ref_freq: float,
-                        sc_time_ref: float, sc_index: float = -4.) -> float:
+                        sc_time_ref: float, sc_index: float = -4., normalize: bool = False) -> float:
     """
     Computes a one-dimensional pulse broadening function (PBF) using the
     analytical solution of a Gaussian profile convolved with a one-side
@@ -86,15 +86,29 @@ def compute_profile_pbf(time: float, toa: float, width: float, freq: float, ref_
     -----
     The PBF equation is taken from McKinnon et al. (2004).
     """
-
-    # evaluate the separate terms that define the PBF.
     sc_time = sc_time_ref * (freq / ref_freq) ** sc_index
-    amp_term = (freq / ref_freq) ** (-sc_index) #np.sqrt(np.pi / 2) * width / sc_time
-    arg_exp = width ** 2 / 2 / sc_time ** 2 - (time - toa) / sc_time
-    exp_term = np.exp(arg_exp)
-    erf_term = 1 + ss.erf((time - (toa + width ** 2 / sc_time)) / width / np.sqrt(2))
 
-    # finally, compute the PBF.
-    profile = amp_term * exp_term * erf_term
+    z = (time - toa) / width
+    ratio = width / sc_time
+    arg1 = (ratio - z) / np.sqrt(2)
+
+    if normalize:
+        amp_term = np.sqrt(np.pi / 2) * ratio
+    else:
+        amp_term = (freq / ref_freq) ** (-sc_index)
+
+    with np.errstate(invalid="ignore", over="ignore"):
+        p1 = amp_term * np.exp(-0.5 * z ** 2) * ss.erfcx(arg1)
+
+    # Use the old method when arg1 is less than roughly -20.0
+    # (corresponding to times much after the arrival time)
+    invalid = arg1 < -20.0
+    if np.any(invalid):
+        arg2 = (ratio / 2 - z) * ratio
+        p2 = amp_term * np.exp(arg2) * ss.erfc(arg1)
+
+        profile = np.where(invalid, p2, p1)
+    else:
+        profile = p1
 
     return profile

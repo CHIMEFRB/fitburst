@@ -8,5 +8,5 @@ constants:
     index_dispersion: -2.0
     index_scattering: -4.0
 
-thresholds:
-    pbf_or_gaussian: 0.05           # ratio of scattering timescale over burst width
+flags:
+    normalize_pbf: False
