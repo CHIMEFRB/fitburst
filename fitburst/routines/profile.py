@@ -149,7 +149,9 @@ def _identify_pbf_regime(arg: float, threshold=-20.0):
     invalid = np.flatnonzero(~flag) if valid.size < flag.size else None
 
     # If possible, convert from indices to slices so that a copy does not occur
-    if (valid[-1] + 1 - valid[0]) == valid.size:
+    if valid.size == 0:
+        valid = None
+    elif (valid[-1] + 1 - valid[0]) == valid.size:
         valid = slice(valid[0], valid[-1]+1)
 
     if invalid is not None and (invalid[-1] + 1 - invalid[0]) == invalid.size:
