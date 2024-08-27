@@ -733,7 +733,6 @@ def deriv_model_wrt_scattering_index(parameters: dict, model: float, component: 
     num_freq, num_time, num_component = model.timediff_per_component.shape
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
 
-    # KC add: define parameters and objects needed for mixed-derivative calculation.
     burst_width = parameters["burst_width"][component]
     spectral_index = parameters["spectral_index"][component]
     spectral_running = parameters["spectral_running"][component]
@@ -749,8 +748,6 @@ def deriv_model_wrt_scattering_index(parameters: dict, model: float, component: 
         scattering_timescale = parameters["scattering_timescale"][0]
         current_timediff = model.timediff_per_component[:, :, current_component]
         scat_times_freq = scattering_timescale * freq_ratio ** scattering_index
-#        spectrum = 10 ** current_amplitude * freq_ratio ** (spectral_index + spectral_running * log_freq)
-#        spectrum *= freq_ratio ** (-scattering_index)
 
         # define argument of error and scattering timescales over frequency.
         spectrum = current_amplitude * freq_ratio[:, None] ** (-scattering_index)
