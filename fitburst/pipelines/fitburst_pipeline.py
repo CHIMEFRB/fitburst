@@ -540,6 +540,9 @@ for current_iteration in range(num_iterations):
                     current_uncertainties = bestfit_uncertainties[current_parameter_label]
                     print(f"    * {current_parameter_label}: {current_list} +/- {current_uncertainties}")        
 
+                print("INFO: ratio of hessian matrix (approximate / exact):")
+                print(fitter.hessian / fitter.hessian_approx)
+
             # now create plots.
             filename_elems = input_file.split(".")
             output_string = ".".join(filename_elems[:len(filename_elems)-1])
@@ -561,6 +564,9 @@ for current_iteration in range(num_iterations):
                         "initial_time": data.times_bin0,
                         "model_parameters": current_params,
                         "fit_statistics": fitter.fit_statistics,
+                        "fit_logistics" : {
+                            "weight_range" : weight_range,
+                        }
                     },
                     out,
                     indent=4

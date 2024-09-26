@@ -1,9 +1,9 @@
 """
 Routines for Partial Derivatives of the fitburst Model w.r.t. Fit Parameters
 
-This module contains functions that return partial derivatives of the model 
-defined by fitburt. Each derivative is only defined for fittable parameters, and 
-so the fitter object will select which derivatives to compute based on 
+This module contains functions that return partial derivatives of the model
+defined by fitburt. Each derivative is only defined for fittable parameters, and
+so the fitter object will select which derivatives to compute based on
 fit parameters.
 """
 
@@ -29,17 +29,17 @@ def argument_erf(burst_width: float, time_diff: float, scattering_timescale: flo
     Returns
     -------
     arg_erf : float
-        the argument of the error function 
+        the argument of the error function
     """
 
     # compute and return the argument of the error function.
     arg_erf = (time_diff - burst_width ** 2 / scattering_timescale) / burst_width / np.sqrt(2)
-    
+
     return arg_erf
 
 def argument_exp(burst_width: float, time_diff: float, scattering_timescale: float) -> float:
     """
-    Computes the argument of the exponential term that is common to all derivatives 
+    Computes the argument of the exponential term that is common to all derivatives
     of the scatter-broadened fitburst model.
 
     Parameters
@@ -68,9 +68,149 @@ def argument_exp(burst_width: float, time_diff: float, scattering_timescale: flo
 
     return arg_exp
 
+def amplitude_pbf(freq: float, parameters: dict, component: int):
+    """
+    Computes the amplitude of the pulse-broadening-function (PBF).
+
+    Parameters
+    ----------
+    freq : float
+        value of the electromagnetic frequency at which to evaluate dispersed timeseries
+
+    parameters : dict
+        A dictionary containing all values that instantiate the model
+
+    component : int, optional
+        An index of the burst component for which to evaluate the derivative
+
+    Returns
+    -------
+    amp : float
+        Amplitude of the PBF model
+    """
+    ref_freq = parameters["ref_freq"][component]
+    sc_index = parameters["scattering_index"][0] # global parameter
+
+    amp = (freq / ref_freq) ** -sc_index
+
+    if general["flags"]["normalize_pbf"]:
+
+        sc_time = parameters["scattering_timescale"][0] # global parameter
+        burst_width = parameters["burst_width"][component]
+
+        amp *= np.sqrt(np.pi / 2.0) * burst_width / sc_time
+
+    return amp
+
+def deriv_amplitude_pbf(name: str, freq: float, parameters: dict, component: int):
+    """
+    Computes the derivative of the PBF amplitude with respect to either the
+    burst-width or scattering-timescale parameters.
+
+    Parameters
+    ----------
+    name : str
+        name of the fit parameter for which to compute the partial derivative
+
+    freq : float
+        value of the electromagnetic frequency at which to evaluate dispersed timeseries
+
+    parameters : dict
+        A dictionary containing all values that instantiate the model
+
+    component : int, optional
+        An index of the burst component for which to evaluate the derivative
+
+    Returns
+    -------
+    deriv_partial : float
+        partial derivative of the PBF amplitude with respect to the 'name' fit parameter
+    """
+
+    burst_width = parameters["burst_width"][component]
+    ref_freq = parameters["ref_freq"][component]
+    sc_index = parameters["scattering_index"][0] # global parameter
+    sc_time = parameters["scattering_timescale"][0] # global parameter
+
+    deriv_partial = 0.0
+    if general["flags"]["normalize_pbf"]:
+
+        sc_time_freq = sc_time * (freq / ref_freq) ** sc_index
+
+        if name == "burst_width":
+            deriv_partial = np.sqrt(np.pi / 2) / sc_time_freq
+
+        elif name == "scattering_index":
+            deriv_partial = -np.sqrt(np.pi / 2) * np.log(freq / ref_freq) * burst_width / sc_time_freq
+
+        elif name == "scattering_timescale":
+            deriv_partial = -np.sqrt(np.pi / 2) * burst_width / (sc_time_freq * sc_time)
+
+    elif name == "scattering_index":
+        deriv_partial = - np.log(freq / ref_freq) *  (freq / ref_freq) ** -sc_index
+
+    return deriv_partial
+
+def deriv2_amplitude_pbf(name1: str, name2: str, freq: float, parameters: dict, component: int):
+    """
+    Computes the mixed partial derivative of the PBF amplitude with
+    respect to two fitburst parameters that define a scatter-broadened model.
+
+    Parameters
+    ----------
+    name1 : str
+        name of the fit parameter for which to compute the partial derivative
+
+    name2 : str
+        name of the fit parameter for which to compute the partial derivative
+
+    freq : float
+        value of the electromagnetic frequency at which to evaluate dispersed timeseries
+
+    parameters : dict
+        A dictionary containing all values that instantiate the model
+
+    component : int, optional
+        An index of the burst component for which to evaluate the derivative
+
+    Returns
+    -------
+    deriv_partial : float
+        partial derivative of the PBF amplitude with respect to the 'name' fit parameter
+    """
+
+    burst_width = parameters["burst_width"][component]
+    ref_freq = parameters["ref_freq"][component]
+    sc_index = parameters["scattering_index"][0] # global parameter
+    sc_time = parameters["scattering_timescale"][0] # global parameter
+
+    if general["flags"]["normalize_pbf"]:
+
+        sc_time_freq = sc_time * (freq / ref_freq) ** sc_index
+
+        if (name1 == "burst_width" and name2 == "scattering_index") or (name2 == "burst_width" and name1 == "scattering_index") :
+            deriv_partial = -np.sqrt(np.pi / 2) * np.log(freq / ref_freq) / sc_time_freq
+
+        elif (name1 == "burst_width" and name2 == "scattering_timescale") or (name2 == "burst_width" and name1 == "scattering_timescale"):
+            deriv_partial = -np.sqrt(np.pi / 2) / (sc_time_freq * sc_time)
+
+        elif (name1 == "scattering_index" and name2 == "scattering_index"):
+            deriv_partial = np.sqrt(np.pi / 2) * np.log(freq / ref_freq) ** 2 * burst_width / sc_time_freq
+
+        elif (name1 == "scattering_index" and name2 == "scattering_timescale") or (name2 == "scattering_index" and name1 == "scattering_timescale"):
+            deriv_partial = np.sqrt(np.pi / 2) * np.log(freq / ref_freq) * burst_width / (sc_time_freq * sc_time)
+
+    elif name1 == "scattering_index" and name2 == "scattering_index":
+        deriv_partial = np.log(freq / ref_freq) ** 2 *  (freq / ref_freq) ** -sc_index
+
+    else:
+        deriv_partial = 0.0
+
+    return deriv_partial
+
 def deriv_time_dm(name: str, freq: float, ref_freq: float, dm: float, dm_index: float):
     """
-    Computes the derivative of the dispersed timeseries with respect to either the DM 
+    Computes the derivative of the dispersed timeseries with respect to either the DM
     of DM-index parameters.
 
     Parameters
@@ -112,7 +252,7 @@ def deriv_time_dm(name: str, freq: float, ref_freq: float, dm: float, dm_index: 
 def deriv_argument_erf(name: str, freq: float, time_diff: float, parameters: dict,
     component: int = 0) -> float:
     """
-    Computes the derivative of the error-function argument. 
+    Computes the derivative of the error-function argument.
 
     Parameters
     ----------
@@ -155,7 +295,7 @@ def deriv_argument_erf(name: str, freq: float, time_diff: float, parameters: dic
     elif name == "burst_width":
         deriv_first = -(time_diff / width ** 2 + 1 / sc_time_freq) / np.sqrt(2)
 
-    elif name == "dm" or name == "dm_index": 
+    elif name == "dm" or name == "dm_index":
         deriv_first = deriv_time_dm(name, freq, ref_freq, dm, dm_index) / width / np.sqrt(2)
 
     elif name == "scattering_timescale":
@@ -169,7 +309,7 @@ def deriv_argument_erf(name: str, freq: float, time_diff: float, parameters: dic
 def deriv_argument_exp(name: str, freq: float, time_diff: float, parameters: dict,
     component: int = 0) -> float:
     """
-    Computes the argument of the exponential term that is common to all derivatives 
+    Computes the argument of the exponential term that is common to all derivatives
     of the scatter-broadened fitburst model.
 
     Parameters
@@ -233,7 +373,7 @@ def deriv_argument_exp(name: str, freq: float, time_diff: float, parameters: dic
 def deriv2_argument_erf(name1: str, name2: str, freq: float, time_diff: float, parameters: dict,
     component: int = 0) -> float:
     """
-    Computes the mixed-partial derivative of the error-function argument with 
+    Computes the mixed-partial derivative of the error-function argument with
     respect to one or two fitburst parameters that define a scatter-broadened model.
 
     Parameters
@@ -414,35 +554,38 @@ def deriv_model_wrt_burst_width(parameters: dict, model: float, component: int =
     current_model = model.spectrum_per_component[:, :, component]
     num_freq, num_time, num_component = model.timediff_per_component.shape
     ref_freq = parameters["ref_freq"][component]
-    scattering_index = parameters["scattering_index"][0]
-    scattering_timescale = parameters["scattering_timescale"][0]
+    sc_index = parameters["scattering_index"][0]
+    sc_time = parameters["scattering_timescale"][0]
     timediff = model.timediff_per_component[:, :, component]
-    freq_ratio = model.freqs / ref_freq
-    scat_times_freq = scattering_timescale * freq_ratio ** scattering_index
+    sc_times_freq = sc_time * (model.freqs / ref_freq) ** sc_index
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
+
     deriv_mod = np.zeros((num_freq, num_time), dtype=float)
 
     for freq in range(num_freq):
         current_timediff = timediff[freq, :]
 
-        if scat_times_freq[freq] < np.fabs(0.15 * burst_width):
-            deriv_mod[freq, :] += (current_timediff ** 2 * current_model[freq, :] 
-                / burst_width ** 3)
+        if sc_times_freq[freq] == 0.0:
+            deriv_mod[freq, :] += (current_timediff ** 2 * current_model[freq, :] / burst_width ** 3)
 
         else:
-
             # define argument of error and scattering timescales over frequency.
-            spectrum = current_amplitude[freq, :] * freq_ratio[freq] ** (-scattering_index)
-            current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
-            arg_exp = argument_exp(burst_width, current_timediff, scat_times_freq[freq])
+            arg_exp = argument_exp(burst_width, current_timediff, sc_times_freq[freq])
+            arg_erf = argument_erf(burst_width, current_timediff, sc_times_freq[freq])
+            arg_exp_model = 0.5 * (burst_width / sc_times_freq[freq]) ** 2 - current_timediff / sc_times_freq[freq]
+            deriv_amp_pbf = deriv_amplitude_pbf(
+                "burst_width", model.freqs[freq], parameters, component
+            )
             deriv_arg_erf = deriv_argument_erf(
                 "burst_width", model.freqs[freq], current_timediff, parameters, component
             )
 
             # now compute derivative contribution from current component.
-            term1 = (burst_width / scat_times_freq[freq] ** 2) * current_model[freq, :] 
-            term2 = spectrum * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
+            term1 = current_model[freq, :] * deriv_amp_pbf / amp_pbf[freq]
+            term2 = (burst_width / sc_times_freq[freq] ** 2) * current_model[freq, :]
+            term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
 
-            deriv_mod[freq, :] += term1 + term2 
+            deriv_mod[freq, :] += term1 + term2 + term3
 
     return deriv_mod
 
@@ -475,32 +618,36 @@ def deriv_model_wrt_arrival_time(parameters: dict, model: float, component: int 
     current_amplitude = model.amplitude_per_component[:, :, component]
     current_model = model.spectrum_per_component[:, :, component]
     ref_freq = parameters["ref_freq"][component]
-    scattering_index = parameters["scattering_index"][0]
-    scattering_timescale = parameters["scattering_timescale"][0]
+    sc_index = parameters["scattering_index"][0]
+    sc_time = parameters["scattering_timescale"][0]
     timediff = model.timediff_per_component[:, :, component]
-    freq_ratio = model.freqs / ref_freq
-    scat_times_freq = scattering_timescale * freq_ratio ** scattering_index
+    sc_times_freq = sc_time * (model.freqs / ref_freq) ** sc_index
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
 
     for freq in range(num_freq):
         current_timediff = timediff[freq, :]
 
-        if scat_times_freq[freq] < np.fabs(0.15 * burst_width):
+        if sc_times_freq[freq] == 0.0:
             deriv_mod[freq, :] += current_timediff * current_model[freq, :] / burst_width ** 2
 
         else:
             # define argument of error and scattering timescales over frequency.a
-            spectrum = current_amplitude[freq, :] * freq_ratio[freq] ** (-scattering_index)
-            current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
-            arg_exp = argument_exp(burst_width, current_timediff, scat_times_freq[freq])
+            arg_exp = argument_exp(burst_width, current_timediff, sc_times_freq[freq])
+            arg_erf = argument_erf(burst_width, current_timediff, sc_times_freq[freq])
+            arg_exp_model = 0.5 * (burst_width / sc_times_freq[freq]) ** 2 - current_timediff / sc_times_freq[freq]
+            deriv_amp_pbf = deriv_amplitude_pbf(
+                "arrival_time", model.freqs[freq], parameters, component
+            )
             deriv_arg_erf = deriv_argument_erf(
                 "arrival_time", model.freqs[freq], current_timediff, parameters, component
             )
 
             # now compute derivative contribution from current component.
-            term1 = current_model[freq, :] / scat_times_freq[freq]
-            term2 = spectrum * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
+            term1 = current_model[freq, :] * deriv_amp_pbf / amp_pbf[freq]
+            term2 = current_model[freq, :] / sc_times_freq[freq]
+            term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
 
-            deriv_mod[freq, :] += term1 + term2
+            deriv_mod[freq, :] = term1 + term2 + term3
 
     return deriv_mod
 
@@ -529,8 +676,8 @@ def deriv_model_wrt_dm(parameters: dict, model: float, component: int = 0, add_a
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
     dm = parameters["dm"][0]
     dm_index = parameters["dm_index"][0]
-    scattering_index = parameters["scattering_index"][0]
-    scattering_timescale = parameters["scattering_timescale"][0]
+    sc_index = parameters["scattering_index"][0]
+    sc_time = parameters["scattering_timescale"][0]
 
     # now loop over each model component and compute contribution to derivative.
     for current_component in range(num_component):
@@ -538,32 +685,36 @@ def deriv_model_wrt_dm(parameters: dict, model: float, component: int = 0, add_a
         current_model = model.spectrum_per_component[:, :, current_component]
         current_amplitude = model.amplitude_per_component[:, :, current_component]
         ref_freq = parameters["ref_freq"][current_component]
-        freq_ratio = model.freqs / ref_freq
-        sc_times_freq = scattering_timescale * freq_ratio ** scattering_index
+        sc_times_freq = sc_time * (model.freqs / ref_freq) ** sc_index
+        amp_pbf = amplitude_pbf(model.freqs, parameters, current_component)
         timediff = model.timediff_per_component[:, :, current_component]
         deriv_timediff_wrt_dm = deriv_time_dm("dm", model.freqs, ref_freq, dm, dm_index)
 
         for freq in range(num_freq):
             current_timediff = timediff[freq, :]
 
-            if sc_times_freq[freq] < np.fabs(0.15 * burst_width):
-                deriv_mod_int[freq, :, current_component] = (-current_timediff * 
+            if sc_times_freq[freq] == 0.0:
+                deriv_mod_int[freq, :, current_component] = (-current_timediff *
                     current_model[freq, :] / burst_width ** 2 * deriv_timediff_wrt_dm[freq])
 
             else:
 
                 # define argument of error and scattering timescales over frequency.
-                spectrum = current_amplitude[freq, :] * freq_ratio[freq] ** (-scattering_index)
-                current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
                 arg_exp = argument_exp(burst_width, current_timediff, sc_times_freq[freq])
+                arg_erf = argument_erf(burst_width, current_timediff, sc_times_freq[freq])
+                arg_exp_model = 0.5 * (burst_width / sc_times_freq[freq]) ** 2 - current_timediff / sc_times_freq[freq]
+                deriv_amp_pbf = deriv_amplitude_pbf(
+                    "dm", model.freqs[freq], parameters, component
+                )
                 deriv_arg_erf = deriv_argument_erf(
                     "dm", model.freqs[freq], current_timediff, parameters, current_component
                 )
 
                 # now compute derivative contribution from current component.
-                term1 = -deriv_timediff_wrt_dm[freq] * current_model[freq, :] / sc_times_freq[freq]
-                term2 = spectrum * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
-                deriv_mod_int[freq, :, current_component] = (term1 + term2)
+                term1 = current_model[freq, :] * deriv_amp_pbf / amp_pbf[freq]
+                term2 = -deriv_timediff_wrt_dm[freq] * current_model[freq, :] / sc_times_freq[freq]
+                term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
+                deriv_mod_int[freq, :, current_component] = term1 + term2 + term3
 
     # now determine if all components should be summed or not.
     deriv_mod = deriv_mod_int[:, :, component]
@@ -600,39 +751,43 @@ def deriv_model_wrt_dm_index(parameters: dict, model: float, component: int = 0,
     dm_index = parameters["dm_index"][0]
     sc_index = parameters["scattering_index"][0]
     sc_time = parameters["scattering_timescale"][0]
-    
+
     for current_component in range(num_component):
         burst_width = parameters["burst_width"][current_component]
         current_amplitude = model.amplitude_per_component[:, :, current_component]
         current_model = model.spectrum_per_component[:, :, current_component]
         timediff = model.timediff_per_component[:, : , current_component]
         ref_freq = parameters["ref_freq"][current_component]
-        freq_ratio = model.freqs / ref_freq
-        sc_times_freq = sc_time * freq_ratio ** sc_index
+        sc_times_freq = sc_time * (model.freqs / ref_freq) ** sc_index
+        amp_pbf = amplitude_pbf(model.freqs, parameters, current_component)
         deriv_timediff_wrt_dm = deriv_time_dm("dm_index", model.freqs, ref_freq, dm, dm_index)
 
         for freq in range (num_freq):
             current_timediff = timediff[freq, :]
 
-            if sc_times_freq[freq] < np.fabs(0.15 * burst_width):
-                deriv_mod_int[freq, :, current_component] += (-current_timediff * 
+            if sc_times_freq[freq] == 0.0:
+                deriv_mod_int[freq, :, current_component] += (-current_timediff *
                     current_model[freq, :] / burst_width ** 2 * deriv_timediff_wrt_dm[freq])
 
             else:
 
                 # define argument of error and scattering timescales over frequency.
-                spectrum = current_amplitude[freq, :] * freq_ratio[freq] ** (-sc_index)
-                current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
                 arg_exp = argument_exp(burst_width, current_timediff, sc_times_freq[freq])
+                arg_erf = argument_erf(burst_width, current_timediff, sc_times_freq[freq])
+                arg_exp_model = 0.5 * (burst_width / sc_times_freq[freq]) ** 2 - current_timediff / sc_times_freq[freq]
+                deriv_amp_pbf = deriv_amplitude_pbf(
+                    "dm_index", model.freqs[freq], parameters, component
+                )
                 deriv_arg_erf = deriv_argument_erf(
                     "dm_index", model.freqs[freq], current_timediff, parameters, current_component
                 )
 
-                # now calculate terms in partial derivative.
-                term1 = -deriv_timediff_wrt_dm[freq] * model.spectrum_per_component[freq, :, current_component]
-                term1 /= sc_times_freq[freq]
-                term2 = spectrum * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
-                deriv_mod_int[freq, :, current_component] = (term1 + term2)
+                # now compute derivative contribution from current component.
+                term1 = current_model[freq, :] * deriv_amp_pbf / amp_pbf[freq]
+                term2 = -deriv_timediff_wrt_dm[freq] * model.spectrum_per_component[freq, :, current_component]
+                term2 /= sc_times_freq[freq]
+                term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
+                deriv_mod_int[freq, :, current_component] = term1 + term2 + term3
 
     # now determine if all components should be summed or not.
     deriv_mod = deriv_mod_int[:, :, component]
@@ -640,7 +795,7 @@ def deriv_model_wrt_dm_index(parameters: dict, model: float, component: int = 0,
     if add_all:
         deriv_mod = np.sum(deriv_mod_int, axis = 2)
 
-    return deriv_mod 
+    return deriv_mod
 
 def deriv_model_wrt_scattering_timescale(parameters: dict, model: float, component: int = 0, add_all: bool = True) -> float:
     """
@@ -658,14 +813,14 @@ def deriv_model_wrt_scattering_timescale(parameters: dict, model: float, compone
         An index of the burst component for which to evaluate the derivative
 
     add_all : bool, optional
-        If True, then sum all per-component evaluations of first derivative; 
+        If True, then sum all per-component evaluations of first derivative;
         otherwise, return derivative map for component with index 'component'
 
     Returns
     -------
         The derivative of the model evaluated over time and frequency
     """
- 
+
     # get dimensions and define empty model-derivative matrix.
     num_freq, num_time, num_component = model.timediff_per_component.shape
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
@@ -673,29 +828,35 @@ def deriv_model_wrt_scattering_timescale(parameters: dict, model: float, compone
     # now loop over each model component and compute contribution to derivative.
     for current_component in range(num_component):
         burst_width = parameters["burst_width"][current_component]
-        current_amplitude = model.amplitude_per_component[:, :, current_component]
         current_model = model.spectrum_per_component[:, :, current_component]
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
         ref_freq = parameters["ref_freq"][current_component]
-        freq_ratio = model.freqs / ref_freq
-        scattering_index = parameters["scattering_index"][0]
-        scattering_timescale = parameters["scattering_timescale"][0]
+        sc_index = parameters["scattering_index"][0]
+        sc_time = parameters["scattering_timescale"][0]
+        sc_times_freq = sc_time * (model.freqs / ref_freq) ** sc_index
+        amp_pbf = amplitude_pbf(model.freqs[:, None], parameters, current_component)
+
         current_timediff = model.timediff_per_component[:, :, current_component]
-        
+
         # define argument of error and scattering timescales over frequency.
-        spectrum = current_amplitude * freq_ratio[:, None] ** (-scattering_index)
-        current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
-        scat_times_freq = scattering_timescale * freq_ratio ** scattering_index
-        arg_exp = argument_exp(burst_width, current_timediff, scat_times_freq[:, None])
+        arg_exp = argument_exp(burst_width, current_timediff, sc_times_freq[:, None])
+        arg_erf = argument_erf(burst_width, current_timediff, sc_times_freq[:, None])
+        arg_exp_model = 0.5 * (burst_width / sc_times_freq[:, None]) ** 2 - current_timediff / \
+                        sc_times_freq[:, None]
+        deriv_amp_pbf = deriv_amplitude_pbf(
+            "scattering_timescale", model.freqs[:, None], parameters, component
+        )
         deriv_arg_erf = deriv_argument_erf(
             "scattering_timescale", model.freqs[:, None], current_timediff, parameters, current_component
         )
 
         # now compute derivative contribution from current component.
-        term1 = (-(burst_width / scat_times_freq[:, None]) ** 2 + current_timediff / scat_times_freq[:, None]) * \
-                current_model / scattering_timescale
-        term2 = spectrum * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
+        term1 = current_model * deriv_amp_pbf / amp_pbf
+        term2 = (-(burst_width / sc_times_freq[:, None]) ** 2 + current_timediff / sc_times_freq[:, None]) * \
+                current_model[:, :] / sc_time
+        term3 = current_amplitude * amp_pbf * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
 
-        deriv_mod_int[:, :, current_component] = term1 + term2
+        deriv_mod_int[:, :, current_component] = term1 + term2 + term3
 
     # now determine if all components should be summed or not.
     deriv_mod = deriv_mod_int[:, :, component]
@@ -721,7 +882,7 @@ def deriv_model_wrt_scattering_index(parameters: dict, model: float, component: 
         An index of the burst component for which to evaluate the derivative
 
     add_all : bool, optional
-        If True, then sum all per-component evaluations of first derivative; 
+        If True, then sum all per-component evaluations of first derivative;
         otherwise, return derivative map for component with index 'component'
 
     Returns
@@ -735,33 +896,36 @@ def deriv_model_wrt_scattering_index(parameters: dict, model: float, component: 
 
     # now loop over each model component and compute contribution to derivative.
     for current_component in range(num_component):
-        current_amplitude = model.amplitude_per_component[:, :, current_component]
         current_model = model.spectrum_per_component[:, :, current_component]
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
         ref_freq = parameters["ref_freq"][current_component]
         freq_ratio = model.freqs / ref_freq
         log_freq = np.log(freq_ratio)
-        scattering_index = parameters["scattering_index"][0]
-        scattering_timescale = parameters["scattering_timescale"][0]
+        sc_index = parameters["scattering_index"][0]
+        sc_time = parameters["scattering_timescale"][0]
+        burst_width = parameters["burst_width"][current_component]
         current_timediff = model.timediff_per_component[:, :, current_component]
-        scat_times_freq = scattering_timescale * freq_ratio ** scattering_index
-        spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * log_freq)
-        spectrum *= freq_ratio ** (-scattering_index)
+        sc_times_freq = sc_time * freq_ratio ** sc_index
+        amp_pbf = amplitude_pbf(model.freqs[:, None], parameters, current_component)
 
         # define argument of error and scattering timescales over frequency.
-        spectrum = current_amplitude * freq_ratio[:, None] ** (-scattering_index)
-        current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
-        arg_exp = argument_exp(burst_width, current_timediff, scat_times_freq[:, None])
+        arg_exp = argument_exp(burst_width, current_timediff, sc_times_freq[:, None])
+        arg_erf = argument_erf(burst_width, current_timediff, sc_times_freq[:, None])
+        arg_exp_model = 0.5 * (burst_width / sc_times_freq[:, None]) ** 2 - current_timediff / sc_times_freq[:, None]
+        deriv_amp_pbf = deriv_amplitude_pbf(
+            "scattering_index", model.freqs[:, None], parameters, component
+        )
         deriv_arg_erf = deriv_argument_erf(
-            "scattering_index", model.freqs, current_timediff, parameters, current_component
+            "scattering_index", model.freqs[:, None], current_timediff, parameters, current_component
         )
 
         # now compute derivative contribution from current component.
-        term1 = -log_freq[:, None] * (1 + (burst_width / scat_times_freq[:, None]) ** 2 - 
-                                      current_timediff / scat_times_freq[:, None])
-        term1 *= current_model
-        term2 = spectrum * np.exp(arg_exp) * deriv_arg_erf[:, None] * 2 / np.sqrt(np.pi)
+        term1 = current_model * deriv_amp_pbf / amp_pbf
+        term2 = -log_freq[:, None] * current_model * ((burst_width / sc_times_freq[:, None]) ** 2 -
+                                                      current_timediff / sc_times_freq[:, None])
+        term3 = current_amplitude * amp_pbf * np.exp(arg_exp) * deriv_arg_erf * 2 / np.sqrt(np.pi)
 
-        deriv_mod_int[:, :, current_component] = (term1 + term2)
+        deriv_mod_int[:, :, current_component] = term1 + term2 + term3
 
     # now determine if all components should be summed or not.
     deriv_mod = deriv_mod_int[:, :, component]
@@ -792,12 +956,12 @@ def deriv2_model_wrt_amplitude_amplitude(parameters: dict, model: object, compon
     """
 
     deriv_mod = np.log(10) ** 2 * model.spectrum_per_component[:, :, component]
-    
+
     return deriv_mod
 
 def deriv2_model_wrt_amplitude_spectral_running(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the amplitude and 
+    Computes the mixed partial derivative of the model with respect to the amplitude and
     spectral-running parameters.
 
     Parameters
@@ -824,7 +988,7 @@ def deriv2_model_wrt_amplitude_spectral_running(parameters: dict, model: float, 
 
 def deriv2_model_wrt_amplitude_spectral_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the amplitude and 
+    Computes the mixed partial derivative of the model with respect to the amplitude and
     spectral-index parameters.
 
     Parameters
@@ -851,7 +1015,7 @@ def deriv2_model_wrt_amplitude_spectral_index(parameters: dict, model: float, co
 
 def deriv2_model_wrt_amplitude_burst_width(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the amplitude and 
+    Computes the mixed partial derivative of the model with respect to the amplitude and
     burst-width parameters.
 
     Parameters
@@ -877,7 +1041,7 @@ def deriv2_model_wrt_amplitude_burst_width(parameters: dict, model: float, compo
 
 def deriv2_model_wrt_amplitude_arrival_time(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the amplitude and 
+    Computes the mixed partial derivative of the model with respect to the amplitude and
     arrival-time parameters.
 
     Parameters
@@ -903,7 +1067,7 @@ def deriv2_model_wrt_amplitude_arrival_time(parameters: dict, model: float, comp
 
 def deriv2_model_wrt_amplitude_dm(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the amplitude and 
+    Computes the mixed partial derivative of the model with respect to the amplitude and
     DM parameters.
 
     Parameters
@@ -929,7 +1093,7 @@ def deriv2_model_wrt_amplitude_dm(parameters: dict, model: float, component: int
 
 def deriv2_model_wrt_amplitude_dm_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the amplitude and 
+    Computes the mixed partial derivative of the model with respect to the amplitude and
     DM-index parameters.
 
     Parameters
@@ -955,7 +1119,7 @@ def deriv2_model_wrt_amplitude_dm_index(parameters: dict, model: float, componen
 
 def deriv2_model_wrt_amplitude_scattering_timescale(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the amplitude and 
+    Computes the mixed partial derivative of the model with respect to the amplitude and
     scattering_timescale parameters.
 
     Parameters
@@ -981,7 +1145,7 @@ def deriv2_model_wrt_amplitude_scattering_timescale(parameters: dict, model: flo
 
 def deriv2_model_wrt_amplitude_scattering_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the amplitude and 
+    Computes the mixed partial derivative of the model with respect to the amplitude and
     scattering-index parameters.
 
     Parameters
@@ -1033,7 +1197,7 @@ def deriv2_model_wrt_spectral_running_spectral_running(parameters: dict, model: 
 
 def deriv2_model_wrt_spectral_running_spectral_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-running and 
+    Computes the mixed partial derivative of the model with respect to the spectral-running and
     spectral-index parameters.
 
     Parameters
@@ -1060,7 +1224,7 @@ def deriv2_model_wrt_spectral_running_spectral_index(parameters: dict, model: fl
 
 def deriv2_model_wrt_spectral_running_burst_width(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-running and 
+    Computes the mixed partial derivative of the model with respect to the spectral-running and
     burst-width parameters.
 
     Parameters
@@ -1087,7 +1251,7 @@ def deriv2_model_wrt_spectral_running_burst_width(parameters: dict, model: float
 
 def deriv2_model_wrt_spectral_running_arrival_time(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-running and 
+    Computes the mixed partial derivative of the model with respect to the spectral-running and
     arrival-time parameters.
 
     Parameters
@@ -1114,7 +1278,7 @@ def deriv2_model_wrt_spectral_running_arrival_time(parameters: dict, model: floa
 
 def deriv2_model_wrt_spectral_running_dm(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-running and 
+    Computes the mixed partial derivative of the model with respect to the spectral-running and
     DM parameters.
 
     Parameters
@@ -1141,7 +1305,7 @@ def deriv2_model_wrt_spectral_running_dm(parameters: dict, model: float, compone
 
 def deriv2_model_wrt_spectral_running_dm_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-running and 
+    Computes the mixed partial derivative of the model with respect to the spectral-running and
     DM-index parameters.
 
     Parameters
@@ -1168,7 +1332,7 @@ def deriv2_model_wrt_spectral_running_dm_index(parameters: dict, model: float, c
 
 def deriv2_model_wrt_spectral_running_scattering_timescale(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-running and 
+    Computes the mixed partial derivative of the model with respect to the spectral-running and
     scattering-timescale parameters.
 
     Parameters
@@ -1195,7 +1359,7 @@ def deriv2_model_wrt_spectral_running_scattering_timescale(parameters: dict, mod
 
 def deriv2_model_wrt_spectral_running_scattering_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-running and 
+    Computes the mixed partial derivative of the model with respect to the spectral-running and
     scattering-index parameters.
 
     Parameters
@@ -1248,7 +1412,7 @@ def deriv2_model_wrt_spectral_index_spectral_index(parameters: dict, model: floa
 
 def deriv2_model_wrt_spectral_index_burst_width(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-index and 
+    Computes the mixed partial derivative of the model with respect to the spectral-index and
     burst-width parameters.
 
     Parameters
@@ -1275,7 +1439,7 @@ def deriv2_model_wrt_spectral_index_burst_width(parameters: dict, model: float, 
 
 def deriv2_model_wrt_spectral_index_arrival_time(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-index and 
+    Computes the mixed partial derivative of the model with respect to the spectral-index and
     burst-width parameters.
 
     Parameters
@@ -1295,14 +1459,14 @@ def deriv2_model_wrt_spectral_index_arrival_time(parameters: dict, model: float,
     """
 
     ref_freq = parameters["ref_freq"][component]
-    log_freq = np.log(model.freqs / ref_freq) 
+    log_freq = np.log(model.freqs / ref_freq)
     deriv_mod = log_freq[:, None] * deriv_model_wrt_arrival_time(parameters, model, component)
 
     return deriv_mod
 
 def deriv2_model_wrt_spectral_index_dm(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-index and 
+    Computes the mixed partial derivative of the model with respect to the spectral-index and
     DM parameters.
 
     Parameters
@@ -1329,7 +1493,7 @@ def deriv2_model_wrt_spectral_index_dm(parameters: dict, model: float, component
 
 def deriv2_model_wrt_spectral_index_dm_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-index and 
+    Computes the mixed partial derivative of the model with respect to the spectral-index and
     DM-index parameters.
 
     Parameters
@@ -1356,7 +1520,7 @@ def deriv2_model_wrt_spectral_index_dm_index(parameters: dict, model: float, com
 
 def deriv2_model_wrt_spectral_index_scattering_timescale(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-index and 
+    Computes the mixed partial derivative of the model with respect to the spectral-index and
     scattering-timescale parameters.
 
     Parameters
@@ -1383,7 +1547,7 @@ def deriv2_model_wrt_spectral_index_scattering_timescale(parameters: dict, model
 
 def deriv2_model_wrt_spectral_index_scattering_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the spectral-index and 
+    Computes the mixed partial derivative of the model with respect to the spectral-index and
     scattering-index parameters.
 
     Parameters
@@ -1429,35 +1593,29 @@ def deriv2_model_wrt_burst_width_burst_width(parameters: dict, model: float, com
     """
 
     # define parameters and objects needed for mixed-derivative calculation.
-    amplitude = parameters["amplitude"][component]
     burst_width = parameters["burst_width"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
+    current_amplitude = model.amplitude_per_component[:, :, component]
     deriv_first = deriv_model_wrt_burst_width(parameters, model, component)
-    deriv_mod = np.zeros(current_model.shape)
     ref_freq = parameters["ref_freq"][component]
     sc_index = parameters["scattering_index"][0] # global parameter.
     sc_time = parameters["scattering_timescale"][0] # global parameter.
-    spectral_index = parameters["spectral_index"][component]
-    spectral_running = parameters["spectral_running"][component]
-    current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
 
+    deriv_mod = np.zeros(current_model.shape)
     # now loop over each frequency and compute mixed-derivative array per channel.
     for freq in range(current_model.shape[0]):
-        freq_ratio = model.freqs[freq] / ref_freq
-        sc_time_freq = sc_time * freq_ratio ** sc_index
+        sc_time_freq = sc_time * (model.freqs[freq] / ref_freq) ** sc_index
 
         # if scattering is not resolvable, then assume Gaussian temporal profile.
-        if sc_time_freq < np.fabs(0.15 * burst_width):
+        if sc_time_freq == 0.0:
             deriv_mod[freq, :] = -3 * current_timediff[freq, :] ** 2 * \
                                      current_model[freq, :] / burst_width ** 4
             deriv_mod[freq, :] += (current_timediff[freq, :] ** 4 * \
                                       current_model[freq, :] / burst_width ** 6)
 
         else:
-            # adjust time-difference values to make them friendly for error function.
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
             deriv_arg_erf = deriv_argument_erf(
                 "burst_width", model.freqs[freq], current_timediff[freq, :], parameters, component
@@ -1470,17 +1628,17 @@ def deriv2_model_wrt_burst_width_burst_width(parameters: dict, model: float, com
             )
 
             # now define terms that contribute to mixed derivative.
-            term1 = current_model[freq, :] / sc_time_freq ** 2
+            term1 = current_model[freq] / sc_time_freq ** 2
             term2 = burst_width * deriv_first[freq, :] / sc_time_freq ** 2
-            term3 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-            term4 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+            term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+            term4 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
             deriv_mod[freq, :] = term1 + term2 + term3 + term4
 
     return deriv_mod
 
 def deriv2_model_wrt_burst_width_arrival_time(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the burst-width and 
+    Computes the mixed partial derivative of the model with respect to the burst-width and
     arrival-time parameters.
 
     Parameters
@@ -1500,33 +1658,28 @@ def deriv2_model_wrt_burst_width_arrival_time(parameters: dict, model: float, co
     """
 
     # define parameters and objects needed for mixed-derivative calculation.
-    amplitude = parameters["amplitude"][component]
     burst_width = parameters["burst_width"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
+    current_amplitude = model.amplitude_per_component[:, :, component]
     deriv_first = deriv_model_wrt_arrival_time(parameters, model, component)
-    deriv_mod = np.zeros(current_model.shape)
     ref_freq = parameters["ref_freq"][component]
     sc_index = parameters["scattering_index"][0] # global parameter.
     sc_time = parameters["scattering_timescale"][0] # global parameter.
-    spectral_index = parameters["spectral_index"][component]
-    spectral_running = parameters["spectral_running"][component]
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
+
+    deriv_mod = np.zeros(current_model.shape)
 
     # now loop over each frequency and compute mixed-derivative array per channel.
     for freq in range(current_model.shape[0]):
-        freq_ratio = model.freqs[freq] / ref_freq
-        sc_time_freq = sc_time * freq_ratio ** sc_index
+        sc_time_freq = sc_time * (model.freqs[freq] / ref_freq) ** sc_index
 
         # if scattering is not resolvable, then assume Gaussian temporal profile.
-        if sc_time_freq < np.fabs(0.15 * burst_width):
+        if sc_time_freq == 0.0:
             deriv_mod[freq, :] = -2 * current_timediff[freq, :] * current_model[freq, :] / burst_width ** 3
             deriv_mod[freq, :] += (current_timediff[freq, :] ** 3 * current_model[freq, :] / burst_width ** 5)
 
         else:
-            # adjust time-difference values to make them friendly for error function.
-            current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
             deriv_arg_erf = deriv_argument_erf(
                 "burst_width", model.freqs[freq], current_timediff[freq, :], parameters, component
@@ -1540,15 +1693,15 @@ def deriv2_model_wrt_burst_width_arrival_time(parameters: dict, model: float, co
 
             # now define terms that contriubte to mixed-partial derivative.
             term1 = burst_width * deriv_first[freq, :] / sc_time_freq ** 2
-            term2 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-            term3 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+            term2 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+            term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
             deriv_mod[freq, :] = term1 + term2 + term3
 
     return deriv_mod
 
 def deriv2_model_wrt_burst_width_scattering_timescale(parameters: dict, model: float, component: int = 0):
     """
-    Computes the mixed partial derivative of the model with respect to the burst-width and 
+    Computes the mixed partial derivative of the model with respect to the burst-width and
     scattering-timescale parameters.
 
     Parameters
@@ -1568,27 +1721,23 @@ def deriv2_model_wrt_burst_width_scattering_timescale(parameters: dict, model: f
     """
 
     # define parameters and objects needed for mixed-derivative calculation.
-    amplitude = parameters["amplitude"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
+    current_amplitude = model.amplitude_per_component[:, :, component]
     deriv_first = deriv_model_wrt_scattering_timescale(parameters, model, component, add_all = False)
-    deriv_mod = np.zeros(current_model.shape)
     burst_width = parameters["burst_width"][component]
     ref_freq = parameters["ref_freq"][component]
     sc_index = parameters["scattering_index"][0] # global parameter.
     sc_time = parameters["scattering_timescale"][0] # global parameter.
     spectral_index = parameters["spectral_index"][component]
     spectral_running = parameters["spectral_running"][component]
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
 
-    # adjust time-difference values to make them friendly for error function.
-    current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
+    deriv_mod = np.zeros(current_model.shape)
 
     # now loop over each frequency and compute mixed-derivative array per channel.
     for freq in range(current_model.shape[0]):
-        freq_ratio = model.freqs[freq] / ref_freq
-        sc_time_freq = sc_time * freq_ratio ** sc_index
-        spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-        spectrum *= freq_ratio ** (-sc_index)
+        sc_time_freq = sc_time * (model.freqs[freq] / ref_freq) ** sc_index
         arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
         deriv_arg_erf = deriv_argument_erf(
             "burst_width", model.freqs[freq], current_timediff[freq, :], parameters, component
@@ -1601,17 +1750,17 @@ def deriv2_model_wrt_burst_width_scattering_timescale(parameters: dict, model: f
         )
 
         # now define terms that contriubte to mixed-partial derivative.
-        term1 = -2 * burst_width * current_model[freq, :] * sc_time / sc_time_freq ** 2
+        term1 = -2 * burst_width * current_model[freq, :] / sc_time / sc_time_freq ** 2
         term2 = burst_width * deriv_first[freq, :] / sc_time_freq ** 2
-        term3 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-        term4 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+        term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+        term4 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
         deriv_mod[freq, :] = term1 + term2 + term3 + term4
 
     return deriv_mod
 
 def deriv2_model_wrt_burst_width_scattering_index(parameters: dict, model: float, component: int = 0):
     """
-    Computes the mixed partial derivative of the model with respect to the burst-width and 
+    Computes the mixed partial derivative of the model with respect to the burst-width and
     scattering-timescale parameters.
 
     Parameters
@@ -1631,28 +1780,23 @@ def deriv2_model_wrt_burst_width_scattering_index(parameters: dict, model: float
     """
 
     # define parameters and objects needed for mixed-derivative calculation.
-    amplitude = parameters["amplitude"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
+    current_amplitude = model.amplitude_per_component[:, :, component]
     deriv_first = deriv_model_wrt_scattering_index(parameters, model, component, add_all = False)
-    deriv_mod = np.zeros(current_model.shape)
     burst_width = parameters["burst_width"][component]
     ref_freq = parameters["ref_freq"][component]
     sc_index = parameters["scattering_index"][0] # global parameter.
     sc_time = parameters["scattering_timescale"][0] # global parameter.
-    spectral_index = parameters["spectral_index"][component]
-    spectral_running = parameters["spectral_running"][component]
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
 
-    # adjust time-difference values to make them friendly for error function.
-    current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
+    deriv_mod = np.zeros(current_model.shape)
 
     # now loop over each frequency and compute mixed-derivative array per channel.
     for freq in range(current_model.shape[0]):
         freq_ratio = model.freqs[freq] / ref_freq
-        log_freq = np.log_freq_ratio
+        log_freq = np.log(freq_ratio)
         sc_time_freq = sc_time * freq_ratio ** sc_index
-        spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-        spectrum *= freq_ratio ** (-sc_index)
         arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
         deriv_arg_erf = deriv_argument_erf(
             "burst_width", model.freqs[freq], current_timediff[freq, :], parameters, component
@@ -1667,9 +1811,9 @@ def deriv2_model_wrt_burst_width_scattering_index(parameters: dict, model: float
         # now define terms that contriubte to mixed-partial derivative.
         term1 = -2 * log_freq * burst_width * current_model[freq, :] / sc_time_freq ** 2
         term2 = burst_width * deriv_first[freq, :] / sc_time_freq ** 2
-        term3 = -spectrum * np.exp(arg_exp) * deriv_arg_erf * log_freq * 2 / np.sqrt(np.pi)
-        term4 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-        term5 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+        term3 = -current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * log_freq * 2 / np.sqrt(np.pi)
+        term4 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+        term5 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
 
         deriv_mod[freq, :] = term1 + term2 + term3 + term4 + term5
 
@@ -1677,7 +1821,7 @@ def deriv2_model_wrt_burst_width_scattering_index(parameters: dict, model: float
 
 def deriv2_model_wrt_burst_width_dm(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the burst-width and 
+    Computes the mixed partial derivative of the model with respect to the burst-width and
     DM parameters.
 
     Parameters
@@ -1696,37 +1840,33 @@ def deriv2_model_wrt_burst_width_dm(parameters: dict, model: float, component: i
         The mixed derivative of the model evaluated over time and frequency
     """
 
-    amplitude = parameters["amplitude"][component]
     burst_width = parameters["burst_width"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
-    current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
+    current_amplitude = model.amplitude_per_component[:, :, component]
     deriv_first = deriv_model_wrt_dm(parameters, model, component, add_all = False)
-    deriv_mod = np.zeros(current_model.shape)
     dm = parameters["dm"][0] # global parameter.
     dm_index = parameters["dm_index"][0] # global parameter.
     ref_freq = parameters["ref_freq"][component]
     sc_index = parameters["scattering_index"][0] # global parameter.
     sc_time = parameters["scattering_timescale"][0] # global parameter.
-    spectral_index = parameters["spectral_index"][component] # global parameter.
-    spectral_running = parameters["spectral_running"][component] # global parameter.
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
+
+    deriv_first = deriv_model_wrt_dm(parameters, model, component, add_all = False)
+    deriv_mod = np.zeros(current_model.shape)
 
     # now loop over each frequency and compute mixed-derivative array per channel.
     for freq in range(current_model.shape[0]):
-        freq_ratio = model.freqs[freq] / ref_freq
-        sc_time_freq = sc_time * freq_ratio ** sc_index
+        sc_time_freq = sc_time * (model.freqs[freq] / ref_freq) ** sc_index
 
         # if scattering is not resolvable, then assume Gaussian temporal profile.
-        if sc_time_freq < np.fabs(0.15 * burst_width):
+        if sc_time_freq == 0.0:
             deriv_time_dm_freq = deriv_time_dm("dm", model.freqs[freq], ref_freq, dm, dm_index)
             deriv_mod[freq, :] += 2 * current_timediff[freq, :] * deriv_time_dm_freq * \
                                       current_model[freq, :] / burst_width ** 3
             deriv_mod[freq, :] += (current_timediff[freq, :] ** 2 * deriv_first[freq, :] / burst_width ** 3)
 
         else:
-            # adjust time-difference values to make them friendly for error function.
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
             deriv_arg_erf = deriv_argument_erf(
                 "burst_width", model.freqs[freq], current_timediff[freq, :], parameters, component
@@ -1739,16 +1879,16 @@ def deriv2_model_wrt_burst_width_dm(parameters: dict, model: float, component: i
             )
 
             # now define terms that contriubte to mixed-partial derivative.
-            term1 = burst_width * current_model[freq, :] / sc_time_freq ** 2
-            term2 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-            term3 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+            term1 = burst_width * deriv_first[freq, :] / sc_time_freq ** 2
+            term2 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+            term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
             deriv_mod[freq, :] = term1 + term2 + term3
 
     return deriv_mod
 
 def deriv2_model_wrt_burst_width_dm_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the burst-width and 
+    Computes the mixed partial derivative of the model with respect to the burst-width and
     DM-index parameters.
 
     Parameters
@@ -1767,37 +1907,33 @@ def deriv2_model_wrt_burst_width_dm_index(parameters: dict, model: float, compon
         The mixed derivative of the model evaluated over time and frequency
     """
 
-    amplitude = parameters["amplitude"][component]
     burst_width = parameters["burst_width"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
-    current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
+    current_amplitude = model.amplitude_per_component[:, :, component]
     deriv_first = deriv_model_wrt_dm_index(parameters, model, component, add_all = False)
-    deriv_mod = np.zeros(current_model.shape)
     dm = parameters["dm"][0] # global parameter.
     dm_index = parameters["dm_index"][0] # global parameter.
     ref_freq = parameters["ref_freq"][component]
     dm_index = parameters["dm_index"][0] # global parameter.
     sc_time = parameters["scattering_timescale"][0] # global parameter.
     sc_index = parameters["scattering_index"][0] # global parameter.
-    spectral_index = parameters["spectral_index"][component] # global parameter.
-    spectral_running = parameters["spectral_running"][component] # global parameter.
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
+
+    deriv_mod = np.zeros(current_model.shape)
 
     # now loop over each frequency and compute mixed-derivative array per channel.
     for freq in range(current_model.shape[0]):
-        freq_ratio = model.freqs[freq] / ref_freq
-        sc_time_freq = sc_time * freq_ratio ** sc_index
+        sc_time_freq = sc_time * (model.freqs[freq] / ref_freq) ** sc_index
 
         # if scattering is not resolvable, then assume Gaussian temporal profile.
-        if sc_time_freq < np.fabs(0.15 * burst_width):
+        if sc_time_freq == 0.0:
             deriv_time_dm_freq = deriv_time_dm("dm_index", model.freqs[freq], ref_freq, dm, dm_index)
             deriv_mod[freq, :] += -2 * current_timediff[freq, :] * deriv_time_dm_freq * current_model[freq, :] / burst_width ** 3
             deriv_mod[freq, :] += (current_timediff[freq, :] ** 2 * deriv_first[freq, :] / burst_width ** 3)
-   
+
         else:
             # adjust time-difference values to make them friendly for error function.
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
             deriv_arg_erf = deriv_argument_erf(
                 "burst_width", model.freqs[freq], current_timediff[freq, :], parameters, component
@@ -1811,11 +1947,11 @@ def deriv2_model_wrt_burst_width_dm_index(parameters: dict, model: float, compon
 
             # now define terms that contriubte to mixed-partial derivative.
             term1 = burst_width * deriv_first[freq, :] / sc_time_freq ** 2
-            term2 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-            term3 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+            term2 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+            term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
 
             deriv_mod[freq, :] = term1 + term2 + term3
- 
+
     return deriv_mod
 
 def deriv2_model_wrt_arrival_time_arrival_time(parameters: dict, model: float, component: int = 0) -> float:
@@ -1838,31 +1974,27 @@ def deriv2_model_wrt_arrival_time_arrival_time(parameters: dict, model: float, c
         The mixed derivative of the model evaluated over time and frequency
     """
 
-    amplitude = parameters["amplitude"][component]
     burst_width = parameters["burst_width"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
+    current_amplitude = model.amplitude_per_component[:, :, component]
     deriv_first = deriv_model_wrt_arrival_time(parameters, model, component)
     num_freq, num_time, num_component = model.spectrum_per_component.shape
     ref_freq = parameters["ref_freq"][component]
     sc_index = parameters["scattering_index"][0]
     sc_time = parameters["scattering_timescale"][0]
-    spectral_index = parameters["spectral_index"][component]
-    spectral_running = parameters["spectral_running"][component]
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
 
     deriv_mod = np.zeros((num_freq, num_time), dtype=float)
 
     for freq in range(num_freq):
-        freq_ratio = model.freqs[freq] / ref_freq
-        sc_time_freq = sc_time * freq_ratio ** sc_index
+        sc_time_freq = sc_time * (model.freqs[freq] / ref_freq) ** sc_index
 
-        if sc_time_freq < np.fabs(0.15 * burst_width):
+        if sc_time_freq == 0.0:
             deriv_mod[freq, :] = current_timediff[freq, :] ** 2 * current_model[freq, :] / burst_width ** 4
             deriv_mod[freq, :] -= (current_model[freq, :] / burst_width ** 2)
 
         else:
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
             deriv_arg_erf = deriv_argument_erf(
                 "arrival_time", model.freqs[freq], current_timediff[freq, :], parameters, component
@@ -1875,15 +2007,15 @@ def deriv2_model_wrt_arrival_time_arrival_time(parameters: dict, model: float, c
             )
 
             term1 = deriv_first[freq, :] / sc_time_freq
-            term2 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-            term3 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+            term2 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+            term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
             deriv_mod[freq, :] = term1 + term2 + term3
 
     return deriv_mod
 
 def deriv2_model_wrt_arrival_time_dm(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the arrival-time and 
+    Computes the mixed partial derivative of the model with respect to the arrival-time and
     DM parameters.
 
     Parameters
@@ -1902,10 +2034,10 @@ def deriv2_model_wrt_arrival_time_dm(parameters: dict, model: float, component: 
         The mixed derivative of the model evaluated over time and frequency
     """
 
-    amplitude = parameters["amplitude"][component]
     burst_width = parameters["burst_width"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
+    current_amplitude = model.amplitude_per_component[:, :, component]
     deriv_first = deriv_model_wrt_dm(parameters, model, component, add_all = False)
     deriv_mod = np.zeros(current_model.shape, dtype=float)
     dm = parameters["dm"][0] # global parameter.
@@ -1913,25 +2045,21 @@ def deriv2_model_wrt_arrival_time_dm(parameters: dict, model: float, component: 
     ref_freq = parameters["ref_freq"][component]
     sc_index = parameters["scattering_index"][0]
     sc_time = parameters["scattering_timescale"][0]
-    spectral_index = parameters["spectral_index"][component]
-    spectral_running = parameters["spectral_running"][component]
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
+
+    deriv_mod = np.zeros(current_model.shape, dtype=float)
 
     # now loop over each frequency and compute mixed-derivative array per channel.
     deriv_timediff_wrt_dm = deriv_time_dm("dm", model.freqs, ref_freq, dm, dm_index)
 
     for freq in range(current_model.shape[0]):
-        freq_ratio = model.freqs[freq] / ref_freq
-        sc_time_freq = sc_time * freq_ratio ** sc_index
+        sc_time_freq = sc_time * (model.freqs[freq] / ref_freq) ** sc_index
 
-        if sc_time_freq < np.fabs(0.15 * burst_width):
+        if sc_time_freq == 0.0:
             deriv_mod[freq, :] = current_timediff[freq, :] * deriv_first[freq, :] / burst_width ** 2
             deriv_mod[freq, :] += deriv_timediff_wrt_dm[freq] * current_model[freq, :] / burst_width ** 2
 
         else:
-            # adjust time-difference values to make them friendly for error function.
-            current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
             deriv_arg_erf = deriv_argument_erf(
                 "arrival_time", model.freqs[freq], current_timediff[freq, :], parameters, component
@@ -1945,15 +2073,15 @@ def deriv2_model_wrt_arrival_time_dm(parameters: dict, model: float, component: 
 
             # now define terms that contriubte to mixed-partial derivative.
             term1 = deriv_first[freq, :] / sc_time_freq
-            term2 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-            term3 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+            term2 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+            term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
             deriv_mod[freq, :] = term1 + term2 + term3
 
     return deriv_mod
 
 def deriv2_model_wrt_arrival_time_dm_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the arrival-time and 
+    Computes the mixed partial derivative of the model with respect to the arrival-time and
     DM-index parameters.
 
     Parameters
@@ -1976,7 +2104,7 @@ def deriv2_model_wrt_arrival_time_dm_index(parameters: dict, model: float, compo
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
     dm = parameters["dm"][0] # global parameter.
-    dm_const = 4149.377593360996
+    dm_const = general["constants"]["dispersion"]
     dm_index = parameters["dm_index"][0] # global parameter.
     ref_freq = parameters["ref_freq"][component]
 
@@ -1988,7 +2116,7 @@ def deriv2_model_wrt_arrival_time_dm_index(parameters: dict, model: float, compo
 
 def deriv2_model_wrt_arrival_time_scattering_timescale(parameters: dict, model: float, component: int = 0):
     """
-    Computes the mixed partial derivative of the model with respect to the arrival-time and 
+    Computes the mixed partial derivative of the model with respect to the arrival-time and
     scattering-timescale parameters.
 
     Parameters
@@ -2007,30 +2135,24 @@ def deriv2_model_wrt_arrival_time_scattering_timescale(parameters: dict, model: 
         The mixed derivative of the model evaluated over time and frequency
     """
 
-    amplitude = parameters["amplitude"][component]
     burst_width = parameters["burst_width"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
+    current_amplitude = model.amplitude_per_component[:, :, component]
     deriv_first = deriv_model_wrt_scattering_timescale(parameters, model, component, add_all = False)
-    deriv_mod = np.zeros(current_model.shape)
     dm = parameters["dm"][0] # global parameter.
     dm_index = parameters["dm_index"][0] # global parameter.
     ref_freq = parameters["ref_freq"][component]
     dm_index = parameters["dm_index"][0] # global parameter.
     sc_time = parameters["scattering_timescale"][0] # global parameter.
     sc_index = parameters["scattering_index"][0] # global parameter.
-    spectral_index = parameters["spectral_index"][component] # global parameter.
-    spectral_running = parameters["spectral_running"][component] # global parameter.
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
 
-    # adjust time-difference values to make them friendly for error function.
-    current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
+    deriv_mod = np.zeros(current_model.shape)
 
     # now loop over each frequency and compute mixed-derivative array per channel.
     for freq in range(current_model.shape[0]):
-        freq_ratio = model.freqs[freq] / ref_freq
-        sc_time_freq = sc_time * freq_ratio ** sc_index
-        spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-        spectrum *= freq_ratio ** (-sc_index)
+        sc_time_freq = sc_time * (model.freqs[freq] / ref_freq) ** sc_index
         arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
         deriv_arg_erf = deriv_argument_erf(
             "arrival_time", model.freqs[freq], current_timediff[freq, :], parameters, component
@@ -2045,15 +2167,15 @@ def deriv2_model_wrt_arrival_time_scattering_timescale(parameters: dict, model: 
         # now define terms that contriubte to mixed-partial derivative.
         term1 = -model.spectrum_per_component[freq, :, component] / sc_time / sc_time_freq
         term2 = deriv_first[freq, :] / sc_time_freq
-        term3 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-        term4 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+        term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+        term4 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
         deriv_mod[freq, :] = term1 + term2 + term3 + term4
 
     return deriv_mod
 
 def deriv2_model_wrt_arrival_time_scattering_index(parameters: dict, model: float, component: int = 0):
     """
-    Computes the mixed partial derivative of the model with respect to the arrival-time and 
+    Computes the mixed partial derivative of the model with respect to the arrival-time and
     scattering-index parameters.
 
     Parameters
@@ -2072,50 +2194,48 @@ def deriv2_model_wrt_arrival_time_scattering_index(parameters: dict, model: floa
         The mixed derivative of the model evaluated over time and frequency
     """
 
-    amplitude = parameters["amplitude"][component]
     burst_width = parameters["burst_width"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
+    current_amplitude = model.amplitude_per_component[:, :, component]
     deriv_first = deriv_model_wrt_scattering_index(parameters, model, component, add_all = False)
     deriv_mod = np.zeros(current_model.shape)
     dm = parameters["dm"][0] # global parameter.
     dm_index = parameters["dm_index"][0] # global parameter.
     ref_freq = parameters["ref_freq"][component]
-    dm_index = parameters["dm_index"][0] # global parameter.
     sc_time = parameters["scattering_timescale"][0] # global parameter.
     sc_index = parameters["scattering_index"][0] # global parameter.
-    spectral_index = parameters["spectral_index"][component] # global parameter.
-    spectral_running = parameters["spectral_running"][component] # global parameter.
-
-    # adjust time-difference values to make them friendly for error function.
-    current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
 
     # now loop over each frequency and compute mixed-derivative array per channel.
     for freq in range(current_model.shape[0]):
         freq_ratio = model.freqs[freq] / ref_freq
         sc_time_freq = sc_time * freq_ratio ** sc_index
-        spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-        spectrum *= freq_ratio ** (-sc_index)
-        erf_arg = (current_timediff[freq, :] - burst_width ** 2 / sc_time_freq) / burst_width / np.sqrt(2)
-        erf_arg_deriv = burst_width * np.log(freq_ratio) / sc_time_freq / np.sqrt(2)
-        exp_arg = burst_width ** 2 / 2 / sc_time_freq ** 2 - \
-                  current_timediff[freq, :] / sc_time_freq - erf_arg ** 2
+
+        amp_pbf_deriv = deriv_amplitude_pbf("scattering_index", model.freqs[freq], parameters, component)
+
+        erf_arg = (current_timediff[freq, :] / burst_width - burst_width / sc_time_freq) / np.sqrt(2)
+        erf_arg_deriv1 = -1.0 / (burst_width * np.sqrt(2))
+        erf_arg_deriv2 = np.log(freq_ratio) * burst_width / (sc_time_freq * np.sqrt(2))
+
+        exp_arg = burst_width ** 2 / 2 / sc_time_freq ** 2 - current_timediff[freq, :] / sc_time_freq - erf_arg ** 2
         exp_arg_deriv = -burst_width ** 2 * np.log(freq_ratio) / sc_time_freq ** 2 + \
                         current_timediff[freq, :] * np.log(freq_ratio) / sc_time_freq - \
-                        2 * erf_arg * erf_arg_deriv
+                        2 * erf_arg * erf_arg_deriv2
 
         # now define terms that contriubte to mixed-partial derivative.
         term1 = -model.spectrum_per_component[freq, :, component] * np.log(freq_ratio) / sc_time_freq
         term2 = deriv_first[freq, :] / sc_time_freq
-        term3 = np.sqrt(2 / np.pi) * spectrum * np.exp(exp_arg) * np.log(freq_ratio) / burst_width 
-        term4 = -np.sqrt(2 / np.pi) * spectrum * np.exp(exp_arg) * exp_arg_deriv / burst_width
+        term3 = 2.0 * current_amplitude[freq, :] * np.exp(exp_arg) * amp_pbf_deriv * erf_arg_deriv1 /  np.sqrt(np.pi)
+        term4 = 2.0 * current_amplitude[freq, :] * np.exp(exp_arg) * amp_pbf[freq] * erf_arg_deriv1 * exp_arg_deriv / np.sqrt(np.pi)
+
         deriv_mod[freq, :] = term1 + term2 + term3 + term4
 
     return deriv_mod
 
 def deriv2_model_wrt_dm_dm_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the arrival-time and 
+    Computes the mixed partial derivative of the model with respect to the arrival-time and
     DM parameters.
 
     Parameters
@@ -2137,7 +2257,8 @@ def deriv2_model_wrt_dm_dm_index(parameters: dict, model: float, component: int 
     burst_width = parameters["burst_width"][component]
     current_model = model.spectrum_per_component[:, :, component]
     current_timediff = model.timediff_per_component[:, :, component]
-    dm_const = 4149.377593360996
+    dm_const = general["constants"]["dispersion"]
+    dm = parameters["dm"][0] # global parameter.
     dm_index = parameters["dm_index"][0] # global parameter.
     ref_freq = parameters["ref_freq"][component]
 
@@ -2150,10 +2271,10 @@ def deriv2_model_wrt_dm_dm_index(parameters: dict, model: float, component: int 
                  np.log(ref_freq) * ref_freq ** dm_index) * current_timediff * current_model / burst_width ** 2
 
     return deriv_mod
-   
+
 def deriv2_model_wrt_dm_dm(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the arrival-time and 
+    Computes the mixed partial derivative of the model with respect to the arrival-time and
     DM parameters.
 
     Parameters
@@ -2179,14 +2300,13 @@ def deriv2_model_wrt_dm_dm(parameters: dict, model: float, component: int = 0) -
     sc_time = parameters["scattering_timescale"][0]
 
     for current_component in range(model.spectrum_per_component.shape[2]):
-        amplitude = parameters["amplitude"][current_component]
         burst_width = parameters["burst_width"][current_component]
         current_model = model.spectrum_per_component[:, :, current_component]
         current_timediff = model.timediff_per_component[:, :, current_component]
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
         deriv_first = deriv_model_wrt_dm(parameters, model, current_component, add_all = False)
         ref_freq = parameters["ref_freq"][current_component]
-        spectral_index = parameters["spectral_index"][current_component]
-        spectral_running = parameters["spectral_running"][current_component]
+        amp_pbf = amplitude_pbf(model.freqs, parameters, current_component)
 
         # now loop over each frequency and compute mixed-derivative array per channel.
         deriv_timediff_wrt_dm = deriv_time_dm("dm", model.freqs, ref_freq, dm, dm_index)
@@ -2196,16 +2316,12 @@ def deriv2_model_wrt_dm_dm(parameters: dict, model: float, component: int = 0) -
             freq_diff = model.freqs[freq] ** dm_index - ref_freq ** dm_index
             sc_time_freq = sc_time * freq_ratio ** sc_index
 
-            if sc_time_freq < np.fabs(0.15 * burst_width):
+            if sc_time_freq == 0.0:
                 deriv_mod_int[freq, :, current_component] = (deriv_timediff_wrt_dm[freq] * current_timediff[freq, :]) ** 2 * \
                     current_model[freq, :] / burst_width ** 4
                 deriv_mod_int[freq, :, current_component] -= (deriv_timediff_wrt_dm[freq] / burst_width) ** 2 * current_model[freq, :]
 
             else:
-                # adjust time-difference values to make them friendly for error function.
-                current_timediff[current_timediff < -5 * burst_width] = -5 * burst_width
-                spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-                spectrum *= freq_ratio ** (-sc_index)
                 arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
                 deriv_arg_erf = deriv_argument_erf(
                     "dm", model.freqs[freq], current_timediff[freq, :], parameters, current_component
@@ -2218,8 +2334,8 @@ def deriv2_model_wrt_dm_dm(parameters: dict, model: float, component: int = 0) -
                 )
 
                 term1 = -deriv_timediff_wrt_dm[freq] * deriv_first[freq, :] / sc_time_freq
-                term2 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-                term3 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi) 
+                term2 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+                term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
                 deriv_mod_int[freq, :, current_component] = term1 + term2 + term3
 
     return np.sum(deriv_mod_int, axis = 2)
@@ -2253,19 +2369,16 @@ def deriv2_model_wrt_scattering_timescale_scattering_timescale(parameters: dict,
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
 
     for current_component in range(num_component):
-        amplitude = parameters["amplitude"][current_component]
         burst_width = parameters["burst_width"][current_component]
         current_timediff = model.timediff_per_component[:, : , current_component]
-        deriv_first = deriv_model_wrt_dm_index(parameters, model, current_component, add_all = False)
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
+        deriv_first = deriv_model_wrt_scattering_timescale(parameters, model, current_component, add_all = False)
         ref_freq = parameters["ref_freq"][current_component]
-        spectral_index = parameters["spectral_index"][current_component]
-        spectral_running = parameters["spectral_running"][current_component]
+        amp_pbf = amplitude_pbf(model.freqs, parameters, current_component)
 
         for freq in range(num_freq):
             freq_ratio = model.freqs[freq] / ref_freq
             sc_time_freq = sc_time * freq_ratio ** sc_index
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
             deriv_arg_erf = deriv_argument_erf(
                 "scattering_timescale", model.freqs[freq], current_timediff[freq, :], parameters, current_component
@@ -2283,8 +2396,8 @@ def deriv2_model_wrt_scattering_timescale_scattering_timescale(parameters: dict,
                            (-current_timediff[freq, :] / sc_time_freq + 2 * (burst_width / sc_time_freq) ** 2) / sc_time ** 2
             term1 = term0_deriv * model.spectrum_per_component[freq, :, current_component]
             term2 = term0 * deriv_first[freq, :]
-            term3 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-            term4 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+            term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+            term4 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
 
             deriv_mod_int[freq, :, current_component] = term1 + term2 + term3 + term4
 
@@ -2319,41 +2432,48 @@ def deriv2_model_wrt_scattering_timescale_scattering_index(parameters: dict, mod
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
 
     for current_component in range(num_component):
-        amplitude = parameters["amplitude"][current_component]
         burst_width = parameters["burst_width"][current_component]
         current_timediff = model.timediff_per_component[:, : , current_component]
-        deriv_first = deriv_model_wrt_scattering_index(parameters, model, current_component, add_all = False)
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
+        deriv_model2 = deriv_model_wrt_scattering_index(parameters, model, current_component, add_all = False)
         ref_freq = parameters["ref_freq"][current_component]
-        spectral_index = parameters["spectral_index"][current_component]
-        spectral_running = parameters["spectral_running"][current_component]
+
+        amp_pbf = amplitude_pbf(model.freqs, parameters, current_component)
 
         for freq in range(num_freq):
             freq_ratio = model.freqs[freq] / ref_freq
             sc_time_freq = sc_time * freq_ratio ** sc_index
-            term0 = (-1 / sc_time - burst_width ** 2 / sc_time_freq ** 2 / sc_time + current_timediff[freq, :] / \
-                    sc_time / sc_time_freq)
-            term0_deriv = 2 * (burst_width / sc_time_freq) ** 2 / sc_time * np.log(freq_ratio) - \
-                          current_timediff[freq, :] * np.log(freq_ratio) / sc_time_freq / sc_time
+
             erf_arg = (current_timediff[freq, :] / burst_width - burst_width / sc_time_freq) / np.sqrt(2)
-            erf_arg_deriv = burst_width * np.log(freq_ratio) / sc_time_freq / np.sqrt(2)
+            erf_arg_deriv1 = burst_width / (np.sqrt(2.0) * sc_time * sc_time_freq)
+            erf_arg_deriv2 = burst_width * np.log(freq_ratio) / sc_time_freq / np.sqrt(2)
+            erf_arg_deriv12 = -np.log(freq_ratio) * erf_arg_deriv1
+
+            amp_pbf_deriv2 = deriv_amplitude_pbf(
+                "scattering_index", model.freqs[freq], parameters, current_component
+            )
+
             exp_arg = (burst_width / sc_time_freq) ** 2 / 2 - current_timediff[freq, :] / sc_time_freq - erf_arg ** 2
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
-            exp_arg_deriv = -(burst_width / sc_time_freq) ** 2 * np.log(freq_ratio) + current_timediff[freq, :] * \
-                            np.log(freq_ratio) / sc_time_freq - 2 * erf_arg * erf_arg_deriv
+            exp_arg_deriv2 = (-(burst_width / sc_time_freq) ** 2 * np.log(freq_ratio) +
+                              current_timediff[freq, :] * np.log(freq_ratio) / sc_time_freq - 2 * erf_arg * erf_arg_deriv2)
 
-            term1 = term0_deriv * model.spectrum_per_component[freq, :, current_component]
-            term2 = term0 * deriv_first[freq, :]
-            term3 = -np.sqrt(2 / np.pi) * spectrum * burst_width * np.log(freq_ratio) * np.exp(exp_arg) / sc_time_freq / sc_time
-            term4 = np.sqrt(2 / np.pi) * spectrum * burst_width * np.exp(exp_arg) * exp_arg_deriv / sc_time_freq / sc_time
+            term0 = (-burst_width ** 2 / sc_time_freq ** 2 / sc_time + current_timediff[freq, :] / sc_time / sc_time_freq)
+            term0_deriv2 = (2 * (burst_width / sc_time_freq) ** 2 / sc_time * np.log(freq_ratio) -
+                            current_timediff[freq, :] * np.log(freq_ratio) / sc_time_freq / sc_time)
 
-            deriv_mod_int[freq, :, current_component] = term1 + term2 + term3 + term4
+            term1 = term0_deriv2 * model.spectrum_per_component[freq, :, current_component]
+            term2 = term0 * deriv_model2[freq, :]
+            term3 = 2.0 * current_amplitude[freq, :] * np.exp(exp_arg) * amp_pbf_deriv2 * erf_arg_deriv1 /  np.sqrt(np.pi)
+            term4 = 2.0 * current_amplitude[freq, :] * np.exp(exp_arg) * amp_pbf[freq] * erf_arg_deriv1 * exp_arg_deriv2 / np.sqrt(np.pi)
+            term5 = 2.0 * current_amplitude[freq, :] * np.exp(exp_arg) * amp_pbf[freq] * erf_arg_deriv12 / np.sqrt(np.pi)
+
+            deriv_mod_int[freq, :, current_component] = term1 + term2 + term3 + term4 + term5
 
     return np.sum(deriv_mod_int, axis = 2)
 
 def deriv2_model_wrt_scattering_timescale_dm(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the scattering_timescale 
+    Computes the mixed partial derivative of the model with respect to the scattering_timescale
     and DM parameters.
 
     Parameters
@@ -2381,22 +2501,19 @@ def deriv2_model_wrt_scattering_timescale_dm(parameters: dict, model: float, com
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
 
     for current_component in range(num_component):
-        amplitude = parameters["amplitude"][current_component]
         burst_width = parameters["burst_width"][current_component]
         current_model = model.spectrum_per_component[:, :, current_component]
         current_timediff = model.timediff_per_component[:, : , current_component]
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
         deriv_first = deriv_model_wrt_scattering_timescale(parameters, model, current_component, add_all = False)
         ref_freq = parameters["ref_freq"][current_component]
-        spectral_index = parameters["spectral_index"][current_component]
-        spectral_running = parameters["spectral_running"][current_component]
         deriv_timediff_wrt_dm = deriv_time_dm("dm", model.freqs, ref_freq, dm, dm_index)
+        amp_pbf = amplitude_pbf(model.freqs, parameters, current_component)
 
         # TODO: replace lines below.
         for freq in range(num_freq):
             freq_ratio = model.freqs[freq] / ref_freq
             sc_time_freq = sc_time * freq_ratio ** sc_index
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             arg_exp = argument_exp(burst_width, current_timediff[freq, :], sc_time_freq)
             deriv_arg_erf = deriv_argument_erf(
                 "dm", model.freqs[freq], current_timediff[freq, :], parameters, current_component
@@ -2410,8 +2527,8 @@ def deriv2_model_wrt_scattering_timescale_dm(parameters: dict, model: float, com
 
             term1 = -deriv_timediff_wrt_dm[freq] * deriv_first[freq, :] / sc_time_freq
             term2 = deriv_timediff_wrt_dm[freq] * current_model[freq, :] / sc_time / sc_time_freq
-            term3 = spectrum * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
-            term4 = spectrum * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
+            term3 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv2_arg_erf * 2 / np.sqrt(np.pi)
+            term4 = current_amplitude[freq, :] * amp_pbf[freq] * np.exp(arg_exp) * deriv_arg_erf * deriv_arg_exp * 2 / np.sqrt(np.pi)
 
             deriv_mod_int[freq, :, current_component] = term1 + term2 + term3 + term4
 
@@ -2419,7 +2536,7 @@ def deriv2_model_wrt_scattering_timescale_dm(parameters: dict, model: float, com
 
 def deriv2_model_wrt_scattering_timescale_dm_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the scattering_timescale 
+    Computes the mixed partial derivative of the model with respect to the scattering_timescale
     and DM-index parameters.
 
     Parameters
@@ -2440,7 +2557,7 @@ def deriv2_model_wrt_scattering_timescale_dm_index(parameters: dict, model: floa
 
     # get dimensions and define empty model-derivative matrix.
     dm = parameters["dm"][0]
-    dm_const = 4149.377593360996
+    dm_const = general["constants"]["dispersion"]
     dm_index = parameters["dm_index"][0]
     num_freq, num_time, num_component = model.spectrum_per_component.shape
     sc_index = parameters["scattering_index"][0]
@@ -2448,13 +2565,12 @@ def deriv2_model_wrt_scattering_timescale_dm_index(parameters: dict, model: floa
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
 
     for current_component in range(num_component):
-        amplitude = parameters["amplitude"][current_component]
         burst_width = parameters["burst_width"][current_component]
         current_timediff = model.timediff_per_component[:, : , current_component]
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
         deriv_first = deriv_model_wrt_dm_index(parameters, model, current_component, add_all = False)
         ref_freq = parameters["ref_freq"][current_component]
-        spectral_index = parameters["spectral_index"][current_component]
-        spectral_running = parameters["spectral_running"][current_component]
+        amp_pbf = amplitude_pbf(model.freqs, parameters, current_component)
 
         for freq in range(num_freq):
             freq_ratio = model.freqs[freq] / ref_freq
@@ -2467,13 +2583,11 @@ def deriv2_model_wrt_scattering_timescale_dm_index(parameters: dict, model: floa
             erf_arg = (current_timediff[freq, :] / burst_width - burst_width / sc_time_freq) / np.sqrt(2)
             erf_arg_deriv = -dm_const * dm * freq_diff / burst_width / np.sqrt(2)
             exp_arg = (burst_width / sc_time_freq) ** 2 / 2 - current_timediff[freq, :] / sc_time_freq - erf_arg ** 2
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             exp_arg_deriv = dm_const * dm * freq_diff / sc_time_freq - 2 * erf_arg * erf_arg_deriv
 
             term1 = term0_deriv * model.spectrum_per_component[freq, :, current_component]
             term2 = term0 * deriv_first[freq, :]
-            term3 = np.sqrt(2 / np.pi) * spectrum * burst_width * np.exp(exp_arg) * exp_arg_deriv / sc_time_freq / sc_time
+            term3 = np.sqrt(2 / np.pi) * current_amplitude[freq, :] * amp_pbf[freq] * burst_width * np.exp(exp_arg) * exp_arg_deriv / sc_time_freq / sc_time
 
             deriv_mod_int[freq, :, current_component] = term1 + term2 + term3
 
@@ -2501,7 +2615,7 @@ def deriv2_model_wrt_scattering_index_scattering_index(parameters: dict, model: 
 
     # get dimensions and define empty model-derivative matrix.
     dm = parameters["dm"][0]
-    dm_const = 4149.377593360996
+    dm_const = general["constants"]["dispersion"]
     dm_index = parameters["dm_index"][0]
     num_freq, num_time, num_component = model.spectrum_per_component.shape
     sc_index = parameters["scattering_index"][0]
@@ -2509,42 +2623,49 @@ def deriv2_model_wrt_scattering_index_scattering_index(parameters: dict, model: 
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
 
     for current_component in range(num_component):
-        amplitude = parameters["amplitude"][current_component]
         burst_width = parameters["burst_width"][current_component]
         current_timediff = model.timediff_per_component[:, : , current_component]
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
         deriv_first = deriv_model_wrt_scattering_index(parameters, model, current_component, add_all = False)
         ref_freq = parameters["ref_freq"][current_component]
-        spectral_index = parameters["spectral_index"][current_component]
-        spectral_running = parameters["spectral_running"][current_component]
+
+        amp_pbf = amplitude_pbf(model.freqs, parameters, current_component)
 
         for freq in range(num_freq):
             freq_ratio = model.freqs[freq] / ref_freq
             freq_diff = np.log(model.freqs[freq]) * model.freqs[freq] ** dm_index - \
                         np.log(ref_freq) * ref_freq ** dm_index
             sc_time_freq = sc_time * freq_ratio ** sc_index
-            term0 = -(1 + burst_width ** 2 / sc_time_freq ** 2 - current_timediff[freq, :] / sc_time_freq) * np.log(freq_ratio)
-            term0_deriv = -np.log(freq_ratio) * (-2 * np.log(freq_ratio) * (burst_width / sc_time_freq) ** 2 + \
-                          current_timediff[freq, :] * np.log(freq_ratio) / sc_time_freq)
+
+            amp_pbf_deriv = deriv_amplitude_pbf("scattering_index", model.freqs[freq], parameters, current_component)
+            amp_pbf_deriv2 = deriv2_amplitude_pbf("scattering_index", "scattering_index", model.freqs[freq], parameters, current_component)
+
             erf_arg = (current_timediff[freq, :] / burst_width - burst_width / sc_time_freq) / np.sqrt(2)
             erf_arg_deriv = burst_width * np.log(freq_ratio) / sc_time_freq / np.sqrt(2)
+            erf_arg_deriv2 = -burst_width * np.log(freq_ratio) ** 2 / sc_time_freq / np.sqrt(2)
+
             exp_arg = (burst_width / sc_time_freq) ** 2 / 2 - current_timediff[freq, :] / sc_time_freq - erf_arg ** 2
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             exp_arg_deriv = -np.log(freq_ratio) * (burst_width / sc_time_freq) ** 2 + \
                             current_timediff[freq, :] * np.log(freq_ratio) / sc_time_freq - 2 * erf_arg * erf_arg_deriv
 
+            term0 = amp_pbf_deriv / amp_pbf[freq] - (burst_width ** 2 / sc_time_freq ** 2 - current_timediff[freq, :] / sc_time_freq) * np.log(freq_ratio)
+            term0_deriv = (amp_pbf_deriv2 / amp_pbf[freq] - (amp_pbf_deriv / amp_pbf[freq]) ** 2 -
+                           np.log(freq_ratio) * (-2 * np.log(freq_ratio) * (burst_width / sc_time_freq) ** 2 +
+                                                  current_timediff[freq, :] * np.log(freq_ratio) / sc_time_freq))
+
             term1 = term0_deriv * model.spectrum_per_component[freq, :, current_component]
             term2 = term0 * deriv_first[freq, :]
-            term3 = -np.sqrt(2 / np.pi) * spectrum * burst_width * np.exp(exp_arg) * np.log(freq_ratio) ** 2 / sc_time_freq 
-            term4 = np.sqrt(2 / np.pi) * spectrum * burst_width * np.exp(exp_arg) * np.log(freq_ratio) * exp_arg_deriv / sc_time_freq 
+            term3 = 2.0 * current_amplitude[freq, :] * np.exp(exp_arg) * amp_pbf_deriv * erf_arg_deriv /  np.sqrt(np.pi)
+            term4 = 2.0 * current_amplitude[freq, :] * np.exp(exp_arg) * amp_pbf[freq] * erf_arg_deriv * exp_arg_deriv / np.sqrt(np.pi)
+            term5 = 2.0 * current_amplitude[freq, :] * np.exp(exp_arg) * amp_pbf[freq] * erf_arg_deriv2 / np.sqrt(np.pi)
 
-            deriv_mod_int[freq, :, current_component] = term1 + term2 + term3 + term4
+            deriv_mod_int[freq, :, current_component] = term1 + term2 + term3 + term4 + term5
 
     return np.sum(deriv_mod_int, axis = 2)
 
 def deriv2_model_wrt_scattering_index_dm(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the scattering-index 
+    Computes the mixed partial derivative of the model with respect to the scattering-index
     and DM parameters.
 
     Parameters
@@ -2565,7 +2686,7 @@ def deriv2_model_wrt_scattering_index_dm(parameters: dict, model: float, compone
 
     # get dimensions and define empty model-derivative matrix.
     dm = parameters["dm"][0]
-    dm_const = 4149.377593360996
+    dm_const = general["constants"]["dispersion"]
     dm_index = parameters["dm_index"][0]
     num_freq, num_time, num_component = model.spectrum_per_component.shape
     sc_index = parameters["scattering_index"][0]
@@ -2573,13 +2694,12 @@ def deriv2_model_wrt_scattering_index_dm(parameters: dict, model: float, compone
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
 
     for current_component in range(num_component):
-        amplitude = parameters["amplitude"][current_component]
         burst_width = parameters["burst_width"][current_component]
         current_timediff = model.timediff_per_component[:, : , current_component]
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
         deriv_first = deriv_model_wrt_dm(parameters, model, current_component, add_all = False)
         ref_freq = parameters["ref_freq"][current_component]
-        spectral_index = parameters["spectral_index"][current_component]
-        spectral_running = parameters["spectral_running"][current_component]
+        amp_pbf = amplitude_pbf(model.freqs, parameters, current_component)
 
         for freq in range(num_freq):
             freq_ratio = model.freqs[freq] / ref_freq
@@ -2590,20 +2710,18 @@ def deriv2_model_wrt_scattering_index_dm(parameters: dict, model: float, compone
             erf_arg = (current_timediff[freq, :] / burst_width - burst_width / sc_time_freq) / np.sqrt(2)
             erf_arg_deriv = -dm_const * freq_diff / burst_width / np.sqrt(2)
             exp_arg = (burst_width / sc_time_freq) ** 2 / 2 - current_timediff[freq, :] / sc_time_freq - erf_arg ** 2
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             exp_arg_deriv = dm_const * freq_diff / sc_time_freq - 2 * erf_arg * erf_arg_deriv
 
             term1 = term0_deriv * model.spectrum_per_component[freq, :, current_component]
             term2 = term0 * deriv_first[freq, :]
-            term3 = np.sqrt(2 / np.pi) * spectrum * burst_width * np.exp(exp_arg) * np.log(freq_ratio) * exp_arg_deriv / sc_time_freq 
+            term3 = np.sqrt(2 / np.pi) * current_amplitude[freq, :] * amp_pbf[freq] * burst_width * np.exp(exp_arg) * np.log(freq_ratio) * exp_arg_deriv / sc_time_freq
             deriv_mod_int[freq, :, current_component] = term1 + term2 + term3
 
     return np.sum(deriv_mod_int, axis = 2)
 
 def deriv2_model_wrt_scattering_index_dm_index(parameters: dict, model: float, component: int = 0) -> float:
     """
-    Computes the mixed partial derivative of the model with respect to the scattering-index 
+    Computes the mixed partial derivative of the model with respect to the scattering-index
     and DM-index parameters.
 
     Parameters
@@ -2624,7 +2742,7 @@ def deriv2_model_wrt_scattering_index_dm_index(parameters: dict, model: float, c
 
     # get dimensions and define empty model-derivative matrix.
     dm = parameters["dm"][0]
-    dm_const = 4149.377593360996
+    dm_const = general["constants"]["dispersion"]
     dm_index = parameters["dm_index"][0]
     num_freq, num_time, num_component = model.spectrum_per_component.shape
     sc_index = parameters["scattering_index"][0]
@@ -2632,13 +2750,12 @@ def deriv2_model_wrt_scattering_index_dm_index(parameters: dict, model: float, c
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
 
     for current_component in range(num_component):
-        amplitude = parameters["amplitude"][current_component]
         burst_width = parameters["burst_width"][current_component]
         current_timediff = model.timediff_per_component[:, : , current_component]
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
         deriv_first = deriv_model_wrt_dm_index(parameters, model, current_component, add_all = False)
         ref_freq = parameters["ref_freq"][current_component]
-        spectral_index = parameters["spectral_index"][current_component]
-        spectral_running = parameters["spectral_running"][current_component]
+        amp_pbf = amplitude_pbf(model.freqs, parameters, current_component)
 
         for freq in range(num_freq):
             freq_ratio = model.freqs[freq] / ref_freq
@@ -2650,13 +2767,11 @@ def deriv2_model_wrt_scattering_index_dm_index(parameters: dict, model: float, c
             erf_arg = (current_timediff[freq, :] / burst_width - burst_width / sc_time_freq) / np.sqrt(2)
             erf_arg_deriv = -dm_const * dm * freq_diff / burst_width / np.sqrt(2)
             exp_arg = (burst_width / sc_time_freq) ** 2 / 2 - current_timediff[freq, :] / sc_time_freq - erf_arg ** 2
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             exp_arg_deriv = dm_const * dm * freq_diff / sc_time_freq - 2 * erf_arg * erf_arg_deriv
 
             term1 = term0_deriv * model.spectrum_per_component[freq, :, current_component]
             term2 = term0 * deriv_first[freq, :]
-            term3 = np.sqrt(2 / np.pi) * spectrum * burst_width * np.exp(exp_arg) * np.log(freq_ratio) * exp_arg_deriv / sc_time_freq 
+            term3 = np.sqrt(2 / np.pi) * current_amplitude[freq, :] * amp_pbf[freq] * burst_width * np.exp(exp_arg) * np.log(freq_ratio) * exp_arg_deriv / sc_time_freq
             deriv_mod_int[freq, :, current_component] = term1 + term2 + term3
 
     return np.sum(deriv_mod_int, axis = 2)
@@ -2683,30 +2798,29 @@ def deriv2_model_wrt_dm_index_dm_index(parameters: dict, model: float, component
 
     # get dimensions and define empty model-derivative matrix.
     dm = parameters["dm"][0]
-    dm_const = 4149.377593360996
+    dm_const = general["constants"]["dispersion"]
     dm_index = parameters["dm_index"][0]
     num_freq, num_time, num_component = model.spectrum_per_component.shape
     sc_index = parameters["scattering_index"][0]
     sc_time = parameters["scattering_timescale"][0]
     deriv_mod_int = np.zeros((num_freq, num_time, num_component), dtype=float)
-
+    amp_pbf = amplitude_pbf(model.freqs, parameters, component)
 
     for current_component in range(num_component):
-        amplitude = parameters["amplitude"][current_component]
         burst_width = parameters["burst_width"][current_component]
         current_timediff = model.timediff_per_component[:, : , current_component]
+        current_amplitude = model.amplitude_per_component[:, :, current_component]
         deriv_first = deriv_model_wrt_dm_index(parameters, model, current_component, add_all = False)
         ref_freq = parameters["ref_freq"][current_component]
-        spectral_index = parameters["spectral_index"][current_component]
-        spectral_running = parameters["spectral_running"][current_component]
 
         for freq in range(num_freq):
             freq_ratio = model.freqs[freq] / ref_freq
+            freq_diff = np.log(model.freqs[freq]) * model.freqs[freq] ** dm_index - \
+                        np.log(ref_freq) * ref_freq ** dm_index
             sc_time_freq = sc_time * freq_ratio ** sc_index
             erf_arg = (current_timediff[freq, :] / burst_width - burst_width / sc_time_freq) / np.sqrt(2)
+            erf_arg_deriv = -dm_const * dm * freq_diff / burst_width / np.sqrt(2)
             exp_arg = (burst_width / sc_time_freq) ** 2 / 2 - current_timediff[freq, :] / sc_time_freq - erf_arg ** 2
-            spectrum = 10 ** amplitude * freq_ratio ** (spectral_index + spectral_running * np.log(freq_ratio))
-            spectrum *= freq_ratio ** (-sc_index)
             product = dm_const * dm * (np.log(model.freqs[freq]) * model.freqs[freq] ** dm_index -\
                       np.log(ref_freq) * ref_freq ** dm_index)
             product_deriv = dm_const * dm * (np.log(model.freqs[freq]) ** 2 * model.freqs[freq] ** dm_index -\
@@ -2715,8 +2829,8 @@ def deriv2_model_wrt_dm_index_dm_index(parameters: dict, model: float, component
 
             term1 = product_deriv * model.spectrum_per_component[freq, :, current_component] / sc_time_freq
             term2 = product * deriv_first[freq, :] / sc_time_freq
-            term3 = -np.sqrt(2 / np.pi) * product_deriv * spectrum * np.exp(exp_arg) / burst_width / sc_time_freq
-            term4 = -np.sqrt(2 / np.pi) * product * spectrum * np.exp(exp_arg) / burst_width / sc_time_freq * exp_arg_deriv
+            term3 = -np.sqrt(2 / np.pi) * product_deriv * current_amplitude[freq, :] * amp_pbf[freq] * np.exp(exp_arg) / burst_width / sc_time_freq
+            term4 = -np.sqrt(2 / np.pi) * product * current_amplitude[freq, :] * amp_pbf[freq] * np.exp(exp_arg) / burst_width / sc_time_freq * exp_arg_deriv
             deriv_mod_int[freq, :, current_component] = term1 + term2 + term3 + term4
 
     return np.sum(deriv_mod_int, axis = 2)

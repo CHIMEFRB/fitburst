@@ -484,6 +484,10 @@ class LSFitter:
             covariance = np.linalg.inv(0.5 * hessian)
             uncertainties = [float(x) for x in np.sqrt(np.diag(covariance)).tolist()]
 
+            if np.any(np.isnan(uncertainties)):
+                print("WARNING: one or more NaNs in exact uncertainties, replacing with approximates...")
+                uncertainties = [float(x) for x in np.sqrt(np.diag(covariance_approx)).tolist()]
+
             self.covariance_approx = covariance_approx
             self.covariance = covariance
             self.covariance_labels = par_labels
