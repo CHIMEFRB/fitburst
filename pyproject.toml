@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fitburst"
-version = "0.1.0"
+version = "0.1.1"
 description = "fitburst - A Codebase for Direct Modeling of Radio Dynamic Spectra"
 authors = ["Emmanuel Fonseca <emmanuel.fonseca@mail.wvu.edu>"]
 license = "MIT"
