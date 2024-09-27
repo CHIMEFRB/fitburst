@@ -215,15 +215,7 @@ class SpectrumModeler:
                         self.factor_time_upsample
                     )
 
-                # first, adjust scattering timescale to current frequency label(s).
-                current_sc_time_scaled = rt.ism.compute_time_scattering(
-                    current_freq_arr,
-                    current_ref_freq,
-                    current_sc_time,
-                    current_sc_idx
-                )
-
-                # second, compute raw temporal profile.
+                # next, compute and store raw temporal profile.
                 current_profile = self.compute_profile(
                     current_times_arr,
                     0.0, # since 'current_times' is already corrected for DM.
@@ -240,7 +232,7 @@ class SpectrumModeler:
                     self.factor_time_upsample
                 )
 
-                # third, compute and scale profile by spectral energy distribution.
+                # next, compute and scale profile by the spectral energy distribution.
                 current_profile *= rt.spectrum.compute_spectrum_rpl(
                     current_freq_arr,
                     current_ref_freq,
