@@ -20,20 +20,22 @@ Please refer to the documentation linked above to find desciptions on the codeba
 The theory behind the modeling and analysis routines is presented in a publication currently under review, [but available on the arXiv](https://arxiv.org/abs/2311.05829). This publication includes a variety of fitting examples and discussions on the treatment of biasing effects (e.g., intra-channel smearing from pulse dispersion) that can be accounted for within `fitburst`. If you use this codebase and publish results obtained with it, we ask that you cite the `fitburst` publication using the following BibTex entry:
 
 ``` python
-@article{fpb+23,
-       author = {{Fonseca}, Emmanuel and {Pleunis}, Ziggy and {Breitman}, Daniela and {Sand}, Ketan R. and {Kharel}, Bikash and {Boyle}, Patrick J. and {Brar}, Charanjot and {Giri}, Utkarsh and {Kaspi}, Victoria M. and {Masui}, Kiyoshi W. and {Meyers}, Bradley W. and {Patel}, Chitrang and {Scholz}, Paul and {Smith}, Kendrick},
+@article{fpb+24,
+       author = {{Fonseca}, E. and {Pleunis}, Z. and {Breitman}, D. and {Sand}, K.~R. and {Kharel}, B. and {Boyle}, P.~J. and {Brar}, C. and {Giri}, U. and {Kaspi}, V.~M. and {Masui}, K.~W. and {Meyers}, B.~W. and {Patel}, C. and {Scholz}, P. and {Smith}, K.},
         title = "{Modeling the Morphology of Fast Radio Bursts and Radio Pulsars with fitburst}",
-      journal = {arXiv e-prints},
-     keywords = {Astrophysics - High Energy Astrophysical Phenomena, Astrophysics - Instrumentation and Methods for Astrophysics},
-         year = 2023,
-        month = nov,
-          eid = {arXiv:2311.05829},
-        pages = {arXiv:2311.05829},
-          doi = {10.48550/arXiv.2311.05829},
+      journal = {\apjs},
+     keywords = {Pulsars, Radio transient sources, Interstellar medium, Interstellar scintillation, Astronomy software, 1306, 2008, 847, 855, 1855, Astrophysics - High Energy Astrophysical Phenomena, Astrophysics - Instrumentation and Methods for Astrophysics},
+         year = 2024,
+        month = apr,
+       volume = {271},
+       number = {2},
+          eid = {49},
+        pages = {49},
+          doi = {10.3847/1538-4365/ad27d6},
 archivePrefix = {arXiv},
        eprint = {2311.05829},
  primaryClass = {astro-ph.HE},
-       adsurl = {https://ui.adsabs.harvard.edu/abs/2023arXiv231105829F},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2024ApJS..271...49F},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 ```

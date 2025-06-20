@@ -198,19 +198,33 @@ class ReaderBaseClass:
 
         sys.exit("ERROR: load_data() must be defined for input data format!")
 
-    def preprocess_data(self, normalize_variance: bool = True, skewness_range: list = [-3., 3.],
-                        variance_range: list = [0.2, 0.8], variance_weight: float = 1.) -> None:
+    def preprocess_data(self, apply_cut_variance: bool = False, apply_cut_skewness: bool = False, 
+                        normalize_variance: bool = True, remove_baseline: bool = False, 
+                        skewness_range: list = [-3., 3.], variance_range: list = [0.2, 0.8], 
+                        variance_weight: float = 1.) -> None:
         """
         Applies pre-fit routines for cleaning raw dynamic spectrum (e.g., RFI-masking,
         baseline subtraction, normalization, etc.).
 
         Parameters
         ----------
+        apply_cut_variance : bool, optional
+            if True, then update mask to exclude channels with variance values that exceed 
+            the range specified in the 'variance_range' list
+
+        apply_cut_skewness : bool, optional
+            if True, then update mask to exclude channels with skewness values that exceed 
+            the range specified in the 'skewness_range' list
+
         normalize_variance: bool, optional
+            if true, then normalize variances relative to the largest value.
 
         skewness_range : list, optional
             a two-element list containing the range of allowed values of skewness;
             values outside of this range are flagged as RFI and removed from the data cube.
+
+        remove_baseline : bool, optional
+            if True, then renormalize data and remove baseline
 
         variance_range : list, optional
             a two-element list containing the range of allowed variances; values outside
@@ -240,13 +254,15 @@ class ReaderBaseClass:
                     print(f"ERROR: bad data value of {self.data_full[idx_freq, :].min()} in channel {idx_freq}!")
                     good_freq[idx_freq] = False
 
-        # normalize data and remove baseline.
+        # if desired, normalize data and remove baseline.
         mean_spectrum = np.sum(self.data_full * self.data_weights, -1)
         #good_freq[np.where(mean_spectrum == 0.)] = False
         mean_spectrum[good_freq] /= mask_freq[good_freq]
-        self.data_full[good_freq] /= mean_spectrum[good_freq][:, None]
-        self.data_full[good_freq] -= 1
-        self.data_full[np.logical_not(self.data_weights)] = 0
+
+        if remove_baseline:
+            self.data_full[good_freq] /= mean_spectrum[good_freq][:, None]
+            self.data_full[good_freq] -= 1
+            self.data_full[np.logical_not(self.data_weights)] = 0
 
         # compute variance and skewness of data.
         variance = np.sum(self.data_full ** 2, -1)
@@ -262,15 +278,15 @@ class ReaderBaseClass:
             variance[good_freq] /= np.max(variance[good_freq])
 
         # now update good-frequencies list based on variance/skewness thresholds.
-        good_freq = np.logical_and(good_freq, (variance / variance_weight < variance_range[1]))
+        if apply_cut_variance: 
+            good_freq = np.logical_and(good_freq, (variance / variance_weight < variance_range[1]))
+            good_freq = np.logical_and(good_freq, (variance / variance_weight > variance_range[0]))
 
-        good_freq = np.logical_and(good_freq, (variance / variance_weight > variance_range[0]))
-
-        good_freq = np.logical_and(good_freq,
-                                   (skewness < skewness_mean + skewness_range[1] * skewness_std))
-
-        good_freq = np.logical_and(good_freq,
-                                   (skewness > skewness_mean + skewness_range[0] * skewness_std))
+        if apply_cut_skewness:
+            good_freq = np.logical_and(good_freq,
+                                       (skewness < skewness_mean + skewness_range[1] * skewness_std))
+            good_freq = np.logical_and(good_freq,
+                                       (skewness > skewness_mean + skewness_range[0] * skewness_std))
 
         # finally, downweight zapped channels.
         self.data_full[np.logical_not(good_freq)] = 0.
