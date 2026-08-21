@@ -566,7 +566,9 @@ for current_iteration in range(num_iterations):
                         "fit_statistics": fitter.fit_statistics,
                         "fit_logistics" : {
                             "weight_range" : weight_range,
-                        }
+                        },
+                        "fit_hessian": fitter.hessian.tolist(),
+                        "fit_hessian_approx": fitter.hessian_approx.tolist(),
                     },
                     out,
                     indent=4
