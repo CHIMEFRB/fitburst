@@ -569,6 +569,7 @@ for current_iteration in range(num_iterations):
                         },
                         "fit_hessian": fitter.hessian.tolist(),
                         "fit_hessian_approx": fitter.hessian_approx.tolist(),
+                        "hessian_labels": fitter.covariance_labels
                     },
                     out,
                     indent=4
